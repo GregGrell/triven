@@ -1,19 +1,19 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795092477';
+import { decodeFit } from './fit.js?v=1795093132';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795092477';
-import { vo2FromActivity } from './vo2.js?v=1795092477';
-import { mountActivity } from './activity.js?v=1795092477';
-import { mountLog } from './log.js?v=1795092477';
-import { mountGear } from './gear.js?v=1795092477';
-import { mountClub } from './club.js?v=1795092477';
-import { mountFeed } from './feed.js?v=1795092477';
-import { perfData } from './perf.js?v=1795092477';
-import { loadData } from './load.js?v=1795092477';
-import { mountManual } from './manual.js?v=1795092477';
-import { mountCal } from './cal.js?v=1795092477';
-import { initSettings, DEFAULTS } from './settings.js?v=1795092477';
-import './edit.js?v=1795092477';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795093132';
+import { vo2FromActivity } from './vo2.js?v=1795093132';
+import { mountActivity } from './activity.js?v=1795093132';
+import { mountLog } from './log.js?v=1795093132';
+import { mountGear } from './gear.js?v=1795093132';
+import { mountClub } from './club.js?v=1795093132';
+import { mountFeed } from './feed.js?v=1795093132';
+import { perfData } from './perf.js?v=1795093132';
+import { loadData } from './load.js?v=1795093132';
+import { mountManual } from './manual.js?v=1795093132';
+import { mountCal } from './cal.js?v=1795093132';
+import { initSettings, DEFAULTS } from './settings.js?v=1795093132';
+import './edit.js?v=1795093132';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -436,3 +436,20 @@ export async function importFit(ent, row) {
   const { data } = await sb.auth.getSession();
   if (!data.session) show('auth');
 })();
+
+// GitHub Pages lets browsers cache index.html for up to 10 minutes, which can keep an old build running after an
+// update. Check for a newer build when the app opens, when it comes back to the foreground and every few minutes,
+// and load it (with a fresh URL so the cache is skipped) unless a dialog is open.
+const MY_BUILD = new URL(import.meta.url).searchParams.get('v');
+async function checkForUpdate() {
+  try {
+    const html = await (await fetch('./index.html?nc=' + Date.now(), { cache: 'no-store' })).text();
+    const live = html.match(/js\/main\.js\?v=(\d+)/)?.[1];
+    if (!live || !MY_BUILD || live === MY_BUILD) return;
+    const go = () => location.replace(location.pathname + '?build=' + live + location.hash);
+    if (!$('modal').classList.contains('open') && !$('settings')?.classList.contains('open')) go();
+    else toast('Triven has been updated. It will reload when you close this.', 6000), document.addEventListener('click', function once() { if (!$('modal').classList.contains('open')) { document.removeEventListener('click', once, true); go(); } }, true);
+  } catch { /* offline: try again later */ }
+}
+checkForUpdate(); setInterval(checkForUpdate, 5 * 60e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
