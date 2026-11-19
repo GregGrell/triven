@@ -1,0 +1,116 @@
+// Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
+import { sb, state, toast, fetchActivity } from './main.js';
+import { drawRouteMap } from './mapcanvas.js';
+import { openEditor, mediaUrls, lightbox, igFromFeed } from './edit.js';
+import { openTrim } from './trim.js';
+
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
+const SPC = { run: 'var(--run)', bike: 'var(--bike)', swim: 'var(--swim)', transition: 'var(--trans)' };
+const SPN = { run: 'Run', bike: 'Ride', swim: 'Swim', multi: 'Multisport', other: 'Workout' };
+const VIS = { private: 'Only you', club: 'Club', public: 'Public' };
+const dark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+let scope = 'me', cursor = null, io = null;
+
+export async function mountFeed(sc) {
+  scope = sc || 'me'; cursor = null;
+  const v = document.getElementById('view-feed'); v.replaceChildren();
+  const bar = el('div', { className: 'feedbar' });
+  [['me', 'Me'], ['club', 'Club'], ['everyone', 'Everyone']].forEach(([k, t]) => { const a = el('a', { className: 'chip', href: k === 'me' ? '#feed' : '#feed/' + k, textContent: t }); a.setAttribute('aria-pressed', k === scope); bar.append(a); });
+  bar.append(el('span', { className: 'muted', style: 'font-size:12px;margin-left:6px', textContent: { me: 'Your activities, newest first', club: 'You and your club mates', everyone: 'Public activities from other Triven athletes' }[scope] }));
+  const list = el('div', { className: 'feed' });
+  v.append(bar, list);
+  io?.disconnect();
+  io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.unobserve(e.target); e.target._draw?.(); } }), { rootMargin: '300px' });
+  await more(list);
+}
+
+async function more(list) {
+  list.querySelector('.more')?.remove();
+  const r = await sb.rpc('feed', { scope, before: cursor || new Date(Date.now() + 864e5).toISOString(), lim: 15 });
+  if (r.error) { list.append(el('div', { className: 'card', textContent: 'Could not load the feed: ' + r.error.message })); return; }
+  const rows = r.data || [];
+  if (!rows.length && !cursor) {
+    const msg = { me: ['Nothing here yet', 'Upload a .fit file or your Garmin export to fill your feed.', '#upload', 'Upload activities'],
+      club: ['No club activities yet', 'Join or create a club, and your club mates’ activities will appear here.', '#club', 'Clubs'],
+      everyone: ['No public activities yet', 'Activities other athletes set to Public appear here.', null, null] }[scope];
+    const c = el('div', { className: 'card empty' }, el('h2', { textContent: msg[0] }), el('p', { className: 'sec', textContent: msg[1] }));
+    if (msg[2]) c.append(el('a', { className: 'btn primary', href: msg[2], textContent: msg[3], style: 'text-decoration:none' }));
+    list.append(c); return;
+  }
+  // signed URLs for all photos/videos on this page in one call
+  const allMedia = rows.flatMap(a => a.media || []);
+  const urls = new Map((await mediaUrls(allMedia)).map(m => [m.id, m.url]));
+  rows.forEach(a => list.append(card(a, urls, list)));
+  if (rows.length === 15) { cursor = rows[rows.length - 1].start_time; list.append(el('button', { className: 'btn more', textContent: 'Show older', onclick: () => more(list) })); }
+}
+
+function card(a, urls, list) {
+  const d = new Date(Date.parse(a.start_time) + a.utc_offset_min * 60000);
+  const when = `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()} · ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  const mine = a.owner === state.user.id;
+  const type = a.sport === 'multi' ? (a.multisport_profile === 'other' ? 'Multisport' : a.multisport_profile[0].toUpperCase() + a.multisport_profile.slice(1)) : SPN[a.sport];
+  const head = el('div', { className: 'fhead' }, el('div', { className: 'avatar', textContent: (a.athlete || '?').slice(0, 1).toUpperCase() }),
+    el('div', { style: 'flex:1' }, el('b', { textContent: mine ? 'You' : a.athlete }), el('div', { className: 'muted', style: 'font-size:12px', textContent: `${when} · ${type}${mine ? ' · ' + VIS[a.visibility] : ''}` })));
+  const c = el('div', { className: 'card fcard' }, head, el('a', { href: '#a/' + a.id, className: 'ftitle', textContent: a.name }));
+  if (a.description) c.append(el('div', { className: 'actdesc', textContent: a.description }));
+  // stats
+  const stats = el('div', { className: 'fstats' }), stat = (v, l) => stats.append(el('div', {}, el('b', { textContent: v }), el('small', { textContent: l })));
+  const t = a.sport === 'multi' ? +a.elapsed_s : +(a.moving_s || a.elapsed_s);
+  stat((a.distance_m / 1000).toFixed(2) + ' km', 'Distance'); stat(fmtDur(t), 'Time');
+  if (a.sport === 'run' && (mine || a.share?.pace !== false)) { const p = t / (a.distance_m / 1000); stat(`${Math.floor(p / 60)}:${String(Math.round(p % 60)).padStart(2, '0')} /km`, 'Pace'); }
+  if (a.sport === 'bike' && (mine || a.share?.pace !== false)) stat((a.distance_m / t * 3.6).toFixed(1) + ' km/h', 'Speed');
+  if (a.sport === 'swim') { const p = t / (a.distance_m / 100); stat(`${Math.floor(p / 60)}:${String(Math.round(p % 60)).padStart(2, '0')} /100 m`, 'Pace'); }
+  if (a.ascent_m) stat(Math.round(a.ascent_m) + ' m', 'Elevation');
+  if (a.avg_hr) stat(Math.round(a.avg_hr) + ' bpm', 'Avg HR');
+  c.append(stats);
+  if (a.sport === 'multi' && a.sections?.length) {
+    const strip = el('div', { className: 'fstrip' });
+    a.sections.forEach(s => { const i = el('i'); i.style.flex = String(Math.max(+s.elapsed_s, 20)); i.style.background = SPC[s.sport] || 'var(--trans)'; i.title = `${s.sport === 'transition' ? 'Transition' : SPN[s.sport]} · ${fmtDur(s.elapsed_s)}`; strip.append(i); });
+    c.append(strip);
+  }
+  // map + media strip
+  const media = (a.media || []).map(m => ({ ...m, url: urls.get(m.id) })).filter(m => m.url);
+  if (a.track || media.length) {
+    const row = el('div', { className: 'fmedia' + (a.track && media.length ? ' both' : '') });
+    if (a.track) {
+      const cv = el('canvas', { className: 'fmap', width: 1200, height: 560 });
+      const link = el('a', { href: '#a/' + a.id, className: 'fmapwrap' }, cv);
+      cv._draw = () => drawRouteMap(cv.getContext('2d'), a.track, 0, 0, 1200, 560, { dark: dark(), pad: 60, sectionSports: a.sections.map(s => s.sport), width: 7 });
+      row.append(link); io.observe(cv);
+    }
+    if (media.length) {
+      const g = el('div', { className: 'fthumbs n' + Math.min(media.length, 3) });
+      media.slice(0, 3).forEach((m, i) => { const t2 = m.kind === 'video' ? el('video', { src: m.url, muted: true, preload: 'metadata', playsInline: true }) : el('img', { src: m.url, alt: '', loading: 'lazy' });
+        const b = el('button', { className: 'gitem' + (m.kind === 'video' ? ' vid' : ''), type: 'button', onclick: () => lightbox(m) }, t2);
+        if (i === 2 && media.length > 3) b.append(el('span', { className: 'gmore', textContent: '+' + (media.length - 3) }));
+        g.append(b); });
+      row.append(g);
+    }
+    c.append(row);
+  }
+  // driving flag (owner only)
+  if (mine && a.flags?.length) {
+    const tb = el('button', { className: 'btn sm', textContent: 'Trim', onclick: async () => { tb.disabled = true; const dd = await fetchActivity(a.id); tb.disabled = false; openTrim(dd, () => mountFeed(scope)); } });
+    c.append(el('div', { className: 'warnbar' }, el('span', { className: 'ic', textContent: '!' }), el('span', { style: 'flex:1', textContent: `Looks like it includes driving (up to ${Math.max(...a.flags.map(f => f.maxKmh))} km/h).` }), tb));
+  }
+  // actions
+  const acts = el('div', { className: 'factions' });
+  const kudo = el('button', { className: 'btn sm' + (a.you_kudoed ? ' on' : ''), textContent: `👏 ${a.kudos || 0}`, disabled: mine, title: mine ? 'Kudos from others' : 'Give kudos' });
+  kudo.onclick = async () => { kudo.disabled = true;
+    const r = a.you_kudoed ? await sb.from('kudos').delete().eq('activity_id', a.id).eq('user_id', state.user.id) : await sb.from('kudos').insert({ activity_id: a.id });
+    kudo.disabled = false; if (r.error) { toast(r.error.message); return; }
+    a.you_kudoed = !a.you_kudoed; a.kudos += a.you_kudoed ? 1 : -1; kudo.textContent = `👏 ${a.kudos}`; kudo.classList.toggle('on', a.you_kudoed); };
+  acts.append(kudo, el('a', { className: 'btn sm', href: '#a/' + a.id, textContent: `💬 ${a.comments || 0}`, style: 'text-decoration:none' }));
+  if (mine) {
+    acts.append(el('span', { style: 'flex:1' }));
+    const ed = el('button', { className: 'btn sm', textContent: 'Edit' });
+    ed.onclick = async () => { ed.disabled = true; try { const dd = await fetchActivity(a.id); openEditor(dd, () => mountFeed(scope)); } finally { ed.disabled = false; } };
+    const ig = el('button', { className: 'btn sm primary', textContent: 'Instagram post' });
+    ig.onclick = async () => { ig.disabled = true; try { await igFromFeed(a.id); } finally { ig.disabled = false; } };
+    acts.append(ed, ig);
+  }
+  c.append(acts);
+  return c;
+}

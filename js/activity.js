@@ -129,8 +129,46 @@ function renderSegbar(){
 }
 
 // ---------- map ----------
-let mapMarker,mapProj;
+let mapMarker,mapProj,moveCursorMap=()=>{},hideCursorMap=()=>{};
+let lmap=null;
+// street map (Leaflet + CARTO tiles) when available; the SVG drawing below is the fallback
 function renderMap(){
+  if(window.L){try{return renderLeaflet()}catch(e){console.warn('map',e)}}
+  return renderSvgMap();
+}
+function renderLeaflet(){
+  const LF=window.L;
+  const host=document.getElementById('mapsvg');const note=document.getElementById('mapnote');if(note)note.hidden=true;
+  const pts=R.filter(r=>r.lat!=null);
+  if(!pts.length){if(lmap){lmap.remove();lmap=null}host.replaceChildren(Object.assign(document.createElement('div'),{className:'note',textContent:'No GPS in this activity (indoor or pool).'}));return}
+  let div=document.getElementById('lmap');
+  if(!div||!lmap||lmap._raw!==raw){if(lmap){lmap.remove();lmap=null}host.replaceChildren();div=document.createElement('div');div.id='lmap';host.append(div);
+    const isDark=matchMedia('(prefers-color-scheme: dark)').matches;
+    lmap=LF.map(div,{zoomControl:true,attributionControl:true,scrollWheelZoom:false});lmap._raw=raw;
+    LF.tileLayer(`https://{s}.basemaps.cartocdn.com/${isDark?'dark_all':'light_all'}/{z}/{x}/{y}{r}.png`,{maxZoom:19,subdomains:'abcd',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(lmap);
+    lmap._layers2=LF.layerGroup().addTo(lmap);
+    const cur=LF.circleMarker([0,0],{radius:7,color:css('--surface-1'),weight:3,fillColor:css('--cursor'),fillOpacity:1});
+    moveCursorMap=r=>{cur.setLatLng([r.lat,r.lon]);if(!lmap.hasLayer(cur))cur.addTo(lmap)};hideCursorMap=()=>{if(lmap&&lmap.hasLayer(cur))lmap.removeLayer(cur)};
+    const sub=pts.filter((p,i)=>i%2===0);
+    lmap.on('mousemove',e=>{const q=lmap.latLngToLayerPoint(e.latlng);let best=null,bd=900;for(const p of sub){const pp=lmap.latLngToLayerPoint([p.lat,p.lon]);const d=(pp.x-q.x)**2+(pp.y-q.y)**2;if(d<bd){bd=d;best=p}}best?setCursor(best):setCursor(null)});
+    lmap.on('mouseout',()=>setCursor(null));
+    setTimeout(()=>lmap.invalidateSize(),50);
+  }
+  const g=lmap._layers2;g.clearLayers();
+  const [a,b]=range(),dim=sel.kind!=='all';
+  const rank={cycling:0,running:1,swimming:1,transition:2};
+  [...S.keys()].sort((i,j)=>(rank[S[i].sport]??1)-(rank[S[j].sport]??1)).forEach(i=>{
+    const seg=pts.filter(p=>p.seg===i).map(p=>[p.lat,p.lon]);if(seg.length<2)return;
+    LF.polyline(seg,{color:colorOf(S[i].sport),weight:dim?3:4,opacity:dim?.35:.95}).addTo(g);
+    if(dim){const s2=pts.filter(p=>p.seg===i&&p.t>=a&&p.t<=b).map(p=>[p.lat,p.lon]);if(s2.length>1)LF.polyline(s2,{color:colorOf(S[i].sport),weight:5,opacity:1}).addTo(g)}
+  });
+  FLAGS.forEach(f=>{const s=pts.filter(p=>p.t>=f.t0&&p.t<=f.t1).map(p=>[p.lat,p.lon]);if(s.length>1)LF.polyline(s,{color:css('--warn'),weight:4,dashArray:'2 7'}).addTo(g)});
+  LF.circleMarker([pts[0].lat,pts[0].lon],{radius:6,color:css('--text-primary'),weight:2,fillColor:css('--accent'),fillOpacity:1}).bindTooltip('Start').addTo(g);
+  const e=pts[pts.length-1];LF.circleMarker([e.lat,e.lon],{radius:6,color:css('--text-primary'),weight:2,fillColor:css('--surface-1'),fillOpacity:1}).bindTooltip('Finish').addTo(g);
+  const fit=(dim?pts.filter(p=>p.t>=a&&p.t<=b):pts).map(p=>[p.lat,p.lon]);
+  if(fit.length>1)lmap.fitBounds(LF.latLngBounds(fit),{padding:[24,24],maxZoom:17});
+}
+function renderSvgMap(){
   const W=640,H=420,pad=22, pts=R.filter(r=>r.lat!=null);
   const lat0=d3.mean(pts,p=>p.lat)*Math.PI/180, X=p=>p.lon*Math.cos(lat0), Y=p=>-p.lat;
   const [a,b]=range(); const fit=sel.kind==='all'?pts:pts.filter(p=>p.t>=a&&p.t<=b);
@@ -160,6 +198,7 @@ function renderMap(){
   sb.append('text').attr('x',sbPx/2).attr('y',-6).attr('text-anchor','middle').attr('font-size',11).attr('fill',css('--text-secondary')).text(sbm===1000?'1 km':'100 m');
   svg.append('text').attr('x',pad).attr('y',pad+6).attr('font-size',12).attr('font-weight',600).attr('fill',css('--text-secondary')).text('N ↑');
   mapMarker=svg.append('circle').attr('r',7).attr('fill',css('--cursor')).attr('stroke',css('--surface-1')).attr('stroke-width',2.5).style('display','none');
+  moveCursorMap=r=>{const [x,y]=mapProj(r);mapMarker.attr('cx',x).attr('cy',y).style('display',null)};hideCursorMap=()=>mapMarker&&mapMarker.style('display','none');
   const del=d3.Delaunay.from(pts,p=>mapProj(p)[0],p=>mapProj(p)[1]);
   svg.on('pointermove',e=>{const m=svg.node().getScreenCTM().inverse();const pt=svg.node().createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const q=pt.matrixTransform(m);setCursor(pts[del.find(q.x,q.y)])}).on('pointerleave',()=>setCursor(null));
 }
@@ -306,8 +345,8 @@ function renderCharts(){
 }
 function setCursor(r){
   const ro=document.getElementById('readout');
-  if(!r){mapMarker&&mapMarker.style('display','none');charts.forEach(c=>{c.hair.style('display','none');c.dot.style('display','none');c.cur.firstChild.textContent=c.cur.dataset.avg});ro.replaceChildren(Object.assign(document.createElement('span'),{textContent:'Hover the charts or route'}));return}
-  if(r.lat!=null&&mapProj){const [x,y]=mapProj(r);mapMarker.attr('cx',x).attr('cy',y).style('display',null)}
+  if(!r){hideCursorMap();charts.forEach(c=>{c.hair.style('display','none');c.dot.style('display','none');c.cur.firstChild.textContent=c.cur.dataset.avg});ro.replaceChildren(Object.assign(document.createElement('span'),{textContent:'Hover the charts or route'}));return}
+  if(r.lat!=null)moveCursorMap(r);
   const [a,b]=range(),inR=r.t>=a&&r.t<=b;
   charts.forEach(c=>{const v=r[c.d.key];if(inR){c.hair.attr('x1',xScale(r.t)).attr('x2',xScale(r.t)).style('display',null);if(v!=null)c.dot.attr('cx',xScale(r.t)).attr('cy',c.y(v)).style('display',null);else c.dot.style('display','none')}
     c.cur.firstChild.textContent=v!=null?c.d.fmt(v)+' ':'– ';});

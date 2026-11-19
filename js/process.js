@@ -183,3 +183,79 @@ export function rows(streams) {
   for (let i = 0; i < n; i++) { const o = {}; for (const f of streams.fields) o[f] = streams[f][i]; out[i] = o; }
   return out;
 }
+
+// ---------- route thumbnail for feeds: ~250 points [lat, lon, section] ----------
+export function makeTrack(streams, sections, max = 250) {
+  const idx = []; for (let i = 0; i < streams.t.length; i++) if (streams.lat[i] != null && streams.lon[i] != null) idx.push(i);
+  if (idx.length < 2) return null;
+  const step = Math.max(1, Math.ceil(idx.length / max));
+  const secAt = t => { for (let i = sections.length - 1; i >= 0; i--) if (t >= sections[i].start_offset_s - 0.5) return i; return 0; };
+  const pts = [];
+  for (let k = 0; k < idx.length; k += step) { const i = idx[k]; pts.push([r(streams.lat[i], 5), r(streams.lon[i], 5), secAt(streams.t[i])]); }
+  const last = idx[idx.length - 1]; pts.push([r(streams.lat[last], 5), r(streams.lon[last], 5), secAt(streams.t[last])]);
+  return pts;
+}
+
+// ---------- stretches that look like driving ----------
+// run: faster than 6.2 m/s (22 km/h) for 20 s+; bike: faster than 16.7 m/s (60 km/h) for 45 s+ when not descending.
+export function detectDriving(sections, streams) {
+  const out = [];
+  const R = rows(streams);
+  sections.forEach((s, si) => {
+    const lim = s.sport === 'run' ? 6.2 : s.sport === 'bike' ? 16.7 : s.sport === 'swim' ? 3.5 : null;
+    const minDur = s.sport === 'bike' ? 45 : 20;
+    if (!lim) return;
+    const rs = R.filter(x => x.t >= s.start_offset_s && x.t <= s.start_offset_s + s.elapsed_s && x.speed != null);
+    let cur = null;
+    const close = () => { if (cur && cur.t1 - cur.t0 >= minDur) out.push(cur); cur = null; };
+    for (let i = 0; i < rs.length; i++) {
+      const x = rs[i];
+      // smooth over ~10 s
+      let sum = 0, n = 0; for (let j = i; j >= 0 && rs[j].t >= x.t - 10; j--) { sum += rs[j].speed; n++; }
+      const v = sum / n;
+      let descending = false;
+      if (s.sport === 'bike') { const back = rs.find(y => y.t >= x.t - 30); if (back && back.alt != null && x.alt != null && x.dist - back.dist > 100) descending = (x.alt - back.alt) / (x.dist - back.dist) < -0.03; }
+      if (v > lim && !descending) { if (cur && x.t - cur.t1 <= 15) { cur.t1 = x.t; cur.max = Math.max(cur.max, v); cur.d1 = x.dist; } else { close(); cur = { t0: x.t, t1: x.t, max: v, d0: x.dist, d1: x.dist, section: si }; } }
+      else if (cur && x.t - cur.t1 > 15) close();
+    }
+    close();
+  });
+  return out.map(d => ({ t0: r(d.t0, 0), t1: r(d.t1, 0), section: d.section, maxKmh: r(d.max * 3.6, 0), km: d.d1 != null && d.d0 != null ? r((d.d1 - d.d0) / 1000, 2) : null,
+    atEnd: d.section === sections.length - 1 && sections[d.section].start_offset_s + sections[d.section].elapsed_s - d.t1 < 120,
+    atStart: d.section === 0 && d.t0 - sections[0].start_offset_s < 120 }));
+}
+
+// ---------- trim: keep only [a, b] seconds from the original start, recompute totals ----------
+export function trimMessages(messages, a, b) {
+  const S = (messages.sessionMesgs || []).slice().sort((x, y) => x.startTime - y.startTime);
+  const t0 = +S[0].startTime, A = t0 + a * 1000, B = t0 + b * 1000;
+  const recs = (messages.recordMesgs || []).filter(x => x.timestamp && +x.timestamp >= A && +x.timestamp <= B);
+  if (recs.length < 2) throw new Error('Nothing left after trimming');
+  const d0 = recs.find(x => x.distance != null)?.distance || 0;
+  const rr = recs.map(x => ({ ...x, distance: x.distance != null ? x.distance - d0 : x.distance }));
+  const stats = (from, to, orig) => {
+    const sr = rr.filter(x => +x.timestamp >= from && +x.timestamp <= to);
+    if (!sr.length) return null;
+    const ds = sr.filter(x => x.distance != null), dist = ds.length ? ds[ds.length - 1].distance - ds[0].distance : 0;
+    const el = (to - from) / 1000;
+    let timer = 0; for (let i = 1; i < sr.length; i++) { const g = (sr[i].timestamp - sr[i - 1].timestamp) / 1000; if (g <= 10) timer += g; }
+    const hr = sr.map(x => x.heartRate).filter(v => v > 0), pw = sr.map(x => x.power).filter(v => v != null);
+    const sp = sr.map(x => x.enhancedSpeed ?? x.speed).filter(v => v != null);
+    let asc = 0, desc = 0, ref = null;
+    for (const x of sr) { const h = x.enhancedAltitude ?? x.altitude; if (h == null) continue; if (ref == null) { ref = h; continue; } if (h - ref >= 2) { asc += h - ref; ref = h; } else if (ref - h >= 2) { desc += ref - h; ref = h; } }
+    const frac = orig.totalElapsedTime ? Math.min(1, el / orig.totalElapsedTime) : 1;
+    return { ...orig, startTime: new Date(from), timestamp: new Date(to), totalElapsedTime: el, totalTimerTime: timer || el, totalDistance: dist,
+      totalAscent: Math.round(asc), totalDescent: Math.round(desc),
+      avgHeartRate: hr.length ? Math.round(hr.reduce((p, q) => p + q, 0) / hr.length) : orig.avgHeartRate, maxHeartRate: hr.length ? Math.max(...hr) : orig.maxHeartRate,
+      enhancedAvgSpeed: timer ? dist / timer : orig.enhancedAvgSpeed, avgSpeed: undefined, enhancedMaxSpeed: sp.length ? Math.max(...sp) : orig.enhancedMaxSpeed,
+      avgPower: pw.length ? Math.round(pw.reduce((p, q) => p + q, 0) / pw.length) : orig.avgPower, maxPower: pw.length ? Math.max(...pw) : orig.maxPower,
+      totalCalories: orig.totalCalories != null ? Math.round(orig.totalCalories * frac) : null };
+  };
+  // legs that aren't cut keep the watch's own totals; only cut legs are re-measured from the records
+  const clip = list => (list || []).map(s => { const st = +s.startTime, en = st + (s.totalElapsedTime || 0) * 1000; const f = Math.max(st, A), t = Math.min(en, B); if (t <= f) return null; return f === st && t === en ? s : stats(f, t, s); }).filter(Boolean);
+  const sessions = clip(S);
+  if (!sessions.length) throw new Error('Nothing left after trimming');
+  const act = { ...(messages.activityMesgs?.[0] || {}) }; delete act.totalTimerTime;
+  return { ...messages, recordMesgs: rr, sessionMesgs: sessions, lapMesgs: clip(messages.lapMesgs), activityMesgs: [act],
+    lengthMesgs: (messages.lengthMesgs || []).filter(l => +l.startTime >= A && +l.startTime <= B) };
+}

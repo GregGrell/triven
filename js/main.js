@@ -1,12 +1,13 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { Decoder, Stream } from 'https://cdn.jsdelivr.net/npm/@garmin/fitsdk@21.222.0/+esm';
+import { decodeFit } from './fit.js';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows } from './process.js';
+import { processFit, shareStreams, rows, makeTrack, detectDriving } from './process.js';
 import { vo2FromActivity } from './vo2.js';
 import { mountActivity } from './activity.js';
 import { mountLog } from './log.js';
 import { mountGear } from './gear.js';
 import { mountClub } from './club.js';
+import { mountFeed } from './feed.js';
 import { initSettings } from './settings.js';
 import './edit.js';
 
@@ -16,13 +17,13 @@ const SUPABASE_KEY = 'sb_publishable_gBU60hkphcU9T97Cn1Bvmw_QMIFFy3i';
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
-const VIEWS = ['auth', 'loading', 'log', 'activity', 'upload', 'gear', 'club'];
+const VIEWS = ['auth', 'loading', 'feed', 'log', 'activity', 'upload', 'gear', 'club'];
 export const state = { user: null, profile: null, activities: [], gear: [], bests: [], loaded: false };
 
 export function toast(msg, ms = 3200) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
 function show(v) {
   VIEWS.forEach(x => { const el = $('view-' + x); if (el) el.hidden = x !== v; });
-  ['log', 'upload', 'gear', 'club', 'activity'].forEach(x => $('tab-' + x)?.setAttribute('aria-selected', x === v));
+  ['feed', 'log', 'upload', 'gear', 'club', 'activity'].forEach(x => $('tab-' + x)?.setAttribute('aria-selected', x === v));
   $('tabs').hidden = v === 'auth' || v === 'loading'; $('acct').hidden = !state.user;
 }
 
@@ -55,6 +56,17 @@ async function boot() {
   await loadAll();
   $('acctName').textContent = state.profile?.display_name || state.user.email;
   route();
+  backfill();
+}
+let backfilled = false;
+async function backfill() {
+  if (backfilled) return; backfilled = true;
+  const todo = state.activities.filter(a => !a.summary || !('track' in a.summary));
+  for (const a of todo) {
+    try { const d = await fetchActivity(a.id); if (!d.streams) continue;
+      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams) };
+      await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
+  }
 }
 
 // ---------- data ----------
@@ -104,9 +116,10 @@ function logData() {
 async function route() {
   if (!state.user) return show('auth');
   if (!state.loaded) return;
-  const h = location.hash || '#log';
+  const h = location.hash || '#feed';
   $('tab-activity').hidden = true;
-  if (h.startsWith('#a/')) return openActivity(h.slice(3));
+  if (h.startsWith('#a/')) return openActivity(h.slice(3).split('?')[0]);
+  if (h === '#feed' || h.startsWith('#feed/')) { show('feed'); return mountFeed(h.split('/')[1] || 'me'); }
   if (h === '#upload') { show('upload'); return; }
   if (h === '#gear') { show('gear'); mountGear(); return; }
   if (h === '#club') { show('club'); mountClub(); return; }
@@ -138,12 +151,14 @@ export async function fetchActivity(id) {
     const { act, sections, laps } = v.data;
     let streams = null;
     if (act.streams_path) { const dl = await sb.storage.from('activity-streams').download(act.streams_path); if (!dl.error) streams = JSON.parse(await dl.data.text()); }
-    return { act, sections, laps, streams };
+    const ex = await sb.rpc('activity_extras', { aid: id });
+    return { act, sections, laps, streams, media: ex.data?.media || [] };
   }
   const act = a.data, path = act.owner === state.user.id ? act.streams_path?.replace(/\.json$/, '.full.json') : act.streams_path;
   let streams = null;
-  if (path) { const dl = await sb.storage.from('activity-streams').download(path); if (!dl.error) streams = JSON.parse(await dl.data.text()); }
-  return { act, sections: s.data || [], laps: l.data || [], streams };
+  const [dl, md] = await Promise.all([path ? sb.storage.from('activity-streams').download(path) : { error: true }, sb.from('activity_media').select('*').eq('activity_id', id).order('position')]);
+  if (!dl.error) streams = JSON.parse(await dl.data.text());
+  return { act, sections: s.data || [], laps: l.data || [], streams, media: md.data || [] };
 }
 export function toRaw({ act, sections, laps, streams }) {
   const sm = act.summary || {};
@@ -230,10 +245,43 @@ async function handleFiles(files) {
   if (added) { await loadAll(); toast(`${added} ${added === 1 ? 'activity' : 'activities'} added`); }
 }
 
+// extras worked out for every processed activity: VO2 max, route thumbnail, possible driving
+export function enrich(out) {
+  try {
+    const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
+    const Sx = out.sections.map(s => ({ sport: FIT[s.sport], start: s.start_offset_s, elapsed: s.elapsed_s }));
+    const cfgv = state.profile.settings || {};
+    const v = vo2FromActivity(Sx, rows(out.streams), { maxHr: cfgv.maxHr || 175, restHr: cfgv.restHr || 50, mass: out.activity.summary.weight || cfgv.mass || 75 }, 'power', false);
+    out.activity.summary.vo2 = { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null };
+  } catch (e) { /* estimate is optional */ }
+  out.activity.summary.track = makeTrack(out.streams, out.sections);
+  out.activity.summary.driving = detectDriving(out.sections, out.streams);
+}
+const jsonBlob = o => new Blob([JSON.stringify(o)], { type: 'application/json' });
+// write streams, sections, laps and bests for an activity (new, or replacing after a trim)
+export async function writeProcessed(id, out, share, gearBySport, replace) {
+  const base = `${state.user.id}/${id}`;
+  const ups = await Promise.all([
+    sb.storage.from('activity-streams').upload(`${base}.full.json`, jsonBlob(out.streams), { upsert: replace }),
+    sb.storage.from('activity-streams').upload(`${base}.json`, jsonBlob(shareStreams(out.streams, share)), { upsert: replace }),
+  ]);
+  const upErr = ups.find(u => u.error); if (upErr) throw upErr.error;
+  if (replace) {
+    const del = await Promise.all(['activity_sections', 'activity_laps', 'best_efforts'].map(t => sb.from(t).delete().eq('activity_id', id)));
+    const e = del.find(x => x.error); if (e) throw e.error;
+  }
+  const multi = out.activity.sport === 'multi';
+  const secs = out.sections.map(s => ({ ...s, activity_id: id, gear_id: multi && (s.sport === 'run' || s.sport === 'bike') ? gearBySport(s.sport, s.idx) : null }));
+  const res = await Promise.all([
+    sb.from('activity_sections').insert(secs),
+    out.laps.length ? sb.from('activity_laps').insert(out.laps.map(l => ({ ...l, activity_id: id }))) : { error: null },
+    out.bests.length ? sb.from('best_efforts').insert(out.bests.map(b => ({ ...b, activity_id: id }))) : { error: null },
+  ]);
+  const err = res.find(x => x.error); if (err) throw err.error;
+}
+
 export async function importFit(ent, row) {
-  const dec = new Decoder(Stream.fromByteArray(ent.data));
-  if (!dec.isFIT()) throw new Error('not a FIT file');
-  const { messages, errors } = dec.read({ convertDateTimesToDates: true, expandComponents: true, mergeHeartRates: true, applyScaleAndOffset: true, expandSubFields: true, convertTypesToStrings: true });
+  const { messages, errors } = decodeFit(ent.data);
   if (!messages.sessionMesgs?.length) { row.set('Not an activity (skipped)'); return 'notact'; }
   if (errors?.length && !messages.recordMesgs?.length) throw new Error('file is damaged');
   const out = processFit(messages, { source: /^\d+_ACTIVITY\.fit$/i.test(ent.name) ? 'garmin_export' : 'upload' });
@@ -248,15 +296,7 @@ export async function importFit(ent, row) {
     Object.assign(st, { lthrRun: lthr, lthrBike: lthr - 5, maxHr: out.activity.summary.maxHr || st.maxHr, mass: st.massSet ? st.mass : (out.activity.summary.weight || st.mass), fromWatch: true });
     await sb.from('profiles').update({ settings: st }).eq('id', uid); state.profile.settings = st;
   }
-  // VO2 max from this activity (bike only with a power meter; estimated power is handled live on the activity page)
-  try {
-    const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
-    const Sx = out.sections.map(s => ({ sport: FIT[s.sport], start: s.start_offset_s, elapsed: s.elapsed_s }));
-    const cfgv = state.profile.settings || {};
-    const v = vo2FromActivity(Sx, rows(out.streams), { maxHr: cfgv.maxHr || 175, restHr: cfgv.restHr || 50, mass: out.activity.summary.weight || cfgv.mass || 75 }, 'power', false);
-    out.activity.summary.vo2 = { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null };
-  } catch (e) { /* estimate is optional */ }
-  // default gear
+  enrich(out);
   const defGear = sp => state.gear.find(g => !g.retired && g.is_default_for === sp)?.id || null;
   const a = out.activity;
   if (a.sport === 'run' || a.sport === 'bike') a.gear_id = defGear(a.sport);
@@ -264,26 +304,13 @@ export async function importFit(ent, row) {
   row.set('Saving');
   const ins = await sb.from('activities').insert(a).select('id').single();
   if (ins.error) throw ins.error;
-  const id = ins.data.id;
-  const base = `${uid}/${id}`;
-  const shared = shareStreams(out.streams, a.share);
-  const blob = o => new Blob([JSON.stringify(o)], { type: 'application/json' });
-  const ups = await Promise.all([
-    sb.storage.from('activity-files').upload(`${base}.fit`, new Blob([ent.data], { type: 'application/octet-stream' })),
-    sb.storage.from('activity-streams').upload(`${base}.full.json`, blob(out.streams)),
-    sb.storage.from('activity-streams').upload(`${base}.json`, blob(shared)),
-  ]);
-  const upErr = ups.find(u => u.error); if (upErr) throw upErr.error;
-  const secs = out.sections.map(s => ({ ...s, activity_id: id, gear_id: (s.sport === 'run' || s.sport === 'bike') && a.sport === 'multi' ? defGear(s.sport) : null }));
-  const res = await Promise.all([
-    sb.from('activities').update({ file_path: `${base}.fit`, streams_path: `${base}.json` }).eq('id', id),
-    sb.from('activity_sections').insert(secs),
-    out.laps.length ? sb.from('activity_laps').insert(out.laps.map(l => ({ ...l, activity_id: id }))) : { error: null },
-    out.bests.length ? sb.from('best_efforts').insert(out.bests.map(b => ({ ...b, activity_id: id }))) : { error: null },
-  ]);
-  const err = res.find(x => x.error); if (err) throw err.error;
-  const km = (a.distance_m / 1000).toFixed(1);
-  row.set(`Added: ${a.name}, ${km} km`, 'ok');
+  const id = ins.data.id, base = `${uid}/${id}`;
+  const up = await sb.storage.from('activity-files').upload(`${base}.fit`, new Blob([ent.data], { type: 'application/octet-stream' }));
+  if (up.error) throw up.error;
+  await writeProcessed(id, out, a.share, defGear, false);
+  const r2 = await sb.from('activities').update({ file_path: `${base}.fit`, streams_path: `${base}.json` }).eq('id', id); if (r2.error) throw r2.error;
+  const drv = a.summary.driving?.length ? ' · looks like it includes driving, check it' : '';
+  row.set(`Added: ${a.name}, ${(a.distance_m / 1000).toFixed(1)} km${drv}`, 'ok');
   return 'ok';
 }
 
