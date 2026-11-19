@@ -1,8 +1,8 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity } from './main.js?v=1795084209';
-import { shareStreams } from './process.js?v=1795084209';
-import { openTrim } from './trim.js?v=1795084209';
-import { openIg } from './ig.js?v=1795084209';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity } from './main.js?v=1795084432';
+import { shareStreams } from './process.js?v=1795084432';
+import { openTrim } from './trim.js?v=1795084432';
+import { openIg } from './ig.js?v=1795084432';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };

@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084209';
+import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084432';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -144,7 +144,7 @@ function renderLeaflet(){
   let div=document.getElementById('lmap');
   if(!div||!lmap||lmap._raw!==raw){if(lmap){lmap.remove();lmap=null}host.replaceChildren();div=document.createElement('div');div.id='lmap';host.append(div);
     const isDark=matchMedia('(prefers-color-scheme: dark)').matches;
-    lmap=LF.map(div,{zoomControl:true,attributionControl:true,scrollWheelZoom:false});lmap._raw=raw;
+    lmap=LF.map(div,{zoomControl:true,attributionControl:false,scrollWheelZoom:false});LF.control.attribution({prefix:'<a href="https://leafletjs.com">Leaflet</a>'}).addTo(lmap);lmap._raw=raw;
     const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/',att='Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
     const base=LF.tileLayer(ESRI+`Canvas/${isDark?'World_Dark_Gray_Base':'World_Light_Gray_Base'}/MapServer/tile/{z}/{y}/{x}`,{maxNativeZoom:16,maxZoom:19,attribution:att}).addTo(lmap);
     const sat=LF.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:18,maxZoom:19,attribution:'Esri, Maxar, Earthstar Geographics'});

@@ -1,5 +1,5 @@
 // Club tab: create or join clubs, invite codes, members, and the feed of club mates' activities.
-import { sb, state, toast } from './main.js?v=1795084209';
+import { sb, state, toast } from './main.js?v=1795084432';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
