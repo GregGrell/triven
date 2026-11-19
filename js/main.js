@@ -1,19 +1,19 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795091407';
+import { decodeFit } from './fit.js?v=1795091609';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795091407';
-import { vo2FromActivity } from './vo2.js?v=1795091407';
-import { mountActivity } from './activity.js?v=1795091407';
-import { mountLog } from './log.js?v=1795091407';
-import { mountGear } from './gear.js?v=1795091407';
-import { mountClub } from './club.js?v=1795091407';
-import { mountFeed } from './feed.js?v=1795091407';
-import { perfData } from './perf.js?v=1795091407';
-import { loadData } from './load.js?v=1795091407';
-import { mountManual } from './manual.js?v=1795091407';
-import { mountCal } from './cal.js?v=1795091407';
-import { initSettings, DEFAULTS } from './settings.js?v=1795091407';
-import './edit.js?v=1795091407';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795091609';
+import { vo2FromActivity } from './vo2.js?v=1795091609';
+import { mountActivity } from './activity.js?v=1795091609';
+import { mountLog } from './log.js?v=1795091609';
+import { mountGear } from './gear.js?v=1795091609';
+import { mountClub } from './club.js?v=1795091609';
+import { mountFeed } from './feed.js?v=1795091609';
+import { perfData } from './perf.js?v=1795091609';
+import { loadData } from './load.js?v=1795091609';
+import { mountManual } from './manual.js?v=1795091609';
+import { mountCal } from './cal.js?v=1795091609';
+import { initSettings, DEFAULTS } from './settings.js?v=1795091609';
+import './edit.js?v=1795091609';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';

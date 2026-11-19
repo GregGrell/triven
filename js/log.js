@@ -1,5 +1,5 @@
 // Training log: period totals, fitness, volume chart, calendar, bests, gear.
-import { vdotFromBests, vo2Band } from './vo2.js?v=1795091407';
+import { vdotFromBests, vo2Band } from './vo2.js?v=1795091609';
 const $=id=>document.getElementById(id), css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountLog(D){

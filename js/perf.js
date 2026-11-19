@@ -14,8 +14,8 @@
 //    times with Daniels' formula. As training moves your best efforts, the predictions move.
 //  - Training status: from the trend in fitness (42-day load), how this week compares with what you're used to
 //    (acute:chronic workload ratio, 0.8 to 1.3 is the productive band), form, and whether performance is rising.
-import { vdot } from './vo2.js?v=1795091407';
-import { pmc } from './load.js?v=1795091407';
+import { vdot } from './vo2.js?v=1795091609';
+import { pmc } from './load.js?v=1795091609';
 
 const DAY = 864e5;
 const RUN_M = { '1 mile': 1609.34, '5 km': 5000, '10 km': 10000, '15 km': 15000, '10 mile': 16093.4, 'Half marathon': 21097.5, '30 km': 30000, 'Marathon': 42195 };
@@ -116,7 +116,10 @@ export function perfTrend(acts, at = Date.now()) {
   return (med(recent) - med(before)) / med(before) * 100;
 }
 export function trainingStatus(acts, cfg, today) {
-  const S = pmc(acts, cfg, today); if (S.length < 14) return { key: 'none', label: 'Not enough data', note: 'Train for a couple of weeks with heart rate and your status appears here.' };
+  const S = pmc(acts, cfg, today);
+  // the ratios need a few weeks of history to mean anything: a single race on a near-empty log reads as "overreaching"
+  const recent = acts.filter(a => Date.parse(a.start_time) > today - 42 * DAY).length;
+  if (S.length < 42 || recent < 8) return { key: 'none', label: 'Building history', note: `Training status needs about six weeks of activities with heart rate (you have ${recent} in the last six weeks). Your Garmin export will fill this in.` };
   const last = S.at(-1), wk = S.at(-8) || S[0], m4 = S.at(-29) || S[0];
   const acute = S.slice(-7).reduce((p, x) => p + x.load, 0), chronic = last.ctl * 7, acwr = chronic > 1 ? acute / chronic : 0;
   const ramp = last.ctl - wk.ctl, trend4 = m4.ctl > 1 ? (last.ctl - m4.ctl) / m4.ctl : 0;
