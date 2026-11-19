@@ -1,10 +1,12 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity, VIS } from './main.js?v=1795085683';
-import { drawRouteMap } from './mapcanvas.js?v=1795085683';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795085683';
-import { openTrim } from './trim.js?v=1795085683';
+import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795091060';
+import { mountWeek } from './week.js?v=1795091060';
+import { envLabel } from './process.js?v=1795091060';
+import { drawRouteMap } from './mapcanvas.js?v=1795091060';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795091060';
+import { openTrim } from './trim.js?v=1795091060';
 
-const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
 const SPC = { run: 'var(--run)', bike: 'var(--bike)', swim: 'var(--swim)', transition: 'var(--trans)' };
@@ -19,7 +21,9 @@ export async function mountFeed(sc) {
   [['me', 'Me'], ['following', 'Following'], ['club', 'Club'], ['everyone', 'Everyone']].forEach(([k, t]) => { const a = el('a', { className: 'chip', href: k === 'me' ? '#feed' : '#feed/' + k, textContent: t }); a.setAttribute('aria-pressed', k === scope); bar.append(a); });
   bar.append(el('span', { className: 'muted', style: 'font-size:12px;margin-left:6px', textContent: { me: 'Your activities, newest first', following: 'People you follow', club: 'You and your club mates', everyone: 'Public activities from other Triven athletes' }[scope] }));
   const list = el('div', { className: 'feed' });
-  v.append(bar, list);
+  const side = el('aside', { className: 'feedside', ariaLabel: 'You and this week' });
+  v.append(el('div', { className: 'feedgrid' }, side, el('div', { className: 'feedmain' }, bar, list)));
+  mountWeek(side);
   io?.disconnect();
   io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.unobserve(e.target); e.target._draw?.(); } }), { rootMargin: '300px' });
   await more(list);
@@ -50,10 +54,11 @@ function card(a, urls, list) {
   const d = new Date(Date.parse(a.start_time) + a.utc_offset_min * 60000);
   const when = `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()} · ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
   const mine = a.owner === state.user.id;
-  const type = a.sport === 'multi' ? (a.multisport_profile === 'other' ? 'Multisport' : a.multisport_profile[0].toUpperCase() + a.multisport_profile.slice(1)) : SPN[a.sport];
-  const head = el('div', { className: 'fhead' }, el('div', { className: 'avatar', textContent: (a.athlete || '?').slice(0, 1).toUpperCase() }),
+  const s0 = (a.sections || []).find(x => x.sport !== 'transition');
+  const type = a.sport === 'multi' ? (a.multisport_profile === 'other' ? 'Multisport' : a.multisport_profile[0].toUpperCase() + a.multisport_profile.slice(1)) : envLabel(a.sport, s0?.env);
+  const head = el('div', { className: 'fhead' }, avatarEl(a.athlete, mine ? state.profile?.avatar_path : a.avatar, 38),
     el('div', { style: 'flex:1' }, el('b', { textContent: mine ? 'You' : a.athlete }), el('div', { className: 'muted', style: 'font-size:12px', textContent: `${when} · ${type}${mine ? ' · ' + VIS[a.visibility] : ''}` })));
-  const c = el('div', { className: 'card fcard' }, head, el('a', { href: '#a/' + a.id, className: 'ftitle', textContent: a.name }));
+  const c = el('div', { className: 'card fcard' }, head, el('a', { href: '#a/' + a.id, className: 'ftitle' }, a.name, a.is_race ? ' ' : null, a.is_race ? raceFlag(18) : null));
   if (a.description) c.append(el('div', { className: 'actdesc', textContent: a.description }));
   // stats
   const stats = el('div', { className: 'fstats' }), stat = (v, l) => stats.append(el('div', {}, el('b', { textContent: v }), el('small', { textContent: l })));

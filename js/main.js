@@ -1,17 +1,18 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795085683';
+import { decodeFit } from './fit.js?v=1795091060';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving } from './process.js?v=1795085683';
-import { vo2FromActivity } from './vo2.js?v=1795085683';
-import { mountActivity } from './activity.js?v=1795085683';
-import { mountLog } from './log.js?v=1795085683';
-import { mountGear } from './gear.js?v=1795085683';
-import { mountClub } from './club.js?v=1795085683';
-import { mountFeed } from './feed.js?v=1795085683';
-import { loadData } from './load.js?v=1795085683';
-import { mountCal } from './cal.js?v=1795085683';
-import { initSettings } from './settings.js?v=1795085683';
-import './edit.js?v=1795085683';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795091060';
+import { vo2FromActivity } from './vo2.js?v=1795091060';
+import { mountActivity } from './activity.js?v=1795091060';
+import { mountLog } from './log.js?v=1795091060';
+import { mountGear } from './gear.js?v=1795091060';
+import { mountClub } from './club.js?v=1795091060';
+import { mountFeed } from './feed.js?v=1795091060';
+import { loadData } from './load.js?v=1795091060';
+import { mountManual } from './manual.js?v=1795091060';
+import { mountCal } from './cal.js?v=1795091060';
+import { initSettings, DEFAULTS } from './settings.js?v=1795091060';
+import './edit.js?v=1795091060';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -56,17 +57,17 @@ sb.auth.onAuthStateChange((_evt, session) => {
 async function boot() {
   show('loading');
   await loadAll();
-  $('acctName').textContent = state.profile?.display_name || state.user.email;
+  $('acctName').textContent = state.profile?.display_name || state.user.email; paintAvatar();
   route();
   backfill();
 }
 let backfilled = false;
 async function backfill() {
   if (backfilled) return; backfilled = true;
-  const todo = state.activities.filter(a => !a.summary || !('track' in a.summary) || !('loadData' in a.summary));
+  const todo = state.activities.filter(a => a.file_path && (!a.summary || !('track' in a.summary) || !('loadData' in a.summary) || a.summary.vo2?.v !== 2));
   for (const a of todo) {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
-      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams) };
+      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), vo2: vo2Summary(d.sections, d.streams, d.act.summary?.weight) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
   }
 }
@@ -76,13 +77,14 @@ export async function loadAll() {
   const uid = state.user.id;
   const [p, a, g, b] = await Promise.all([
     sb.from('profiles').select('*').eq('id', uid).single(),
-    sb.from('activities').select('id,name,description,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id)').eq('owner', uid).order('start_time'),
+    sb.from('activities').select('id,name,description,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time'),
     sb.from('gear').select('*').eq('owner', uid).order('created_at'),
     sb.from('best_efforts').select('*').eq('owner', uid),
   ]);
   for (const r of [p, a, g, b]) if (r.error) { toast('Could not load your data: ' + r.error.message, 6000); }
   state.profile = p.data; state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
 }
+initAvatar();
 initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply) window.__actApply(cfg); document.dispatchEvent(new Event('triven:settings')); },
   { get: () => state.profile, save: async upd => { const { error } = await sb.from('profiles').update(upd).eq('id', state.user.id); if (error) { toast('Could not save privacy settings: ' + error.message); return; } Object.assign(state.profile, upd); } });
 export async function saveSettings(cfg) {
@@ -123,7 +125,7 @@ async function route() {
   $('tab-activity').hidden = true;
   if (h.startsWith('#a/')) return openActivity(h.slice(3).split('?')[0]);
   if (h === '#feed' || h.startsWith('#feed/')) { show('feed'); return mountFeed(h.split('/')[1] || 'me'); }
-  if (h === '#upload') { show('upload'); return; }
+  if (h === '#upload') { show('upload'); mountManual($('manualBox')); return; }
   if (h === '#gear') { show('gear'); mountGear(); return; }
   if (h === '#club' || h === '#people') { show('club'); mountClub(); return; }
   show('log');
@@ -145,6 +147,30 @@ window.addEventListener('hashchange', route);
 
 // ---------- one activity ----------
 const SPORT_FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
+// Re-run the original file through processing: used by trim, restore and changing a leg's type (treadmill, track...).
+// trim: [from, to] seconds from the file's start, 'none' to restore the full file, or undefined to keep the current trim.
+// env: per-section types chosen by the user (kept for later re-processing).
+export async function reprocess({ act, sections }, { trim, env } = {}) {
+  const dl = await sb.storage.from('activity-files').download(act.file_path);
+  if (dl.error) throw dl.error;
+  const { messages } = decodeFit(new Uint8Array(await dl.data.arrayBuffer()));
+  const cur = act.summary?.trim, win = trim === 'none' ? null : trim || (cur ? [cur.from, cur.to] : null);
+  const envs = env || act.summary?.env || null;
+  const out = processFit(win ? trimMessages(messages, win[0], win[1]) : messages, { source: act.source, env: envs });
+  enrich(out);
+  const n = out.activity;
+  if (win) n.summary.trim = { from: win[0], to: win[1], origElapsed: cur?.origElapsed || +act.elapsed_s }; else delete n.summary.trim;
+  if (envs) n.summary.env = envs;
+  const upd = { start_time: n.start_time, distance_m: n.distance_m, elapsed_s: n.elapsed_s, moving_s: n.moving_s, ascent_m: n.ascent_m, descent_m: n.descent_m,
+    calories: n.calories, avg_hr: n.avg_hr, max_hr: n.max_hr, indoor: n.indoor, summary: n.summary };
+  const r = await sb.from('activities').update(upd).eq('id', act.id); if (r.error) throw r.error;
+  // keep gear on each leg: nth run section keeps the nth run's gear
+  const bySport = {}; sections.forEach(s => (bySport[s.sport] ||= []).push(s.gear_id));
+  const seen = {}; const gearFor = sp => { seen[sp] = (seen[sp] || 0) + 1; return (bySport[sp] || [])[seen[sp] - 1] || null; };
+  await writeProcessed(act.id, out, act.share, gearFor, true);
+  await loadAll();
+  return n;
+}
 export async function fetchActivity(id) {
   const [a, s, l] = await Promise.all([
     sb.from('activities').select('*').eq('id', id).single(),
@@ -173,7 +199,7 @@ export function toRaw({ act, sections, laps, streams }) {
     sessions: sections.map(s => ({ sport: SPORT_FIT[s.sport] || 'other', start: +s.start_offset_s, elapsed: +s.elapsed_s, timer: +s.timer_s, dist: +s.distance_m || 0,
       avgHr: s.avg_hr, maxHr: s.max_hr, ascent: s.ascent_m, descent: s.summary?.descent, avgSpeed: s.avg_speed, maxSpeed: s.summary?.maxSpeed,
       avgPower: s.avg_power, maxPower: s.summary?.maxPower, avgCad: s.avg_cadence, cal: s.summary?.calories, avgGct: s.summary?.avgGct, avgVo: s.summary?.avgVo,
-      avgStride: s.summary?.avgStride, te: s.summary?.te, ate: s.summary?.ate, hrZones: [], lthr: sm.lthr, maxHrSet: sm.maxHr })),
+      avgStride: s.summary?.avgStride, te: s.summary?.te, ate: s.summary?.ate, hrZones: [], lthr: sm.lthr, maxHrSet: sm.maxHr, env: s.summary?.env || null, trackOval: s.summary?.trackOval || null })),
     laps: laps.map(l => ({ sport: SPORT_FIT[l.sport] || 'other', start: +l.start_offset_s, elapsed: +l.elapsed_s, dist: +l.distance_m || 0, avgHr: l.avg_hr, maxHr: l.max_hr,
       avgSpeed: l.avg_speed, avgPower: l.avg_power, ascent: l.ascent_m })),
     recordFields: streams ? streams.fields : ['t'],
@@ -191,23 +217,87 @@ async function openActivity(id) {
   tab.textContent = `${act.name} · ${d.getUTCDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   show('activity');
   renderActHeader(act, data.sections);
-  if (!data.streams) toast('This activity has no detailed data file.', 4000);
+  if (!data.streams && !act.summary?.manual) toast('This activity has no detailed data file.', 4000);
+  $('view-activity').classList.toggle('nodata', !data.streams);
   mountActivity(toRaw(data), state.profile?.settings);
   document.dispatchEvent(new CustomEvent('triven:activity', { detail: data }));
 }
 export function renderActHeader(act, sections) {
-  $('actName').textContent = act.name;
+  $('actName').replaceChildren(act.name); if (act.is_race) $('actName').append(' ', raceFlag(26));
   $('actDesc').textContent = act.description || '';
   const tags = $('actTags'); tags.replaceChildren();
   const T = { run: 'Run', bike: 'Ride', swim: 'Swim', other: 'Workout' };
   const add = t => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; tags.append(s); };
   if (act.sport === 'multi') { add(act.multisport_profile === 'other' ? 'Multisport' : act.multisport_profile); add(sections.filter(s => s.sport !== 'transition').map(s => T[s.sport] === 'Ride' ? 'Bike' : T[s.sport]).join(' · ')); }
-  else add(T[act.sport] || 'Workout');
+  else add(sections[0] ? envLabel(sections.find(s => s.sport !== 'transition')?.sport || act.sport, sections.find(s => s.sport !== 'transition')?.summary?.env) : (T[act.sport] || 'Workout'));
   if (act.athlete && act.owner !== state.user.id) add(act.athlete);
-  if (act.indoor) add('Indoor');
+  if (act.indoor && act.sport === 'multi') add('Indoor');
+  const tr = sections.find(s => s.summary?.env === 'track');
+  if (tr) add(tr.summary.trackFit == null ? 'Track (no track found in GPS)' : 'Snapped to track');
+  if (act.summary?.manual) add('Logged by hand');
   if (act.owner !== state.user.id) add(VIS[act.visibility]);
 }
 export const VIS = { private: 'Only me', followers: 'Followers', club: 'Club', public: 'Everyone' };
+
+// profile photos (public bucket 'avatars'); falls back to the first letter of the name
+export const avatarUrl = path => path ? sb.storage.from('avatars').getPublicUrl(path).data.publicUrl : null;
+export function avatarEl(name, path, size = 34) {
+  const s = document.createElement('span'); s.className = 'avatar'; s.style.width = s.style.height = size + 'px'; s.style.fontSize = Math.round(size * 0.42) + 'px';
+  const url = avatarUrl(path);
+  if (url) { const i = document.createElement('img'); i.src = url; i.alt = ''; i.loading = 'lazy'; i.onerror = () => { i.remove(); s.textContent = (name || '?').trim()[0]?.toUpperCase() || '?'; }; s.append(i); }
+  else s.textContent = (name || '?').trim()[0]?.toUpperCase() || '?';
+  return s;
+}
+// crop to a centred square, 400 px JPEG
+async function squareJpeg(file, px = 400) {
+  const img = await createImageBitmap(file); const side = Math.min(img.width, img.height);
+  const c = document.createElement('canvas'); c.width = c.height = px;
+  c.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
+  return await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
+}
+function paintAvatar() {
+  const p = state.profile || {};
+  $('p_avatar').replaceChildren(avatarEl(p.display_name, p.avatar_path, 64)); $('p_avdel').hidden = !p.avatar_path;
+  const chip = $('acctAvatar'); chip.replaceChildren(avatarEl(p.display_name || state.user?.email, p.avatar_path, 26));
+}
+export function initAvatar() {
+  $('p_avpick').onclick = () => $('p_avfile').click();
+  $('p_avfile').onchange = async () => {
+    const f = $('p_avfile').files[0]; $('p_avfile').value = ''; if (!f) return;
+    try {
+      const blob = await squareJpeg(f), path = `${state.user.id}/avatar-${Date.now()}.jpg`, old = state.profile.avatar_path;
+      const up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg' }); if (up.error) throw up.error;
+      const r = await sb.from('profiles').update({ avatar_path: path }).eq('id', state.user.id); if (r.error) throw r.error;
+      state.profile.avatar_path = path; if (old) sb.storage.from('avatars').remove([old]);
+      paintAvatar(); toast('Profile photo updated');
+    } catch (e) { toast('Could not set the photo: ' + (e.message || e)); }
+  };
+  $('p_avdel').onclick = async () => {
+    const old = state.profile.avatar_path; if (!old) return;
+    const r = await sb.from('profiles').update({ avatar_path: null }).eq('id', state.user.id); if (r.error) { toast(r.error.message); return; }
+    state.profile.avatar_path = null; sb.storage.from('avatars').remove([old]); paintAvatar(); toast('Photo removed');
+  };
+}
+
+// chequered flag shown next to the title of races
+export function raceFlag(size = 18) {
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20'); svg.setAttribute('width', size); svg.setAttribute('height', size); svg.setAttribute('class', 'raceflag'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Race');
+  svg.innerHTML = '<title>Race</title><path d="M3 2v17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="4" y="3" width="13" height="9" rx="1" fill="#fff" stroke="currentColor" stroke-width="1.2"/>'
+    + [[4, 3], [10.5, 3], [7.25, 6], [13.75, 6], [4, 9], [10.5, 9]].map(([x, y]) => `<rect x="${x}" y="${y}" width="3.25" height="3" fill="currentColor"/>`).join('');
+  return svg;
+}
+
+// default gear: is_default_for holds roles like "run:road,run:race" (old single values 'run'/'bike' mean everyday)
+export const GEAR_ROLES = { shoe: [['run:road', 'Everyday runs'], ['run:trail', 'Trail'], ['run:track', 'Track'], ['run:treadmill', 'Treadmill'], ['run:race', 'Races']],
+  bike: [['bike:road', 'Everyday rides'], ['bike:indoor', 'Indoor / virtual'], ['bike:gravel', 'Gravel'], ['bike:mtb', 'Mountain bike'], ['bike:race', 'Races']] };
+export const gearRoles = g => !g.is_default_for ? [] : g.is_default_for === 'run' ? ['run:road'] : g.is_default_for === 'bike' ? ['bike:road'] : g.is_default_for.split(',').filter(Boolean);
+export function pickGear(sport, env, race) {
+  if (sport !== 'run' && sport !== 'bike') return null;
+  const live = state.gear.filter(g => !g.retired), has = role => live.find(g => gearRoles(g).includes(role))?.id;
+  const e = env === 'virtual' ? 'indoor' : env;
+  return (race && has(`${sport}:race`)) || (e && e !== 'road' && has(`${sport}:${e}`)) || has(`${sport}:road`) || null;
+}
 
 // ---------- upload ----------
 const drop = $('drop');
@@ -253,14 +343,18 @@ async function handleFiles(files) {
   if (added) { await loadAll(); toast(`${added} ${added === 1 ? 'activity' : 'activities'} added`); }
 }
 
+// VO2 max per activity (threshold-and-above stretches only); v:2 marks the current method
+function vo2Summary(sections, streams, weight) {
+  const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
+  const Sx = sections.map(s => ({ sport: FIT[s.sport], start: +s.start_offset_s, elapsed: +s.elapsed_s, env: s.summary?.env }));
+  const c = Object.assign({}, DEFAULTS, state.profile.settings || {});
+  const v = vo2FromActivity(Sx, rows(streams), { maxHr: c.maxHr, restHr: c.restHr, lthrRun: c.lthrRun, lthrBike: c.lthrBike, mass: weight || c.mass }, 'power', false);
+  return { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null, v: 2 };
+}
 // extras worked out for every processed activity: VO2 max, route thumbnail, possible driving
 export function enrich(out) {
   try {
-    const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
-    const Sx = out.sections.map(s => ({ sport: FIT[s.sport], start: s.start_offset_s, elapsed: s.elapsed_s }));
-    const cfgv = state.profile.settings || {};
-    const v = vo2FromActivity(Sx, rows(out.streams), { maxHr: cfgv.maxHr || 175, restHr: cfgv.restHr || 50, mass: out.activity.summary.weight || cfgv.mass || 75 }, 'power', false);
-    out.activity.summary.vo2 = { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null };
+    out.activity.summary.vo2 = vo2Summary(out.sections, out.streams, out.activity.summary.weight);
   } catch (e) { /* estimate is optional */ }
   out.activity.summary.track = makeTrack(out.streams, out.sections);
   out.activity.summary.driving = detectDriving(out.sections, out.streams);
@@ -306,9 +400,9 @@ export async function importFit(ent, row) {
     await sb.from('profiles').update({ settings: st }).eq('id', uid); state.profile.settings = st;
   }
   enrich(out);
-  const defGear = sp => state.gear.find(g => !g.retired && g.is_default_for === sp)?.id || null;
+  const defGear = (sp, idx) => pickGear(sp, out.sections[idx]?.summary?.env, false);
   const a = out.activity;
-  if (a.sport === 'run' || a.sport === 'bike') a.gear_id = defGear(a.sport);
+  if (a.sport === 'run' || a.sport === 'bike') a.gear_id = pickGear(a.sport, out.sections.find(s => s.sport === a.sport)?.summary?.env, false);
   a.visibility = state.profile.default_visibility; a.share = state.profile.default_share;
   row.set('Saving');
   const ins = await sb.from('activities').insert(a).select('id').single();

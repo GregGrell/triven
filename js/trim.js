@@ -1,8 +1,8 @@
 // Trim an activity's start or end (e.g. forgot to stop the watch and drove home). Re-processes the original file, so totals, laps and bests are exact.
-import { sb, state, toast, loadAll, enrich, writeProcessed } from './main.js?v=1795085683';
-import { decodeFit } from './fit.js?v=1795085683';
-import { processFit, trimMessages, rows } from './process.js?v=1795085683';
-import { openModal } from './edit.js?v=1795085683';
+import { sb, state, toast, loadAll, enrich, writeProcessed, reprocess } from './main.js?v=1795091060';
+import { decodeFit } from './fit.js?v=1795091060';
+import { processFit, trimMessages, rows } from './process.js?v=1795091060';
+import { openModal } from './edit.js?v=1795091060';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const fmtDur = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -75,22 +75,8 @@ export function openTrim(data, onDone) {
     async function run(win) {
       save.disabled = true; msg.textContent = win ? 'Trimming…' : 'Restoring…';
       try {
-        const dl = await sb.storage.from('activity-files').download(act.file_path);
-        if (dl.error) throw dl.error;
-        const { messages } = decodeFit(new Uint8Array(await dl.data.arrayBuffer()));
-        // trims are always measured from the original file's start
-        const out = processFit(win ? trimMessages(messages, win[0] + (act.summary?.trim?.from || 0), win[1] + (act.summary?.trim?.from || 0)) : messages, { source: act.source });
-        enrich(out);
-        const n = out.activity;
-        n.summary.trim = win ? { from: win[0] + (act.summary?.trim?.from || 0), to: win[1] + (act.summary?.trim?.from || 0), origElapsed: act.summary?.trim?.origElapsed || +act.elapsed_s } : undefined;
-        if (!win) delete n.summary.trim;
-        const upd = { start_time: n.start_time, distance_m: n.distance_m, elapsed_s: n.elapsed_s, moving_s: n.moving_s, ascent_m: n.ascent_m, descent_m: n.descent_m, calories: n.calories, avg_hr: n.avg_hr, max_hr: n.max_hr, summary: n.summary };
-        const r = await sb.from('activities').update(upd).eq('id', act.id); if (r.error) throw r.error;
-        // keep gear on each leg: nth run section keeps the nth run's gear
-        const bySport = {}; sections.forEach(s => (bySport[s.sport] ||= []).push(s.gear_id));
-        const seen = {}; const gearFor = sp => { seen[sp] = (seen[sp] || 0) + 1; return (bySport[sp] || [])[seen[sp] - 1] || null; };
-        await writeProcessed(act.id, out, act.share, gearFor, true);
-        await loadAll(); close(); toast(win ? `Trimmed to ${(n.distance_m / 1000).toFixed(2)} km` : 'Original restored'); onDone && onDone();
+        const n = await reprocess({ act, sections }, { trim: win ? [win[0] + (act.summary?.trim?.from || 0), win[1] + (act.summary?.trim?.from || 0)] : 'none' });
+        close(); toast(win ? `Trimmed to ${(n.distance_m / 1000).toFixed(2)} km` : 'Original restored'); onDone && onDone();
       } catch (e) { msg.textContent = 'Could not trim: ' + (e.message || e); save.disabled = false; }
     }
   });

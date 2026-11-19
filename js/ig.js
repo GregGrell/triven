@@ -1,7 +1,8 @@
 // One-tap Instagram image: route over a map (or your photo, or transparent sticker), activity type, title and stats.
-import { drawRouteMap } from './mapcanvas.js?v=1795085683';
-import { openModal } from './edit.js?v=1795085683';
-import { toast } from './main.js?v=1795085683';
+import { drawRouteMap } from './mapcanvas.js?v=1795091060';
+import { envLabel } from './process.js?v=1795091060';
+import { openModal } from './edit.js?v=1795091060';
+import { toast } from './main.js?v=1795091060';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -13,9 +14,10 @@ const SIZES = { post: [1080, 1350], story: [1080, 1920] };
 
 function labelFor(a) {
   if (a.sport === 'multi') { const p = a.multisport_profile === 'other' ? 'Multisport' : a.multisport_profile[0].toUpperCase() + a.multisport_profile.slice(1);
-    const legs = (a.sections || []).filter(s => s.sport !== 'transition').map(s => ({ run: 'Run', bike: 'Bike', swim: 'Swim' }[s.sport] || 'Leg'));
+    const legs = (a.sections || []).filter(s => s.sport !== 'transition').map(s => envLabel(s.sport, s.summary?.env ?? s.env).replace(/\bride\b/i, m => m[0] === 'R' ? 'Bike' : 'bike').replace(/^Run$/, 'Run'));
     return `${p} · ${legs.join(' · ')}`; }
-  return { run: 'Run', bike: 'Ride', swim: 'Swim' }[a.sport] || 'Workout';
+  const s0 = (a.sections || []).find(s => s.sport !== 'transition');
+  return envLabel(a.sport, s0?.summary?.env ?? s0?.env);
 }
 function stats(a) {
   const t = a.sport === 'multi' ? +a.elapsed_s : +(a.moving_s || a.elapsed_s), d = +a.distance_m;
@@ -79,8 +81,9 @@ export async function renderIg(a, { style = 'map', size = 'post', photoUrl = nul
   ctx.fillStyle = textCol; ctx.font = '700 46px "Barlow Semi Condensed"'; ctx.textBaseline = 'alphabetic';
   let bx = 70; const by = 112;
   for (const ch of 'TRIVEN') { ctx.fillStyle = ch === 'V' ? '#4fd081' : textCol; ctx.fillText(ch, bx, by); bx += ctx.measureText(ch).width + 6; }
+  ctx.fillStyle = '#4fd081'; ctx.font = '600 46px "Barlow Semi Condensed"'; ctx.fillText('.fit', bx - 2, by);
   // type pill
-  const pill = labelFor(a).toUpperCase();
+  const pill = ((a.is_race ? 'Race · ' : '') + labelFor(a)).toUpperCase();
   ctx.font = '600 28px Inter'; const pw = ctx.measureText(pill).width + 44;
   const py = H - bottomH + 40;
   shadow(false);

@@ -1,14 +1,35 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS } from './main.js?v=1795085683';
-import { shareStreams } from './process.js?v=1795085683';
-import { openTrim } from './trim.js?v=1795085683';
-import { openIg } from './ig.js?v=1795085683';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795091060';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795091060';
+import { openTrim } from './trim.js?v=1795091060';
+import { openIg } from './ig.js?v=1795091060';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const SHARE = [['map', 'Map and route'], ['pace', 'Pace and speed'], ['hr', 'Heart rate'], ['power', 'Power'], ['cadence', 'Cadence'], ['dynamics', 'Running dynamics (ground contact, balance, oscillation)'], ['description', 'Description']];
 const SPORTNAME = { run: 'Run', bike: 'Bike', swim: 'Swim' };
 let cur = null;
+// flag/unflag a race; gear that was the automatic choice swaps to your race (or everyday) default
+async function setRace(data, v) {
+  const { act, sections } = data;
+  const r = await sb.from('activities').update({ is_race: v }).eq('id', act.id);
+  if (r.error) { toast(r.error.message); return false; }
+  act.is_race = v;
+  const envOf = sp => sections.find(s => s.sport === sp)?.summary?.env;
+  if (act.sport === 'run' || act.sport === 'bike') {
+    const was = pickGear(act.sport, envOf(act.sport), !v), now = pickGear(act.sport, envOf(act.sport), v);
+    if (now && now !== act.gear_id && (!act.gear_id || act.gear_id === was)) { await sb.from('activities').update({ gear_id: now }).eq('id', act.id); act.gear_id = now; toast(v ? 'Marked as a race · race gear set' : 'No longer a race · gear set back'); }
+    else toast(v ? 'Marked as a race' : 'No longer a race');
+  } else {
+    for (const s of sections.filter(s => s.sport === 'run' || s.sport === 'bike')) {
+      const was = pickGear(s.sport, s.summary?.env, !v), now = pickGear(s.sport, s.summary?.env, v);
+      if (now && now !== s.gear_id && (!s.gear_id || s.gear_id === was)) { await sb.from('activity_sections').update({ gear_id: now }).eq('activity_id', act.id).eq('idx', s.idx); s.gear_id = now; }
+    }
+    toast(v ? 'Marked as a race' : 'No longer a race');
+  }
+  const la = state.activities.find(a => a.id === act.id); if (la) la.is_race = v;
+  return true;
+}
 const VISHELP = { private: 'only you', followers: 'your followers and club mates', club: 'your club mates', public: 'everyone on Triven' };
 
 export function openModal(build) {
@@ -25,6 +46,11 @@ document.addEventListener('triven:activity', e => {
   const reopen = () => { location.hash = '#a/' + cur.act.id + '?' + Date.now(); };
   const tools = $('actTools'); tools.replaceChildren();
   if (mine) tools.append(el('button', { className: 'btn sm', textContent: 'Edit', onclick: () => openEditor(cur, reopen) }));
+  if (mine) { // one click: race or not (and race shoes/bike if you have defaults for races)
+    const rb = el('button', { className: 'btn sm', type: 'button' }); const paint = () => { rb.replaceChildren(raceFlag(14), cur.act.is_race ? ' Race' : ' Mark as race'); rb.setAttribute('aria-pressed', !!cur.act.is_race); };
+    rb.onclick = async () => { rb.disabled = true; const v = !cur.act.is_race; const r = await setRace(cur, v); rb.disabled = false; if (!r) return; paint(); renderActHeader(cur.act, cur.sections); };
+    paint(); tools.append(rb);
+  }
   if (mine && cur.streams) tools.append(el('button', { className: 'btn sm', textContent: 'Trim', onclick: () => openTrim(cur, reopen) }));
   if (mine) tools.append(el('button', { className: 'btn sm primary', textContent: 'Instagram post', onclick: () => igFor(cur) }));
   // who can see it: one click to change
@@ -102,8 +128,10 @@ export function openEditor(data, onSaved) {
     const vis = el('select');
     Object.entries(VIS).forEach(([v, t]) => vis.append(el('option', { value: v, textContent: t, selected: act.visibility === v })));
     const notes = el('textarea', { rows: 3, value: act.notes || '', placeholder: 'How it felt, niggles, fuelling, conditions…' });
+    const raceCk = el('input', { type: 'checkbox', checked: !!act.is_race });
     const sec1 = el('section', {}, el('label', { className: 'f' }, 'Name', name), el('label', { className: 'f', style: 'margin-top:10px' }, 'Description (shown to people who can see it)', desc),
-      el('label', { className: 'f', style: 'margin-top:10px' }, 'Private notes (only you)', notes));
+      el('label', { className: 'f', style: 'margin-top:10px' }, 'Private notes (only you)', notes),
+      el('label', { className: 'ck' }, raceCk, ' This was a race ', raceFlag(14)));
     // photos and videos
     const mediaSec = el('section', {}, el('h2', { textContent: 'Photos and videos' }));
     const mgrid = el('div', { className: 'gallery small' });
@@ -122,6 +150,16 @@ export function openEditor(data, onSaved) {
         try { media.push(await uploadMedia(act, f, media.length)); data.media = media; await drawMedia(); }
         catch (e) { mmsg.textContent = `${f.name}: ${e.message || e}`; continue; } }
       mmsg.textContent = ''; };
+    // where it happened: treadmill / track / indoor trainer / pool...
+    const typeSec = el('section', {}, el('h2', { textContent: act.sport === 'multi' ? 'Type of each leg' : 'Type' }));
+    const typeInputs = [];
+    { const real = sections.filter(s => ENVS[s.sport]); const cnt = {}, tot = {}; real.forEach(s => tot[s.sport] = (tot[s.sport] || 0) + 1);
+      real.forEach(s => { cnt[s.sport] = (cnt[s.sport] || 0) + 1;
+        const sel = el('select'); ENVS[s.sport].forEach(([v, t]) => sel.append(el('option', { value: v, textContent: t, selected: (s.summary?.env || ENVS[s.sport][0][0]) === v })));
+        typeInputs.push({ sec: s, sel });
+        typeSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${tot[s.sport] > 1 ? ' ' + cnt[s.sport] : ''}${s.distance_m ? ` · ${(s.distance_m / 1000).toFixed(2)} km` : ''}`, sel)); });
+      if (!real.length) typeSec.hidden = true;
+      typeSec.append(el('div', { className: 'note', textContent: 'Track snaps your GPS onto the 400 m track and measures the distance round lane 1. Treadmill and indoor rides don’t count towards distance bests (power bests still count).' })); }
     // gear
     const gearSec = el('section', {}, el('h2', { textContent: 'Gear' }));
     const gearInputs = [];
@@ -147,7 +185,7 @@ export function openEditor(data, onSaved) {
     const del = el('button', { className: 'btn', textContent: 'Delete activity', type: 'button' });
     const save = el('button', { className: 'btn primary', textContent: 'Save', type: 'button' });
     const cancel = el('button', { className: 'btn', textContent: 'Cancel', type: 'button', onclick: close });
-    body.append(sec1, mediaSec, gearSec, shareSec, msg, el('div', { className: 'actions' }, del, el('div', { style: 'display:flex;gap:8px' }, cancel, save)));
+    body.append(sec1, typeSec, mediaSec, gearSec, shareSec, msg, el('div', { className: 'actions' }, del, el('div', { style: 'display:flex;gap:8px' }, cancel, save)));
 
     save.onclick = async () => {
       save.disabled = true; msg.textContent = 'Saving…';
@@ -160,6 +198,29 @@ export function openEditor(data, onSaved) {
         const v = g.sel.value || null; if (v === g.sec.gear_id) continue;
         const q = await sb.from('activity_sections').update({ gear_id: v }).eq('activity_id', act.id).eq('idx', g.sec.idx); if (q.error) { msg.textContent = q.error.message; save.disabled = false; return; }
         g.sec.gear_id = v;
+      }
+      if (raceCk.checked !== !!act.is_race) await setRace(data, raceCk.checked);
+      // type changes: uploaded files are re-processed (track snapping, bests); manual entries just store it
+      const changed = typeInputs.filter(t => t.sel.value !== (t.sec.summary?.env || ENVS[t.sec.sport][0][0]));
+      if (changed.length) {
+        if (act.file_path) {
+          msg.textContent = 'Re-processing with the new type…';
+          const env = sections.map(s => { const t = typeInputs.find(x => x.sec === s); return t ? t.sel.value : (s.summary?.env || null); });
+          try { await reprocess({ act: { ...act, ...upd }, sections }, { env }); }
+          catch (e) { msg.textContent = 'Saved, but the type could not be applied: ' + (e.message || e); save.disabled = false; return; }
+        } else {
+          for (const t of changed) { const q = await sb.from('activity_sections').update({ summary: { ...(t.sec.summary || {}), env: t.sel.value } }).eq('activity_id', act.id).eq('idx', t.sec.idx);
+            if (q.error) { msg.textContent = q.error.message; save.disabled = false; return; } }
+          const envs = sections.map(s => { const t = typeInputs.find(x => x.sec === s); return t ? t.sel.value : s.summary?.env; }).filter(Boolean);
+          await sb.from('activities').update({ indoor: envs.length > 0 && envs.every(e => INDOOR.has(e)) }).eq('id', act.id);
+        }
+      }
+      // a new type can mean different default gear (track spikes, treadmill shoes, the turbo bike)
+      for (const t of typeInputs) {
+        const sp = t.sec.sport, oldEnv = t.sec.summary?.env, newEnv = t.sel.value; if (oldEnv === newEnv) continue;
+        const was = pickGear(sp, oldEnv, !!act.is_race), now = pickGear(sp, newEnv, !!act.is_race); if (!now || now === was) continue;
+        if (act.sport === sp) { const gi = single?.sel.value || null; if (!gi || gi === was) { await sb.from('activities').update({ gear_id: now }).eq('id', act.id); } }
+        else if (!t.sec.gear_id || t.sec.gear_id === was) await sb.from('activity_sections').update({ gear_id: now }).eq('activity_id', act.id).eq('idx', t.sec.idx);
       }
       // the shared copy of the data is rebuilt whenever sharing choices change
       if (JSON.stringify(share) !== JSON.stringify(act.share) && data.streams && act.streams_path) {

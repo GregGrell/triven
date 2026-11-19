@@ -1,5 +1,5 @@
 // People tab: find and follow athletes, follow requests, followers/following, and clubs.
-import { sb, state, toast } from './main.js?v=1795085683';
+import { sb, state, toast, avatarEl } from './main.js?v=1795091060';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -33,7 +33,8 @@ const followBtn = (id, status, followsYou, onDone) => {
   return b;
 };
 function personRow(name, sub, ...btns) {
-  return el('div', { className: 'prow' }, el('span', { className: 'avatar', textContent: (name || '?').trim()[0]?.toUpperCase() || '?' }),
+  const av = typeof btns[0] === 'object' && btns[0]?.avatarPath !== undefined ? btns.shift().avatarPath : null;
+  return el('div', { className: 'prow' }, avatarEl(name, av, 34),
     el('div', { style: 'flex:1;min-width:0' }, el('b', { textContent: name }), sub ? el('div', { className: 'muted', style: 'font-size:12px', textContent: sub }) : ''), ...btns);
 }
 function peopleCard(net, err) {
@@ -52,7 +53,7 @@ function peopleCard(net, err) {
     res.replaceChildren();
     if (error) { res.append(el('div', { className: 'note', textContent: error.message })); return; }
     if (!data.length) { res.append(el('div', { className: 'note', textContent: 'Nobody found. People who hide themselves from search don’t appear.' })); return; }
-    data.forEach(a => res.append(personRow(a.athlete, a.follows_you ? 'Follows you' : a.approve_followers ? 'Approves followers' : '', followBtn(a.id, a.you_follow, a.follows_you, () => { run(); mountClub(); }))));
+    data.forEach(a => res.append(personRow(a.athlete, a.follows_you ? 'Follows you' : a.approve_followers ? 'Approves followers' : '', { avatarPath: a.avatar || null }, followBtn(a.id, a.you_follow, a.follows_you, () => { run(); mountClub(); }))));
   };
   q.oninput = () => { clearTimeout(tmr); tmr = setTimeout(run, 250); };
   c.append(q, res);
@@ -67,7 +68,7 @@ function peopleCard(net, err) {
       const ok = el('button', { className: 'btn sm primary', type: 'button', textContent: 'Approve' }), no = el('button', { className: 'btn sm', type: 'button', textContent: 'Decline' });
       ok.onclick = async () => { const r = await sb.from('follows').update({ status: 'accepted' }).eq('follower', n.other).eq('followee', state.user.id); if (r.error) toast(r.error.message); else mountClub(); };
       no.onclick = async () => { const r = await sb.from('follows').delete().eq('follower', n.other).eq('followee', state.user.id); if (r.error) toast(r.error.message); else mountClub(); };
-      c.append(personRow(n.athlete, 'Wants to follow you', no, ok));
+      c.append(personRow(n.athlete, 'Wants to follow you', { avatarPath: n.avatar || null }, no, ok));
     });
   }
   const tabs = el('div', { className: 'segrow', style: 'margin-top:14px' }), list = el('div', { className: 'plist' });
@@ -80,8 +81,8 @@ function peopleCard(net, err) {
       if (which === 'followers') {
         const rm = el('button', { className: 'linkbtn', type: 'button', textContent: 'Remove', style: 'color:var(--text-muted)' });
         rm.onclick = async () => { if (!rm.dataset.armed) { rm.dataset.armed = 1; rm.textContent = 'Click again to remove'; return; } const r = await sb.from('follows').delete().eq('follower', n.other).eq('followee', state.user.id); if (r.error) toast(r.error.message); else mountClub(); };
-        list.append(personRow(n.athlete, '', rm, followBtn(n.other, iFollow.get(n.other) || null, true, mountClub)));
-      } else list.append(personRow(n.athlete, n.status === 'pending' ? 'Waiting for approval' : '', followBtn(n.other, n.status, false, mountClub)));
+        list.append(personRow(n.athlete, '', { avatarPath: n.avatar || null }, rm, followBtn(n.other, iFollow.get(n.other) || null, true, mountClub)));
+      } else list.append(personRow(n.athlete, n.status === 'pending' ? 'Waiting for approval' : '', { avatarPath: n.avatar || null }, followBtn(n.other, n.status, false, mountClub)));
     });
   };
   [['followers', `Followers · ${followers.length}`], ['following', `Following · ${following.length}`]].forEach(([k, t]) => { const b = el('button', { className: 'chip', type: 'button', textContent: t }); b.dataset.k = k; b.onclick = () => showList(k); tabs.append(b); });

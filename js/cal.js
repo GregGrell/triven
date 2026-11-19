@@ -1,7 +1,7 @@
 // Training log: fitness / fatigue / form chart and the month calendar with training load per day and week.
-import { state } from './main.js?v=1795085683';
-import { DEFAULTS } from './settings.js?v=1795085683';
-import { loadOf, pmc, formBand } from './load.js?v=1795085683';
+import { state } from './main.js?v=1795091060';
+import { DEFAULTS } from './settings.js?v=1795091060';
+import { loadOf, pmc, formBand } from './load.js?v=1795091060';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -153,7 +153,7 @@ function calendarCard(acts, loads) {
         if (a.sport === 'multi' && a.activity_sections?.length) a.activity_sections.forEach(s => { if (s.sport !== 'transition') addSp(s.sport, +s.distance_m, +s.elapsed_s); });
         else addSp(SPV[a.sport] ? a.sport : 'other', +a.distance_m, time);
         const b = el('a', { className: 'chipact', href: '#a/' + a.id, title: `${a.name} · ${km(a.distance_m)} km · ${fmtHM(time)} · load ${loads.get(a.id).value}` },
-          el('b', { textContent: +a.distance_m > 0 ? `${km(a.distance_m)} km` : fmtHM(time) }), el('span', { textContent: a.name }));
+          el('b', { textContent: (a.is_race ? '🏁 ' : '') + (+a.distance_m > 0 ? `${km(a.distance_m)} km` : fmtHM(time)) }), el('span', { textContent: a.name }));
         b.style.borderLeftColor = a.sport === 'multi' ? 'var(--text-secondary)' : `var(${SPV[a.sport] || '--trans'})`;
         if (a.sport === 'multi' && a.activity_sections?.length) { const mb = el('div', { className: 'mbar' }); a.activity_sections.slice().sort((p, q) => p.idx - q.idx).forEach(s => { const i = el('i'); i.style.flex = String(s.elapsed_s); i.style.background = s.sport === 'transition' ? 'var(--trans)' : `var(${SPV[s.sport] || '--trans'})`; mb.append(i); }); b.append(mb); }
         cell.append(b);

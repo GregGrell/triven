@@ -3,6 +3,9 @@
 //    share of heart-rate reserve in use, on steady stretches.
 // 2) Cycling, the same idea with power (ACSM cycling equation). Lower confidence when power is estimated.
 // 3) Running, from performance: Jack Daniels' VDOT from best efforts (independent of heart rate).
+// Only stretches at or above threshold count (heart rate at least 95% of threshold HR, allowing for HR lag and drift):
+// the heart-rate-reserve extrapolation is least reliable at easy efforts, where small HR errors swing the result.
+// Treadmill runs are skipped because wrist/footpod treadmill speed isn't reliable.
 
 const median = a => { const s = a.slice().sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.max(0, Math.round(p * (s.length - 1))))] : null; };
@@ -47,25 +50,28 @@ export function vo2FromActivity(S, R, cfg, bikePowerKey = 'power', bikeEstimated
   const hrMax = cfg.maxHr, hrRest = cfg.restHr || 50;
   const frac = hr => (hr - hrRest) / (hrMax - hrRest);
   const runVals = [], bikeVals = [];
+  // lowest share of HR reserve that counts: 95% of threshold HR (or 80% of reserve if no threshold is known)
+  const floor = lthr => lthr ? Math.max(0.6, frac(0.95 * lthr)) : 0.8;
+  const fRun = floor(cfg.lthrRun), fBike = floor(cfg.lthrBike);
   S.forEach((s, i) => {
-    if (s.sport === 'running') {
+    if (s.sport === 'running' && s.env !== 'treadmill') {
       const x = resample(R, s.start, s.start + s.elapsed, ['speed', 'hr', 'alt', 'dist']); if (!x) return;
       for (const w of windows(x, 'speed', { warm: Math.min(180, x.n * 0.3) })) {
-        const f = frac(w.hr); if (f < 0.6 || f > 0.95) continue;               // reliable range of the HR-reserve method
+        const f = frac(w.hr); if (f < fRun || f > 0.97) continue;            // threshold and above only
         const vm = w.v * 60, vo2 = -4.60 + 0.182258 * vm + 0.000104 * vm * vm + 0.9 * vm * Math.max(0, w.grade);   // Daniels running cost + ACSM uphill term
         runVals.push(3.5 + (vo2 - 3.5) / f);
       }
     }
-    if (s.sport === 'cycling') {
+    if (s.sport === 'cycling' && !(bikeEstimated && (s.env === 'indoor' || s.env === 'virtual'))) {   // speed-based power means nothing indoors
       const x = resample(R, s.start, s.start + s.elapsed, [bikePowerKey, 'hr']); if (!x) return;
       for (const w of windows(x, bikePowerKey, { warm: 300, cvMax: bikeEstimated ? 0.35 : 0.25 })) {
-        const f = frac(w.hr); if (f < 0.6 || f > 0.95) continue;
+        const f = frac(w.hr); if (f < fBike || f > 0.97) continue;
         const vo2 = 10.8 * w.v / cfg.mass + 7;
         bikeVals.push(3.5 + (vo2 - 3.5) / f);
       }
     }
   });
-  const summarise = (vals, estimated) => vals.length < 5 ? null : {
+  const summarise = (vals, estimated) => vals.length < 3 ? null : {
     value: median(vals), low: pct(vals, 0.25), high: pct(vals, 0.75), windows: vals.length, estimated,
   };
   out.run = summarise(runVals, false);

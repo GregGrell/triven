@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795085683';
+import { vo2FromActivity, vo2Band } from './vo2.js?v=1795091060';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -14,7 +14,7 @@ let CFG=Object.assign({},DEFAULTS,cfgIn||{});
 const MASS=()=>raw.meta.weight||CFG.mass;
 
 // ---------- records ----------
-const NAMES=[]; let rc=0,tc=0; let sc=0; const nRun=S.filter(s=>s.sport==='running').length; S.forEach(s=>{ if(s.sport==='running') NAMES.push(nRun>1?'Run '+(++rc):'Run'); else if(s.sport==='cycling') NAMES.push('Bike'); else if(s.sport==='swimming') NAMES.push(++sc>1?'Swim '+sc:'Swim'); else if(s.sport==='transition') NAMES.push('T'+(++tc)); else NAMES.push('Workout') });
+const ENVN={treadmill:'Treadmill',track:'Track',trail:'Trail',indoor:'Indoor',virtual:'Virtual'};const NAMES=[]; let rc=0,tc=0; let sc=0; const nRun=S.filter(s=>s.sport==='running').length; S.forEach(s=>{ const pre=ENVN[s.env]?ENVN[s.env]+' ':''; if(s.sport==='running') NAMES.push(pre+(pre?'run':'Run')+(nRun>1?' '+(++rc):'')); else if(s.sport==='cycling') NAMES.push(pre+(pre?'bike':'Bike')); else if(s.sport==='swimming') NAMES.push(++sc>1?'Swim '+sc:'Swim'); else if(s.sport==='transition') NAMES.push('T'+(++tc)); else NAMES.push('Workout') });
 const segOf=t=>{for(let i=S.length-1;i>=0;i--) if(t>=S[i].start-0.5) return i; return 0};
 const R=raw.records.map(a=>{const o={};F.forEach((k,i)=>o[k]=a[i]);o.seg=segOf(o.t);o.sport=S[o.seg].sport;return o});
 R.forEach(r=>{const run=r.sport==='running';
@@ -36,7 +36,7 @@ const t0=new Date(raw.meta.start), local=new Date(t0.getTime()+raw.meta.utcOffse
 const wk=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 document.getElementById('subline').textContent=`${wk[local.getUTCDay()]} ${local.getUTCDate()} ${mo[local.getUTCMonth()]} ${local.getUTCFullYear()} · ${String(local.getUTCHours()).padStart(2,'0')}:${String(local.getUTCMinutes()).padStart(2,'0')} ${raw.meta.device?' · '+raw.meta.device:''}`;
 const total={elapsed:d3.sum(S,s=>s.elapsed),dist:d3.sum(S,s=>s.dist),cal:d3.sum(S,s=>s.cal),ascent:d3.sum(S,s=>s.ascent),
-  avgHr:Math.round(d3.sum(S,s=>s.avgHr*s.elapsed)/d3.sum(S,s=>s.elapsed)),maxHr:d3.max(S,s=>s.maxHr)};
+  avgHr:Math.round(d3.sum(S,s=>s.avgHr?s.avgHr*s.elapsed:0)/(d3.sum(S,s=>s.avgHr?s.elapsed:0)||1))||null,maxHr:d3.max(S,s=>s.maxHr)||null};
 const tEnd=total.elapsed;
 
 // ---------- derived: zones, balance flags, bike power ----------
@@ -62,7 +62,7 @@ function computeFlags(){
 let BIKE=null;
 function computeBike(){
   const bi=S.findIndex(s=>s.sport==='cycling'); if(bi<0){BIKE=null;return}
-  const recs=R.filter(r=>r.seg===bi); const has=recs.some(r=>r.power>0);
+  const recs=R.filter(r=>r.seg===bi); if(recs.length<2){BIKE=null;return} const has=recs.some(r=>r.power>0);
   const T0=recs[0].t,T1=recs[recs.length-1].t, n=Math.floor(T1-T0)+1;
   const interp=key=>{const out=new Float64Array(n);let j=0;for(let k=0;k<n;k++){const t=T0+k;while(j<recs.length-2&&recs[j+1].t<t)j++;const a=recs[j],b=recs[j+1]||a;const va=a[key]??0,vb=b[key]??va;const f=b.t>a.t?Math.min(1,Math.max(0,(t-a.t)/(b.t-a.t))):0;out[k]=va+(vb-va)*f}return out};
   const roll=(x,w)=>{const o=new Float64Array(x.length),h=Math.floor(w/2);let s=0,q=[];const pre=new Float64Array(x.length+1);for(let i=0;i<x.length;i++)pre[i+1]=pre[i]+x[i];for(let i=0;i<x.length;i++){const a=Math.max(0,i-h),b=Math.min(x.length,i+w-h);o[i]=(pre[b]-pre[a])/(b-a)}return o};
@@ -100,7 +100,7 @@ const selLabel=()=>sel.kind==='all'?'the whole '+WHOLE:sel.kind==='seg'?NAMES[se
 
 function statItems(){
   if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[(total.dist/1000).toFixed(2)+' km','Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:[(total.dist/total.elapsed*3.6).toFixed(1)+' km/h','Avg speed']),
-    [total.avgHr+' bpm','Avg HR · max '+total.maxHr],[total.ascent+' m','Elevation gain (watch)'],[total.cal+' kcal','Energy']];
+    ...(total.avgHr?[[total.avgHr+' bpm','Avg HR'+(total.maxHr?' · max '+total.maxHr:'')]]:[]),...(total.ascent||R.length?[[(total.ascent||0)+' m','Elevation gain'+(R.length?' (watch)':'')]]:[]),...(total.cal?[[total.cal+' kcal','Energy']]:[])];
   if(sel.kind==='span'){const [a,b]=range();const rs=R.filter(r=>r.t>=a&&r.t<=b);
     return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/d3.mean(rs,r=>r.kmh))+' /km','Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
   const o=sel.kind==='seg'?S[sel.i]:L[sel.i], sp=o.sport;
@@ -144,6 +144,7 @@ function renderLeaflet(){
   const LF=window.L;
   const host=document.getElementById('mapsvg');const note=document.getElementById('mapnote');if(note)note.hidden=true;
   const pts=R.filter(r=>r.lat!=null);
+  const card=host.closest('.card');if(card)card.hidden=!pts.length&&S.every(s=>s.sport==='transition'||['treadmill','indoor','virtual','pool'].includes(s.env));
   if(!pts.length){if(lmap){lmap.remove();lmap=null}host.replaceChildren(Object.assign(document.createElement('div'),{className:'note',textContent:'No GPS in this activity (indoor or pool).'}));return}
   let div=document.getElementById('lmap');
   if(!div||!lmap||lmap._raw!==raw){if(lmap){lmap.remove();lmap=null}host.replaceChildren();div=document.createElement('div');div.id='lmap';host.append(div);
@@ -155,6 +156,8 @@ function renderLeaflet(){
     const terrain=LF.tileLayer(ESRI+'World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:18,maxZoom:19,attribution:'Esri, HERE, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors'});
     const topo=LF.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{subdomains:'abc',maxNativeZoom:17,maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM · style © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'});
     LF.control.layers({Map:base,Terrain:terrain,'Topo (contours)':topo,Satellite:sat},null,{position:'topright'}).addTo(lmap);
+    // the 400 m track the run was snapped to
+    S.forEach(s=>{if(s.trackOval)LF.polyline(s.trackOval,{color:isDark?'#c9ccd1':'#8a8f96',weight:9,opacity:.28,interactive:false}).addTo(lmap)});
     lmap._layers2=LF.layerGroup().addTo(lmap);
     const cur=LF.circleMarker([0,0],{radius:7,color:css('--surface-1'),weight:3,fillColor:css('--cursor'),fillOpacity:1});
     moveCursorMap=r=>{cur.setLatLng([r.lat,r.lon]);if(!lmap.hasLayer(cur))cur.addTo(lmap)};hideCursorMap=()=>{if(lmap&&lmap.hasLayer(cur))lmap.removeLayer(cur)};
@@ -394,7 +397,7 @@ function renderLaps(){
 function renderVo2(){
   const el=document.getElementById('vo2card');el.replaceChildren();
   const h=document.createElement('h2');h.textContent='VO₂ max estimate';el.append(h);
-  const est=vo2FromActivity(S,R,{maxHr:CFG.maxHr,restHr:CFG.restHr,mass:MASS()},BIKE&&BIKE.has?'power':'bpw',!(BIKE&&BIKE.has));
+  const est=vo2FromActivity(S,R,{maxHr:CFG.maxHr,restHr:CFG.restHr,lthrRun:CFG.lthrRun,lthrBike:CFG.lthrBike,mass:MASS()},BIKE&&BIKE.has?'power':'bpw',!(BIKE&&BIKE.has));
   const row=document.createElement('div');row.className='vo2row';
   const block=(label,e,note)=>{const d=document.createElement('div');d.className='vo2b';const t=document.createElement('div');t.className='sec';t.textContent=label;d.append(t);
     if(!e){const n=document.createElement('div');n.className='note';n.style.marginTop='6px';n.textContent=note;d.append(n);return d}
@@ -402,11 +405,11 @@ function renderVo2(){
     const s=document.createElement('div');s.className='muted';s.style.fontSize='12px';s.textContent=`range ${e.low.toFixed(1)}–${e.high.toFixed(1)} · ${e.windows} steady stretches${CFG.age?` · ${vo2Band(e.value,CFG.age)} for age ${CFG.age}`:''}`;
     const p=document.createElement('span');p.className='pill';p.style.marginTop='6px';p.textContent=e.estimated?'From estimated power · low confidence':'From heart rate and '+(label==='Running'?'pace':'power');
     d.append(big,s,p);return d};
-  if(S.some(s=>s.sport==='running')) row.append(block('Running',est.run,'Not enough steady running with settled heart rate in this activity (needs a few minutes at a steady pace).'));
-  if(S.some(s=>s.sport==='cycling')) row.append(block('Cycling',est.bike,'Not enough steady riding with settled heart rate in this activity.'));
+  if(S.some(s=>s.sport==='running')) row.append(block('Running',est.run,S.every(s=>s.sport!=='running'||s.env==='treadmill')?'Treadmill speed isn’t reliable enough for a VO₂ max estimate.':`No steady running at threshold or harder here (heart rate ${Math.round(.95*CFG.lthrRun)}+ for a couple of minutes). Easy runs don’t give a reliable VO₂ max.`));
+  if(S.some(s=>s.sport==='cycling')) row.append(block('Cycling',est.bike,`No steady riding at threshold or harder here (heart rate ${Math.round(.95*CFG.lthrBike)}+ for a couple of minutes).`));
   if(!row.children.length){el.append(Object.assign(document.createElement('div'),{className:'note',textContent:'VO₂ max is estimated from runs and rides.'}));return}
   el.append(row);
-  el.append(Object.assign(document.createElement('div'),{className:'note',textContent:`How it works: on steady stretches, the oxygen cost of your pace (or power) is divided by the share of your heart-rate reserve you were using, then the middle value is taken. It uses max HR ${CFG.maxHr} and resting HR ${CFG.restHr} from Settings, so getting those right matters most. The cycling figure is per kilo, so it also uses your weight: ${MASS()} kg${raw.meta.weight?' (recorded by your watch that day)':' (from Settings)'}. Running VO₂ max comes from pace and heart rate and doesn't depend on weight. Heat, fatigue and caffeine raise heart rate and pull the estimate down. Treat one activity as a data point; the trend on the Training log is more reliable.`}));
+  el.append(Object.assign(document.createElement('div'),{className:'note',textContent:`How it works: only steady stretches at threshold or harder count (heart rate at least 95% of your threshold HR, settled for a minute). On those, the oxygen cost of your pace (or power) is divided by the share of your heart-rate reserve you were using, then the middle value is taken. It uses max HR ${CFG.maxHr} and resting HR ${CFG.restHr} from Settings, so getting those right matters most. The cycling figure is per kilo, so it also uses your weight: ${MASS()} kg${raw.meta.weight?' (recorded by your watch that day)':' (from Settings)'}. Running VO₂ max comes from pace and heart rate and doesn't depend on weight. Heat, fatigue and caffeine raise heart rate and pull the estimate down. Treat one activity as a data point; the trend on the Training log is more reliable.`}));
 }
 
 // settings are edited in settings.js; it calls this to re-render with new values

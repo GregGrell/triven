@@ -1,6 +1,6 @@
 // Gear tab: shoes and bikes, distance, replacement guide, defaults, retire, bulk-assign.
-import { sb, state, toast, loadAll, gearUsage } from './main.js?v=1795085683';
-import { openModal } from './edit.js?v=1795085683';
+import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795091060';
+import { openModal } from './edit.js?v=1795091060';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const km = m => (m / 1000).toFixed(m >= 100000 ? 0 : 1);
@@ -21,7 +21,7 @@ export function mountGear() {
       list.forEach(g => {
         const total = g.used_m + (+g.start_km || 0) * 1000, limit = +g.replace_km || null;
         const row = el('div', { className: 'gearrow' + (retired ? ' retired' : '') });
-        const name = el('div', {}, el('b', { textContent: g.name }), el('div', { className: 'muted', textContent: [[g.brand, g.model].filter(Boolean).join(' '), `${g.uses} ${g.uses === 1 ? 'activity' : 'activities'}`, g.is_default_for ? `default for ${g.is_default_for === 'run' ? 'runs' : 'rides'}` : ''].filter(Boolean).join(' · ') }));
+        const name = el('div', {}, el('b', { textContent: g.name }), el('div', { className: 'muted', textContent: [[g.brand, g.model].filter(Boolean).join(' '), `${g.uses} ${g.uses === 1 ? 'activity' : 'activities'}`, gearRoles(g).length ? 'default for ' + gearRoles(g).map(r => (GEAR_ROLES[g.kind].find(x => x[0] === r) || [, r])[1].toLowerCase()).join(', ') : ''].filter(Boolean).join(' · ') }));
         const bar = el('div', { className: 'bar' });
         if (limit) { const f = el('div'); f.style.width = Math.min(100, total / 1000 / limit * 100) + '%'; if (total / 1000 >= limit) f.style.background = 'var(--warn)'; else if (kind === 'bike') f.style.background = 'var(--bike)'; bar.append(f); }
         const val = el('div', { className: 'val' }, el('div', { textContent: limit ? `${km(total)} of ${limit} km` : `${km(total)} km` }),
@@ -62,11 +62,18 @@ function editGear(g) {
       start_km: el('input', { type: 'number', min: 0, step: 1, value: g.start_km ?? 0 }),
       replace_km: el('input', { type: 'number', min: 0, step: 50, value: g.replace_km ?? (kind === 'shoe' ? 700 : '') , placeholder: kind === 'bike' ? 'optional, e.g. chain at 3000' : '' }),
     };
-    const def = el('input', { type: 'checkbox', checked: g.is_default_for === (kind === 'shoe' ? 'run' : 'bike') });
+    // default for: everyday / trail / track / treadmill / races (bikes: everyday / indoor / gravel / MTB / races)
+    const mine = new Set(gearRoles(g));
+    const roleRow = el('div', { className: 'segrow', style: 'margin-top:6px' });
+    GEAR_ROLES[kind].forEach(([v, t]) => { const b = el('button', { type: 'button', className: 'chip', textContent: t }); b.setAttribute('aria-pressed', mine.has(v));
+      const owner = state.gear.find(x => x.id !== g.id && !x.retired && gearRoles(x).includes(v));
+      if (owner) b.title = `Currently ${owner.name}`;
+      b.onclick = () => { mine.has(v) ? mine.delete(v) : mine.add(v); b.setAttribute('aria-pressed', mine.has(v)); }; roleRow.append(b); });
     const grid = el('div', { className: 'frow' },
       el('label', { className: 'f' }, 'Name', f.name), el('label', { className: 'f' }, 'Brand', f.brand), el('label', { className: 'f' }, 'Model', f.model),
       el('label', { className: 'f' }, 'Distance already done (km)', f.start_km), el('label', { className: 'f' }, kind === 'shoe' ? 'Replace at (km)' : 'Service reminder at (km)', f.replace_km));
-    body.append(el('section', {}, grid, el('label', { className: 'chk', style: 'margin-top:12px' }, def, ` Use for new ${kind === 'shoe' ? 'runs' : 'rides'} automatically`)));
+    body.append(el('section', {}, grid, el('div', { className: 'f', style: 'margin-top:14px' }, `Use automatically for`, roleRow),
+      el('div', { className: 'note', textContent: `New ${kind === 'shoe' ? 'runs' : 'rides'} get the gear set for their type, and races get your race ${kind === 'shoe' ? 'shoes' : 'bike'} when you flag them. Anything without its own default uses the everyday one. Each role belongs to one ${kind === 'shoe' ? 'pair' : 'bike'}, so picking it here moves it from the other.` })));
     const msg = el('div', { className: 'note' });
     const save = el('button', { className: 'btn primary', textContent: 'Save', type: 'button' });
     const left = el('div', { style: 'display:flex;gap:8px' });
@@ -83,9 +90,12 @@ function editGear(g) {
       const name = f.name.value.trim(); if (!name) { msg.textContent = 'Give it a name.'; return; }
       save.disabled = true;
       const row = { kind, name, brand: f.brand.value.trim() || null, model: f.model.value.trim() || null, start_km: +f.start_km.value || 0, replace_km: f.replace_km.value === '' ? null : +f.replace_km.value,
-        is_default_for: def.checked ? (kind === 'shoe' ? 'run' : 'bike') : null };
-      // only one default per sport
-      if (row.is_default_for) await sb.from('gear').update({ is_default_for: null }).eq('owner', state.user.id).eq('is_default_for', row.is_default_for);
+        is_default_for: mine.size ? [...mine].join(',') : null };
+      // each role belongs to one item: take the chosen roles off the others
+      for (const x of state.gear.filter(x => x.id !== g.id && x.kind === kind)) {
+        const keep = gearRoles(x).filter(r => !mine.has(r)); if (keep.length === gearRoles(x).length) continue;
+        await sb.from('gear').update({ is_default_for: keep.length ? keep.join(',') : null }).eq('id', x.id);
+      }
       const r = isNew ? await sb.from('gear').insert(row) : await sb.from('gear').update(row).eq('id', g.id);
       if (r.error) { msg.textContent = r.error.message; save.disabled = false; return; }
       await loadAll(); close(); mountGear(); toast(isNew ? 'Added' : 'Saved');
