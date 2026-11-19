@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084583';
+import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084751';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -95,7 +95,8 @@ function computeBike(){
 let sel={kind:'all'};
 const range=()=>sel.kind==='seg'?[S[sel.i].start,S[sel.i].start+S[sel.i].elapsed]:sel.kind==='lap'?[L[sel.i].start,L[sel.i].start+L[sel.i].elapsed]:sel.kind==='span'?[sel.t0,sel.t1]:[0,tEnd];
 const selSport=()=>sel.kind==='seg'?S[sel.i].sport:sel.kind==='lap'?L[sel.i].sport:sel.kind==='span'?S[sel.seg].sport:'multi';
-const selLabel=()=>sel.kind==='all'?'the whole race':sel.kind==='seg'?NAMES[sel.i]:sel.kind==='lap'?'lap '+(sel.i+1):'this flagged stretch';
+const MULTI=S.length>1, WHOLE=MULTI?'race':({running:'run',cycling:'ride',swimming:'swim'}[S[0].sport]||'activity');
+const selLabel=()=>sel.kind==='all'?'the whole '+WHOLE:sel.kind==='seg'?NAMES[sel.i]:sel.kind==='lap'?'lap '+(sel.i+1):'this flagged stretch';
 
 function statItems(){
   if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[(total.dist/1000).toFixed(2)+' km','Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:[(total.dist/total.elapsed*3.6).toFixed(1)+' km/h','Avg speed']),
@@ -116,6 +117,9 @@ function renderStats(){const el=document.getElementById('stats');el.replaceChild
 
 function renderSegbar(){
   const bar=document.getElementById('segbar');bar.replaceChildren();
+  // sections and the whole-race/section chips only mean something for multisport
+  const head=bar.previousElementSibling,row0=document.getElementById('selrow');
+  [head,bar,row0].forEach(e=>{if(e)e.hidden=!MULTI});if(!MULTI)return;
   S.forEach((s,i)=>{const d=document.createElement('div');d.className='seg'+(s.sport==='transition'?' trans':'')+(sel.kind==='seg'&&sel.i===i?' sel':'');
     d.style.flex=s.sport==='transition'?'0 0 22px':String(s.elapsed);d.style.background=colorOf(s.sport);d.title=`${NAMES[i]} · ${fmtDur(s.elapsed)}`;
     if(s.sport!=='transition'){const n=document.createElement('div');n.className='n';n.textContent=`${NAMES[i]}  ${fmtDur(s.elapsed)}`;
@@ -302,7 +306,7 @@ function renderChartSel(){
   else txt=`Flagged stretch ${fmtDur(a)}–${fmtDur(b)}`;
   const dot=document.createElement('span');dot.className='dot';dot.style.background=colorOf(selSport()==='multi'?'transition':selSport());
   const lab=document.createElement('span');lab.append('Charts for ');const bb=document.createElement('b');bb.textContent=txt;lab.append(bb);
-  const btn=document.createElement('button');btn.className='btn sm';btn.textContent='Whole race';btn.onclick=()=>select({kind:'all'});
+  const btn=document.createElement('button');btn.className='btn sm';btn.textContent='Whole '+WHOLE;btn.onclick=()=>select({kind:'all'});
   const sp=document.createElement('span');sp.style.flex='1';bar.append(dot,lab,sp,btn);
 }
 function renderCharts(){
