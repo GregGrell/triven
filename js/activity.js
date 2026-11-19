@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084432';
+import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084583';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -148,7 +148,9 @@ function renderLeaflet(){
     const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/',att='Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
     const base=LF.tileLayer(ESRI+`Canvas/${isDark?'World_Dark_Gray_Base':'World_Light_Gray_Base'}/MapServer/tile/{z}/{y}/{x}`,{maxNativeZoom:16,maxZoom:19,attribution:att}).addTo(lmap);
     const sat=LF.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:18,maxZoom:19,attribution:'Esri, Maxar, Earthstar Geographics'});
-    LF.control.layers({Map:base,Satellite:sat},null,{position:'topright'}).addTo(lmap);
+    const terrain=LF.tileLayer(ESRI+'World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:18,maxZoom:19,attribution:'Esri, HERE, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors'});
+    const topo=LF.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{subdomains:'abc',maxNativeZoom:17,maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM · style © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'});
+    LF.control.layers({Map:base,Terrain:terrain,'Topo (contours)':topo,Satellite:sat},null,{position:'topright'}).addTo(lmap);
     lmap._layers2=LF.layerGroup().addTo(lmap);
     const cur=LF.circleMarker([0,0],{radius:7,color:css('--surface-1'),weight:3,fillColor:css('--cursor'),fillOpacity:1});
     moveCursorMap=r=>{cur.setLatLng([r.lat,r.lon]);if(!lmap.hasLayer(cur))cur.addTo(lmap)};hideCursorMap=()=>{if(lmap&&lmap.hasLayer(cur))lmap.removeLayer(cur)};
