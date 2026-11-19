@@ -1,18 +1,19 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795091060';
+import { decodeFit } from './fit.js?v=1795091407';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795091060';
-import { vo2FromActivity } from './vo2.js?v=1795091060';
-import { mountActivity } from './activity.js?v=1795091060';
-import { mountLog } from './log.js?v=1795091060';
-import { mountGear } from './gear.js?v=1795091060';
-import { mountClub } from './club.js?v=1795091060';
-import { mountFeed } from './feed.js?v=1795091060';
-import { loadData } from './load.js?v=1795091060';
-import { mountManual } from './manual.js?v=1795091060';
-import { mountCal } from './cal.js?v=1795091060';
-import { initSettings, DEFAULTS } from './settings.js?v=1795091060';
-import './edit.js?v=1795091060';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795091407';
+import { vo2FromActivity } from './vo2.js?v=1795091407';
+import { mountActivity } from './activity.js?v=1795091407';
+import { mountLog } from './log.js?v=1795091407';
+import { mountGear } from './gear.js?v=1795091407';
+import { mountClub } from './club.js?v=1795091407';
+import { mountFeed } from './feed.js?v=1795091407';
+import { perfData } from './perf.js?v=1795091407';
+import { loadData } from './load.js?v=1795091407';
+import { mountManual } from './manual.js?v=1795091407';
+import { mountCal } from './cal.js?v=1795091407';
+import { initSettings, DEFAULTS } from './settings.js?v=1795091407';
+import './edit.js?v=1795091407';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -64,22 +65,31 @@ async function boot() {
 let backfilled = false;
 async function backfill() {
   if (backfilled) return; backfilled = true;
-  const todo = state.activities.filter(a => a.file_path && (!a.summary || !('track' in a.summary) || !('loadData' in a.summary) || a.summary.vo2?.v !== 2));
+  const todo = state.activities.filter(a => a.file_path && (!a.summary || !('track' in a.summary) || !('loadData' in a.summary) || a.summary.vo2?.v !== 2 || !('perf' in a.summary)));
   for (const a of todo) {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
-      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), vo2: vo2Summary(d.sections, d.streams, d.act.summary?.weight) };
+      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), vo2: vo2Summary(d.sections, d.streams, d.act.summary?.weight), perf: perfData(d.sections, d.streams) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
   }
 }
 
 // ---------- data ----------
+// fetch every row, 1000 at a time (Supabase caps a single request at 1000)
+async function allRows(q) {
+  const out = []; const N = 1000;
+  for (let from = 0; ; from += N) {
+    const r = await q().range(from, from + N - 1);
+    if (r.error) return r;
+    out.push(...(r.data || [])); if (!r.data || r.data.length < N) return { data: out, error: null };
+  }
+}
 export async function loadAll() {
   const uid = state.user.id;
   const [p, a, g, b] = await Promise.all([
     sb.from('profiles').select('*').eq('id', uid).single(),
-    sb.from('activities').select('id,name,description,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time'),
+    allRows(() => sb.from('activities').select('id,name,description,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time').order('id')),
     sb.from('gear').select('*').eq('owner', uid).order('created_at'),
-    sb.from('best_efforts').select('*').eq('owner', uid),
+    allRows(() => sb.from('best_efforts').select('*').eq('owner', uid).order('id')),
   ]);
   for (const r of [p, a, g, b]) if (r.error) { toast('Could not load your data: ' + r.error.message, 6000); }
   state.profile = p.data; state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
@@ -359,6 +369,7 @@ export function enrich(out) {
   out.activity.summary.track = makeTrack(out.streams, out.sections);
   out.activity.summary.driving = detectDriving(out.sections, out.streams);
   out.activity.summary.loadData = loadData(out.sections, out.streams);
+  out.activity.summary.perf = perfData(out.sections, out.streams);
 }
 const jsonBlob = o => new Blob([JSON.stringify(o)], { type: 'application/json' });
 // write streams, sections, laps and bests for an activity (new, or replacing after a trim)

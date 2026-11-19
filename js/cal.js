@@ -1,7 +1,8 @@
 // Training log: fitness / fatigue / form chart and the month calendar with training load per day and week.
-import { state } from './main.js?v=1795091060';
-import { DEFAULTS } from './settings.js?v=1795091060';
-import { loadOf, pmc, formBand } from './load.js?v=1795091060';
+import { state } from './main.js?v=1795091407';
+import { DEFAULTS } from './settings.js?v=1795091407';
+import { mountPerf } from './perfui.js?v=1795091407';
+import { loadOf, pmc, formBand } from './load.js?v=1795091407';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -25,10 +26,11 @@ export function mountCal() {
   const cfg = Object.assign({}, DEFAULTS, state.profile?.settings || {});
   const acts = state.activities.slice().sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
   document.getElementById('logSide').replaceChildren(ytdPanel(acts));
-  if (!acts.length) return;
+  if (!acts.length) { document.getElementById('logPerf').replaceChildren(); return; }
   const loads = new Map(acts.map(a => [a.id, loadOf(a, cfg)]));
   const series = pmc(acts, cfg, TODAY);
   v.append(fitnessCard(series, acts, loads)); vc.append(calendarCard(acts, loads));
+  mountPerf(document.getElementById('logPerf'), acts, cfg);
 }
 
 // ---------- fitness, fatigue, form ----------
