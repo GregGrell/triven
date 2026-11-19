@@ -1,8 +1,8 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity } from './main.js?v=1795082788';
-import { drawRouteMap } from './mapcanvas.js?v=1795082788';
-import { openEditor, mediaUrls, lightbox, igFromFeed } from './edit.js?v=1795082788';
-import { openTrim } from './trim.js?v=1795082788';
+import { sb, state, toast, fetchActivity } from './main.js?v=1795084209';
+import { drawRouteMap } from './mapcanvas.js?v=1795084209';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795084209';
+import { openTrim } from './trim.js?v=1795084209';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -107,9 +107,7 @@ function card(a, urls, list) {
     acts.append(el('span', { style: 'flex:1' }));
     const ed = el('button', { className: 'btn sm', textContent: 'Edit' });
     ed.onclick = async () => { ed.disabled = true; try { const dd = await fetchActivity(a.id); openEditor(dd, () => mountFeed(scope)); } finally { ed.disabled = false; } };
-    const ig = el('button', { className: 'btn sm primary', textContent: 'Instagram post' });
-    ig.onclick = async () => { ig.disabled = true; try { await igFromFeed(a.id); } finally { ig.disabled = false; } };
-    acts.append(ed, ig);
+    acts.append(ed);
   }
   c.append(acts);
   return c;

@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795082788';
+import { vo2FromActivity, vo2Band } from './vo2.js?v=1795084209';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -145,7 +145,10 @@ function renderLeaflet(){
   if(!div||!lmap||lmap._raw!==raw){if(lmap){lmap.remove();lmap=null}host.replaceChildren();div=document.createElement('div');div.id='lmap';host.append(div);
     const isDark=matchMedia('(prefers-color-scheme: dark)').matches;
     lmap=LF.map(div,{zoomControl:true,attributionControl:true,scrollWheelZoom:false});lmap._raw=raw;
-    LF.tileLayer(`https://{s}.basemaps.cartocdn.com/${isDark?'dark_all':'light_all'}/{z}/{x}/{y}{r}.png`,{maxZoom:19,subdomains:'abcd',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(lmap);
+    const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/',att='Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+    const base=LF.tileLayer(ESRI+`Canvas/${isDark?'World_Dark_Gray_Base':'World_Light_Gray_Base'}/MapServer/tile/{z}/{y}/{x}`,{maxNativeZoom:16,maxZoom:19,attribution:att}).addTo(lmap);
+    const sat=LF.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:18,maxZoom:19,attribution:'Esri, Maxar, Earthstar Geographics'});
+    LF.control.layers({Map:base,Satellite:sat},null,{position:'topright'}).addTo(lmap);
     lmap._layers2=LF.layerGroup().addTo(lmap);
     const cur=LF.circleMarker([0,0],{radius:7,color:css('--surface-1'),weight:3,fillColor:css('--cursor'),fillOpacity:1});
     moveCursorMap=r=>{cur.setLatLng([r.lat,r.lon]);if(!lmap.hasLayer(cur))cur.addTo(lmap)};hideCursorMap=()=>{if(lmap&&lmap.hasLayer(cur))lmap.removeLayer(cur)};
@@ -289,7 +292,19 @@ function chartDefs(){
   }
   return d;
 }
+function renderChartSel(){
+  const bar=document.getElementById('chartsel');if(!bar)return;bar.replaceChildren();bar.hidden=sel.kind==='all';if(sel.kind==='all')return;
+  const [a,b]=range();let txt;
+  if(sel.kind==='lap'){const l=L[sel.i];txt=`Lap ${sel.i+1} · ${NAMES[segOf(l.start+.5)]} · ${l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' km'} · ${fmtDur(l.elapsed)}`}
+  else if(sel.kind==='seg'){const s=S[sel.i];txt=`${NAMES[sel.i]} · ${s.dist<100?Math.round(s.dist||0)+' m':km(s.dist)+' km'} · ${fmtDur(s.elapsed)}`}
+  else txt=`Flagged stretch ${fmtDur(a)}–${fmtDur(b)}`;
+  const dot=document.createElement('span');dot.className='dot';dot.style.background=colorOf(selSport()==='multi'?'transition':selSport());
+  const lab=document.createElement('span');lab.append('Charts for ');const bb=document.createElement('b');bb.textContent=txt;lab.append(bb);
+  const btn=document.createElement('button');btn.className='btn sm';btn.textContent='Whole race';btn.onclick=()=>select({kind:'all'});
+  const sp=document.createElement('span');sp.style.flex='1';bar.append(dot,lab,sp,btn);
+}
 function renderCharts(){
+  renderChartSel();
   const host=document.getElementById('charts');host.replaceChildren();charts.length=0;
   const [a,b]=range(), W=Math.max(320,host.clientWidth-32), m={l:46,r:8,t:6,b:4};
   xScale=d3.scaleLinear().domain([a,b]).range([m.l,W-m.r]);
@@ -365,7 +380,7 @@ function renderLaps(){
     [String(i+1),NAMES[segOf(l.start+.5)],fmtDur(l.elapsed),l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' km',
      l.sport==='running'?fmtPace(paceOf(l.avgSpeed))+' /km':l.sport==='cycling'?(l.avgSpeed*3.6).toFixed(1)+' km/h':'–',l.avgHr??'–',l.avgPower?l.avgPower+' W':'–',l.ascent!=null?l.ascent+' m':'–']
     .forEach((c,j)=>{const td=tr.insertCell();if(j===1){const d=document.createElement('span');d.className='dot';d.style.background=colorOf(l.sport);td.append(d)}td.append(document.createTextNode(c))});
-    tr.onclick=()=>select(sel.kind==='lap'&&sel.i===i?{kind:'all'}:{kind:'lap',i});});
+    tr.onclick=()=>{const off=sel.kind==='lap'&&sel.i===i;select(off?{kind:'all'}:{kind:'lap',i});if(!off)document.getElementById('chartscard')?.scrollIntoView({behavior:'smooth',block:'start'})};});
 }
 
 

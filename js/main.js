@@ -1,14 +1,14 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795082788';
+import { decodeFit } from './fit.js?v=1795084209';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving } from './process.js?v=1795082788';
-import { vo2FromActivity } from './vo2.js?v=1795082788';
-import { mountActivity } from './activity.js?v=1795082788';
-import { mountLog } from './log.js?v=1795082788';
-import { mountGear } from './gear.js?v=1795082788';
-import { mountClub } from './club.js?v=1795082788';
-import { mountFeed } from './feed.js?v=1795082788';
-import { initSettings } from './settings.js?v=1795082788';
+import { processFit, shareStreams, rows, makeTrack, detectDriving } from './process.js?v=1795084209';
+import { vo2FromActivity } from './vo2.js?v=1795084209';
+import { mountActivity } from './activity.js?v=1795084209';
+import { mountLog } from './log.js?v=1795084209';
+import { mountGear } from './gear.js?v=1795084209';
+import { mountClub } from './club.js?v=1795084209';
+import { mountFeed } from './feed.js?v=1795084209';
+import { initSettings } from './settings.js?v=1795084209';
 import './edit.js';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.

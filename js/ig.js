@@ -1,7 +1,7 @@
 // One-tap Instagram image: route over a map (or your photo, or transparent sticker), activity type, title and stats.
-import { drawRouteMap } from './mapcanvas.js?v=1795082788';
-import { openModal } from './edit.js?v=1795082788';
-import { toast } from './main.js?v=1795082788';
+import { drawRouteMap } from './mapcanvas.js?v=1795084209';
+import { openModal } from './edit.js?v=1795084209';
+import { toast } from './main.js?v=1795084209';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -36,7 +36,7 @@ function wrap(ctx, text, maxW, maxLines) {
 }
 function loadImage(src) { return new Promise(res => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => res(null); i.src = src; }); }
 
-export async function renderIg(a, { style = 'map', size = 'post', photoUrl = null } = {}) {
+export async function renderIg(a, { style = 'map', size = 'post', photoUrl = null, withLine = '' } = {}) {
   await Promise.all([document.fonts.load('700 80px "Barlow Semi Condensed"'), document.fonts.load('600 40px "Barlow Semi Condensed"'), document.fonts.load('500 30px Inter')]).catch(() => {});
   const [W, H] = SIZES[size];
   const c = document.createElement('canvas'); c.width = W; c.height = H; const ctx = c.getContext('2d');
@@ -94,7 +94,10 @@ export async function renderIg(a, { style = 'map', size = 'post', photoUrl = nul
   let ty = py + 140; lines.forEach(l => { ctx.fillText(l, 70, ty); ty += 86; });
   const dt = new Date(Date.parse(a.start_time) + a.utc_offset_min * 60000);
   ctx.font = '500 30px Inter'; ctx.fillStyle = subCol;
-  ctx.fillText(`${WD[dt.getUTCDay()]} ${dt.getUTCDate()} ${MON[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`, 70, ty - 30);
+  const day = withLine ? `${WD[dt.getUTCDay()].slice(0, 3)} ${dt.getUTCDate()} ${MON[dt.getUTCMonth()]} ${dt.getUTCFullYear()}` : `${WD[dt.getUTCDay()]} ${dt.getUTCDate()} ${MON[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`;
+  ctx.fillText(day, 70, ty - 30);
+  if (withLine) { const dw = ctx.measureText(day + '  ·  ').width; ctx.fillStyle = '#4fd081'; ctx.font = '600 30px Inter';
+    ctx.fillText(wrap(ctx, withLine, W - 140 - dw, 1)[0], 70 + dw, ty - 30); ctx.fillStyle = subCol; ctx.font = '500 30px Inter'; ctx.fillText('·', 70 + ctx.measureText(day + '  ').width, ty - 30); }
   // stats row
   const st = stats(a), colW = (W - 140) / st.length, sy = H - 90;
   st.forEach(([v, u], i) => { const x = 70 + i * colW;
@@ -112,18 +115,50 @@ export async function renderIg(a, { style = 'map', size = 'post', photoUrl = nul
   return c;
 }
 
-export function openIg(a, photos = []) {
+const VERB = { run: 'Ran', bike: 'Rode', swim: 'Swam', multi: 'Raced' };
+export function withText(a, comp) {
+  const seen = new Set(), names = [];
+  for (const c of comp || []) { if (seen.has(c.owner)) continue; seen.add(c.owner); names.push((c.athlete || 'a club mate').trim().split(/\s+/)[0]); }
+  if (!names.length) return '';
+  const list = names.length === 1 ? names[0] : names.length === 2 ? `${names[0]} & ${names[1]}` : names.length === 3 ? `${names[0]}, ${names[1]} & ${names[2]}` : `${names[0]}, ${names[1]} & ${names.length - 2} others`;
+  return `${VERB[a.sport] || 'Trained'} with ${list}`;
+}
+export function openIg(a, photos = [], companions = [], onAddPhotos = null) {
   openModal(async (body, close) => {
     body.append(el('h3', { textContent: 'Instagram post' }));
-    const opts = { style: a.track ? 'map' : (photos.length ? 'photo' : 'sticker'), size: 'post', photoUrl: photos[0]?.url || null };
+    const wl = withText(a, companions);
+    const opts = { style: a.track ? 'map' : (photos.length ? 'photo' : 'sticker'), size: 'post', photoUrl: photos[0]?.url || null, withLine: wl };
     const row = el('div', { className: 'segrow' });
-    const mk = (key, val, label, disabled) => { const b = el('button', { className: 'chip', type: 'button', textContent: label, disabled }); b.setAttribute('aria-pressed', opts[key] === val); b.onclick = () => { opts[key] = val; row.querySelectorAll(`[data-k=${key}]`).forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); }; b.dataset.k = key; return b; };
-    row.append(mk('style', 'map', 'Map', !a.track), mk('style', 'photo', 'My photo', !photos.length), mk('style', 'sticker', 'Transparent sticker'), el('span', { style: 'width:14px' }), mk('size', 'post', 'Post 4:5'), mk('size', 'story', 'Story 9:16'));
+    const press = (key, b) => row.querySelectorAll(`[data-k=${key}]`).forEach(x => x.setAttribute('aria-pressed', x === b));
+    const mk = (key, val, label, disabled) => { const b = el('button', { className: 'chip', type: 'button', textContent: label, disabled }); b.setAttribute('aria-pressed', opts[key] === val); b.onclick = () => { opts[key] = val; press(key, b); draw(); }; b.dataset.k = key; return b; };
+    const photoChip = mk('style', 'photo', 'My photo');
+    photoChip.onclick = () => { if (!opts.photoUrl) { askPhoto(); return; } opts.style = 'photo'; press('style', photoChip); thumbs.hidden = photos.length < 2; draw(); };
+    row.append(mk('style', 'map', 'Map', !a.track), photoChip, mk('style', 'sticker', 'Transparent sticker'), el('span', { style: 'width:14px' }), mk('size', 'post', 'Post 4:5'), mk('size', 'story', 'Story 9:16'));
+    row.querySelectorAll('[data-k=style]').forEach(b => { if (b !== photoChip) b.addEventListener('click', () => { thumbs.hidden = true; }); });
+    if (wl) { const t = el('button', { className: 'chip', type: 'button', textContent: wl }); t.setAttribute('aria-pressed', 'true');
+      t.onclick = () => { opts.withLine = opts.withLine ? '' : wl; t.setAttribute('aria-pressed', !!opts.withLine); draw(); }; row.append(el('span', { style: 'width:14px' }), t); }
+    // pick which photo when there are several
+    const thumbs = el('div', { className: 'igthumbs', hidden: !(opts.style === 'photo' && photos.length > 1) });
+    const addThumb = url => { const b = el('button', { type: 'button', className: 'igthumb' }, el('img', { src: url, alt: '' }));
+      b.setAttribute('aria-pressed', url === opts.photoUrl); b.onclick = () => { opts.photoUrl = url; thumbs.querySelectorAll('.igthumb').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); }; thumbs.append(b); };
+    photos.forEach(p => addThumb(p.url));
+    // no photo on the activity: say so, offer one from the device (used for this image only) or adding to the activity
+    const pick = el('input', { type: 'file', accept: 'image/*', hidden: true });
+    pick.onchange = () => { const f = pick.files[0]; if (!f) return; const url = URL.createObjectURL(f); photos.push({ url }); addThumb(url);
+      opts.photoUrl = url; opts.style = 'photo'; press('style', photoChip); thumbs.hidden = photos.length < 2; pop.hidden = true; draw(); };
+    const pop = el('div', { className: 'igpop', hidden: true },
+      el('b', { textContent: 'No photos on this activity yet' }),
+      el('div', { className: 'note', textContent: 'Pick one from this device just for this image, or add photos to the activity so they show in the feed too.' }),
+      el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px' },
+        el('button', { className: 'btn sm primary', type: 'button', textContent: 'Choose a photo', onclick: () => pick.click() }),
+        onAddPhotos ? el('button', { className: 'btn sm', type: 'button', textContent: 'Add photos to activity', onclick: () => { close(); onAddPhotos(); } }) : '',
+        el('button', { className: 'btn sm', type: 'button', textContent: 'Cancel', onclick: () => { pop.hidden = true; } })));
+    const askPhoto = () => { pop.hidden = false; };
     const prev = el('div', { className: 'igprev' }, el('div', { className: 'note', textContent: 'Drawing…' }));
     const share = el('button', { className: 'btn primary', type: 'button', textContent: 'Share' });
     const dl = el('a', { className: 'btn', textContent: 'Download', style: 'text-decoration:none' });
     const note = el('div', { className: 'note', textContent: 'On your phone, Share opens the share sheet: pick Instagram. On a computer, download it and post from your phone.' });
-    body.append(row, prev, el('div', { className: 'actions' }, el('button', { className: 'btn', type: 'button', textContent: 'Close', onclick: close }), el('div', { style: 'display:flex;gap:8px' }, dl, share)), note);
+    body.append(row, thumbs, pop, pick, prev, el('div', { className: 'actions' }, el('button', { className: 'btn', type: 'button', textContent: 'Close', onclick: close }), el('div', { style: 'display:flex;gap:8px' }, dl, share)), note);
     let file = null, seq = 0;
     async function draw() {
       const my = ++seq; prev.replaceChildren(el('div', { className: 'note', textContent: 'Drawing…' }));

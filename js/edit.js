@@ -1,8 +1,8 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity } from './main.js?v=1795082788';
-import { shareStreams } from './process.js?v=1795082788';
-import { openTrim } from './trim.js?v=1795082788';
-import { openIg } from './ig.js?v=1795082788';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity } from './main.js?v=1795084209';
+import { shareStreams } from './process.js?v=1795084209';
+import { openTrim } from './trim.js?v=1795084209';
+import { openIg } from './ig.js?v=1795084209';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
@@ -51,9 +51,10 @@ export async function mediaUrls(list) {
 }
 async function igFor(d) {
   const photos = (await mediaUrls((d.media || []).filter(m => m.kind === 'photo'))).filter(p => p.url);
-  openIg({ ...d.act, sections: d.sections, track: d.act.summary?.track || null }, photos);
+  const { data: comp } = await sb.rpc('companions', { aid: d.act.id });
+  openIg({ ...d.act, sections: d.sections, track: d.act.summary?.track || null }, photos, comp || [],
+    () => openEditor(d, () => { location.hash = '#a/' + d.act.id + '?' + Date.now(); }));
 }
-export async function igFromFeed(id) { const d = await fetchActivity(id); igFor(d); }
 async function renderGallery(list) {
   const box = $('mediacard'); box.replaceChildren(); box.hidden = !list.length; if (!list.length) return;
   const items = await mediaUrls(list);

@@ -1,4 +1,4 @@
-// Draw a route on a canvas over map tiles (CARTO basemaps, OpenStreetMap data). Falls back to a plain background if tiles can't load.
+// Draw a route on a canvas over map tiles (Esri Canvas basemaps: no key needed). Falls back to a plain background if tiles can't load.
 const TILE = 512;   // @2x tiles drawn 1:1
 const SPORTCOL = { run: '#22a05a', bike: '#3987e5', swim: '#9085e9', transition: '#8d959a', other: '#4fd081' };
 const wx = (lon, z) => (lon + 180) / 360 * TILE * 2 ** z;
@@ -25,16 +25,17 @@ export async function drawRouteMap(ctx, track, x, y, w, h, { dark = true, pad = 
   if (!track || track.length < 2) { ctx.restore(); return { tilesOk }; }
   const v = fitView(track, w, h, pad);
   if (tiles) {
-    const style = dark ? 'dark_all' : 'light_all';
-    const tx0 = Math.floor(v.ox / TILE), ty0 = Math.floor(v.oy / TILE), tx1 = Math.floor((v.ox + w) / TILE), ty1 = Math.floor((v.oy + h) / TILE);
-    const jobs = [];
+    // Esri tiles are 256 px; fetch one zoom deeper than the view so they're sharp at 2x, capped at native zoom 16
+    const style = dark ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
+    const zr = Math.min(v.z + 1, 16), S = 256 * 2 ** (v.z + 1 - zr);
+    const tx0 = Math.floor(v.ox / S), ty0 = Math.floor(v.oy / S), tx1 = Math.floor((v.ox + w) / S), ty1 = Math.floor((v.oy + h) / S);
+    const jobs = [], n = 2 ** zr;
     for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) {
-      const n = 2 ** v.z, X = ((tx % n) + n) % n; if (ty < 0 || ty >= n) continue;
-      const sub = 'abcd'[(tx + ty) & 3];
-      jobs.push(loadImg(`https://${sub}.basemaps.cartocdn.com/${style}/${v.z}/${X}/${ty}@2x.png`).then(img => ({ img, tx, ty })));
+      const X = ((tx % n) + n) % n; if (ty < 0 || ty >= n) continue;
+      jobs.push(loadImg(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${style}/MapServer/tile/${zr}/${ty}/${X}`).then(img => ({ img, tx, ty })));
     }
     const got = await Promise.all(jobs);
-    for (const { img, tx, ty } of got) if (img) { ctx.drawImage(img, x + tx * TILE - v.ox, y + ty * TILE - v.oy, TILE, TILE); tilesOk = true; }
+    for (const { img, tx, ty } of got) if (img) { ctx.drawImage(img, x + tx * S - v.ox, y + ty * S - v.oy, S + 0.5, S + 0.5); tilesOk = true; }
   }
   if (dim) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(x, y, w, h); }
   const P = p => [x + wx(p[1], v.z) - v.ox, y + wy(p[0], v.z) - v.oy];
@@ -56,7 +57,7 @@ export async function drawRouteMap(ctx, track, x, y, w, h, { dark = true, pad = 
   const [sx, sy] = P(track[0]), [ex, ey] = P(track[track.length - 1]);
   const dot = (a, b, fill) => { ctx.beginPath(); ctx.arc(a, b, width * 1.3, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = width * 0.6; ctx.strokeStyle = dark ? '#111' : '#fff'; ctx.stroke(); };
   dot(ex, ey, '#e4e8e9'); dot(sx, sy, '#4fd081');
-  if (tilesOk) { ctx.font = `${Math.max(10, Math.round(h / 60))}px Inter, sans-serif`; ctx.fillStyle = dark ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.55)'; ctx.textAlign = 'right'; ctx.fillText('© OpenStreetMap contributors © CARTO', x + w - 10, y + h - 10); ctx.textAlign = 'left'; }
+  if (tilesOk) { ctx.font = `${Math.max(10, Math.round(h / 60))}px Inter, sans-serif`; ctx.fillStyle = dark ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.55)'; ctx.textAlign = 'right'; ctx.fillText('Esri, HERE, Garmin, © OpenStreetMap contributors', x + w - 10, y + h - 10); ctx.textAlign = 'left'; }
   ctx.restore();
   return { tilesOk };
 }
