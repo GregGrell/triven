@@ -2,6 +2,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { Decoder, Stream } from 'https://cdn.jsdelivr.net/npm/@garmin/fitsdk@21.222.0/+esm';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
 import { processFit, shareStreams, rows } from './process.js';
+import { vo2FromActivity } from './vo2.js';
 import { mountActivity } from './activity.js';
 import { mountLog } from './log.js';
 import { mountGear } from './gear.js';
@@ -92,10 +93,10 @@ function logData() {
     const local = new Date(Date.parse(a.start_time) + a.utc_offset_min * 60000).toISOString().slice(0, 19);
     const secs = (a.activity_sections || []).slice().sort((x, y) => x.idx - y.idx);
     return { id: a.id, name: a.name, start: local, sport: a.sport === 'other' ? 'run' : a.sport, dist: +a.distance_m, moving: +(a.moving_s ?? a.elapsed_s), elapsed: +a.elapsed_s,
-      elev: +(a.ascent_m || 0), indoor: a.indoor, gear: a.gear_id, cal: a.calories, source: a.source === 'upload' ? 'Upload' : a.source, detail: true, profile: a.multisport_profile,
+      elev: +(a.ascent_m || 0), indoor: a.indoor, gear: a.gear_id, cal: a.calories, source: a.source === 'upload' ? 'Upload' : a.source, detail: true, profile: a.multisport_profile, vo2: a.summary?.vo2 || null,
       sections: secs.map(s => ({ sport: s.sport === 'transition' ? 'trans' : s.sport, dist: +s.distance_m || 0, elapsed: +s.elapsed_s, elev: +s.ascent_m || 0 })) };
   });
-  return { activities: acts, gear: gearUsage(), bests: state.bests, mass: state.profile?.settings?.mass };
+  return { activities: acts, gear: gearUsage(), bests: state.bests, mass: state.profile?.settings?.mass, age: state.profile?.settings?.age };
 }
 
 // ---------- routing ----------
@@ -237,6 +238,14 @@ export async function importFit(ent, row) {
     Object.assign(st, { lthrRun: lthr, lthrBike: lthr - 5, maxHr: out.activity.summary.maxHr || st.maxHr, mass: out.activity.summary.weight || st.mass, fromWatch: true });
     await sb.from('profiles').update({ settings: st }).eq('id', uid); state.profile.settings = st;
   }
+  // VO2 max from this activity (bike only with a power meter; estimated power is handled live on the activity page)
+  try {
+    const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
+    const Sx = out.sections.map(s => ({ sport: FIT[s.sport], start: s.start_offset_s, elapsed: s.elapsed_s }));
+    const cfgv = state.profile.settings || {};
+    const v = vo2FromActivity(Sx, rows(out.streams), { maxHr: cfgv.maxHr || 175, restHr: cfgv.restHr || 50, mass: cfgv.mass || 75 }, 'power', false);
+    out.activity.summary.vo2 = { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null };
+  } catch (e) { /* estimate is optional */ }
   // default gear
   const defGear = sp => state.gear.find(g => !g.retired && g.is_default_for === sp)?.id || null;
   const a = out.activity;

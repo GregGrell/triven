@@ -1,5 +1,5 @@
 // VO2 max estimates.
-// 1) Running, from heart rate and speed: oxygen cost of running (ACSM equation, grade-adjusted) divided by the
+// 1) Running, from heart rate and speed: oxygen cost of running (Daniels' running-economy equation, plus an uphill term) divided by the
 //    share of heart-rate reserve in use, on steady stretches.
 // 2) Cycling, the same idea with power (ACSM cycling equation). Lower confidence when power is estimated.
 // 3) Running, from performance: Jack Daniels' VDOT from best efforts (independent of heart rate).
@@ -23,7 +23,7 @@ function resample(R, t0, t1, keys) {
 }
 
 // steady windows: windowS long, after warm-up, low speed variation and gentle gradient
-function windows(x, key, { warm = 180, win = 60, step = 15, cvMax = 0.08 }) {
+function windows(x, key, { warm = 180, win = 60, step = 15, cvMax = 0.08, hrBand = 5 }) {
   const res = [];
   for (let s = warm; s + win <= x.n; s += step) {
     let sv = 0, sv2 = 0, sh = 0, n = 0, ok = true;
@@ -34,8 +34,8 @@ function windows(x, key, { warm = 180, win = 60, step = 15, cvMax = 0.08 }) {
     let grade = 0;
     if (x.alt && x.dist) { const d = x.dist[s + win - 1] - x.dist[s]; const da = x.alt[s + win - 1] - x.alt[s]; if (d > 50 && Number.isFinite(da)) grade = Math.max(-0.1, Math.min(0.1, da / d)); }
     // HR lags effort by roughly 30 s: pair this window's effort with HR from 30 s later
-    let hr = 0, hn = 0; for (let i = s + 30; i < Math.min(x.n, s + win + 30); i++) if (x.hr[i] > 0) { hr += x.hr[i]; hn++; }
-    if (!hn) continue;
+    let hr = 0, hn = 0, hmin = 1e9, hmax = 0; for (let i = s + 30; i < Math.min(x.n, s + win + 30); i++) if (x.hr[i] > 0) { hr += x.hr[i]; hn++; hmin = Math.min(hmin, x.hr[i]); hmax = Math.max(hmax, x.hr[i]); }
+    if (hn < win * 0.8 || hmax - hmin > hrBand) continue;   // heart rate must have settled (no warm-up climb)
     res.push({ s, v: m, hr: hr / hn, grade });
   }
   return res;
@@ -52,7 +52,7 @@ export function vo2FromActivity(S, R, cfg, bikePowerKey = 'power', bikeEstimated
       const x = resample(R, s.start, s.start + s.elapsed, ['speed', 'hr', 'alt', 'dist']); if (!x) return;
       for (const w of windows(x, 'speed', { warm: Math.min(180, x.n * 0.3) })) {
         const f = frac(w.hr); if (f < 0.6 || f > 0.95) continue;               // reliable range of the HR-reserve method
-        const vm = w.v * 60, vo2 = 3.5 + 0.2 * vm + 0.9 * vm * Math.max(0, w.grade);
+        const vm = w.v * 60, vo2 = -4.60 + 0.182258 * vm + 0.000104 * vm * vm + 0.9 * vm * Math.max(0, w.grade);   // Daniels running cost + ACSM uphill term
         runVals.push(3.5 + (vo2 - 3.5) / f);
       }
     }
