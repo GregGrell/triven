@@ -1,4 +1,4 @@
-import { snapToTrack, pathLength } from './track.js?v=1795094867';
+import { snapToTrack, pathLength } from './track.js?v=1795099425';
 // Triven: turn a decoded FIT file into activity rows, streams and best efforts.
 // Pure functions only (no network), so the same code runs in the browser and in tests.
 
@@ -41,11 +41,30 @@ function envFromFit(sport, sub, gps, elapsed) {
 }
 
 export function multisportProfile(seq) {
-  const s = seq.filter(x => x !== 'transition').join('-');
+  const legs = seq.filter(x => x !== 'transition'), s = legs.join('-');
   if (s === 'swim-bike-run') return 'triathlon';
-  if (s === 'run-bike-run' || s === 'run-bike') return 'duathlon';
+  if (s === 'run-bike-run') return 'duathlon';
   if (s === 'swim-run' || s === 'run-swim-run') return 'aquathlon';
+  if (s === 'swim-bike') return 'aquabike';
+  if (s === 'bike-run' || s === 'run-bike') return 'brick';
+  // swimrun: four or more legs alternating swim and run
+  if (legs.length >= 4 && legs.every(x => x === 'swim' || x === 'run') && legs.every((x, i) => i === 0 || x !== legs[i - 1])) return 'swimrun';
   return 'other';
+}
+// race distance from leg distances (metres): standard ITU/World Triathlon and duathlon distances, with generous ranges
+const TRI_CLASSES = [['Super sprint', [250, 550], [6000, 13000], [1500, 3600]], ['Sprint', [550, 1000], [15000, 26000], [4000, 6500]],
+  ['Olympic', [1200, 1800], [35000, 45000], [8500, 11500]], ['Middle distance', [1700, 2300], [80000, 100000], [19000, 23500]],
+  ['Full distance', [3200, 4300], [165000, 192000], [39000, 44500]]];
+const DU_CLASSES = [['Sprint', [4000, 6500], [17000, 24000], [2000, 3500]], ['Standard', [8500, 11500], [35000, 45000], [4000, 6000]], ['Long', [9000, 11500], [55000, 160000], [9000, 31000]]];
+export function distanceClass(profile, sections) {
+  const real = sections.filter(s => s.sport !== 'transition'), d = real.map(s => +s.distance_m || 0);
+  const inR = (v, [a, b]) => v >= a && v <= b;
+  const pick = (classes, legs) => { let best = null, bestN = 0;
+    for (const [name, ...ranges] of classes) { const n = ranges.filter((r, i) => inR(legs[i], r)).length; if (n > bestN) { best = name; bestN = n; } }
+    return bestN >= 2 ? best : null; };
+  if (profile === 'triathlon' && d.length === 3) return pick(TRI_CLASSES, d);
+  if (profile === 'duathlon' && d.length === 3) return pick(DU_CLASSES, d);
+  return null;
 }
 
 // fastest time to cover `dist` metres inside one section's records (interpolated)
@@ -176,7 +195,8 @@ export function processFit(messages, opts = {}) {
   const hh = local.getUTCHours();
   const part = hh < 12 ? 'Morning' : hh < 17 ? 'Afternoon' : hh < 21 ? 'Evening' : 'Night';
   const label = { run: 'Run', bike: 'Ride', swim: 'Swim', other: 'Workout' };
-  const name = isMulti ? `${part} ${indoor ? 'Indoor ' : ''}${profile === 'other' ? 'Multisport' : profile[0].toUpperCase() + profile.slice(1)}` : `${part} ${real[0] ? envLabel(real[0].sport, real[0].summary.env).replace(/\b\w/g, c => c.toUpperCase()) : label[sport] || 'Workout'}`;
+  const dClass = isMulti ? distanceClass(profile, sections) : null;
+  const name = isMulti ? `${part} ${indoor ? 'Indoor ' : ''}${dClass ? dClass + ' ' : ''}${profile === 'other' ? 'Multisport' : (dClass ? profile : profile[0].toUpperCase() + profile.slice(1))}` : `${part} ${real[0] ? envLabel(real[0].sport, real[0].summary.env).replace(/\b\w/g, c => c.toUpperCase()) : label[sport] || 'Workout'}`;
   const devices = (messages.deviceInfoMesgs || []);
   const creator = devices.find(d => d.deviceIndex === 'creator') || {};
   const sensors = [...new Set(devices.filter(d => d.garminProduct && d.garminProduct !== creator.garminProduct && d.sourceType !== 'local').map(d => String(d.garminProduct)))];
@@ -193,10 +213,10 @@ export function processFit(messages, opts = {}) {
     max_hr: Math.max(0, ...sections.map(s => s.max_hr || 0)) || null, indoor,
     device: [creator.garminProduct || fid.garminProduct || fid.manufacturer, ...sensors].filter(Boolean).map(nice).join(' + ') || null,
     source: opts.source || 'upload',
-    source_id: `${fid.manufacturer || 'x'}-${fid.serialNumber || 'x'}-${+(fid.timeCreated || start)}`,
+    source_id: opts.sourceId || `${fid.manufacturer || 'x'}-${fid.serialNumber || 'x'}-${+(fid.timeCreated || start)}`,
     summary: {
       lthr: tz?.thresholdHeartRate ?? null, maxHr: tz?.maxHeartRate ?? null, ftp: tz?.functionalThresholdPower ?? null,
-      weight: up.weight ?? null, te: S[S.length - 1].totalTrainingEffect ?? null, ate: S[S.length - 1].totalAnaerobicTrainingEffect ?? null,
+      weight: up.weight ?? null, distanceClass: dClass, te: S[S.length - 1].totalTrainingEffect ?? null, ate: S[S.length - 1].totalAnaerobicTrainingEffect ?? null,
     },
   };
 

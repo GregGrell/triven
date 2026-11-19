@@ -1,10 +1,10 @@
 // Turning a decoded FIT file into Triven rows and files. No browser or app state in here, so the same code runs in
 // the app (uploads, trims) and on the server (automatic sync from intervals.icu).
-import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795094867';
-import { loadData } from './load.js?v=1795094867';
-import { perfData } from './perf.js?v=1795094867';
-import { vo2FromActivity } from './vo2.js?v=1795094867';
-import { DEFAULTS } from './defaults.js?v=1795094867';
+import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795099425';
+import { loadData } from './load.js?v=1795099425';
+import { perfData } from './perf.js?v=1795099425';
+import { vo2FromActivity } from './vo2.js?v=1795099425';
+import { DEFAULTS } from './defaults.js?v=1795099425';
 
 // default gear: is_default_for holds roles like "run:road,run:race" (old single values 'run'/'bike' mean everyday)
 export const gearRoles = g => !g.is_default_for ? [] : g.is_default_for === 'run' ? ['run:road'] : g.is_default_for === 'bike' ? ['bike:road'] : g.is_default_for.split(',').filter(Boolean);
@@ -67,6 +67,8 @@ export async function importDecoded(sb, { uid, messages, errors, raw, source, pr
   // the same file arriving twice (upload and sync, or two syncs) is kept once
   const dup = await sb.from('activities').select('id').eq('owner', uid).eq('source_id', out.activity.source_id).maybeSingle();
   if (dup.data) return { status: 'skip', id: dup.data.id };
+  const inLinked = await sb.from('activities').select('id').eq('owner', uid).contains('summary', { linked: { sourceIds: [out.activity.source_id] } }).limit(1);
+  if (inLinked.data?.length) return { status: 'skip', id: inLinked.data[0].id };
   // first activity fills athlete settings from the watch if they were never set
   let st = { ...(profile.settings || {}) }, settingsChanged = false;
   if (!st.fromWatch && out.activity.summary.lthr) {
@@ -87,4 +89,67 @@ export async function importDecoded(sb, { uid, messages, errors, raw, source, pr
   await saveProcessed(sb, uid, id, out, a.share, (sp, idx) => pickGearFrom(gear, sp, out.sections[idx]?.summary?.env, false), false);
   const r2 = await sb.from('activities').update({ file_path: `${base}.fit`, streams_path: `${base}.json` }).eq('id', id); if (r2.error) throw r2.error;
   return { status: 'ok', id, activity: a, settings: settingsChanged ? st : null };
+}
+
+// ---------- linking separate activities into one multisport activity ----------
+// parts: [{ messages }], in any order. Sessions are put in time order, each file's distances are made continuous, and the
+// gap between the end of one part and the start of the next becomes a transition leg.
+export function mergeMessages(parts) {
+  const P = parts.map(p => p.messages).filter(m => m.sessionMesgs?.length)
+    .sort((a, b) => +a.sessionMesgs[0].startTime - +b.sessionMesgs[0].startTime);
+  if (P.length < 2) throw new Error('pick at least two activities');
+  const end = m => Math.max(...m.sessionMesgs.map(s => +s.startTime + (s.totalElapsedTime || 0) * 1000));
+  const out = { fileIdMesgs: P[0].fileIdMesgs, deviceInfoMesgs: P[0].deviceInfoMesgs || [], userProfileMesgs: P[0].userProfileMesgs || [],
+    timeInZoneMesgs: (P[0].timeInZoneMesgs || []).filter(z => z.referenceMesg === 'session').slice(0, 1),
+    sessionMesgs: [], lapMesgs: [], recordMesgs: [], lengthMesgs: [], eventMesgs: [] };
+  let distOff = 0, timer = 0;
+  P.forEach((m, i) => {
+    if (i > 0) {
+      const gapStart = end(P[i - 1]), gapEnd = +m.sessionMesgs[0].startTime, gap = (gapEnd - gapStart) / 1000;
+      if (gap < -5) throw new Error('two of these activities overlap in time');
+      if (gap > 1) out.sessionMesgs.push({ sport: 'transition', startTime: new Date(gapStart), totalElapsedTime: gap, totalTimerTime: gap, totalDistance: 0 });
+    }
+    m.sessionMesgs.forEach(s => { out.sessionMesgs.push(s); timer += s.totalTimerTime || 0; });
+    out.lapMesgs.push(...(m.lapMesgs || []));
+    out.lengthMesgs.push(...(m.lengthMesgs || []));
+    const recs = m.recordMesgs || []; let maxD = 0;
+    recs.forEach(r => { if (r.distance != null) { maxD = Math.max(maxD, r.distance); out.recordMesgs.push({ ...r, distance: r.distance + distOff }); } else out.recordMesgs.push(r); });
+    distOff += Math.max(maxD, m.sessionMesgs.reduce((p, s) => p + (s.totalDistance || 0), 0));
+  });
+  out.recordMesgs.sort((a, b) => +a.timestamp - +b.timestamp);
+  const a0 = P[0].activityMesgs?.[0] || {}, last = P[P.length - 1].activityMesgs?.[0] || {};
+  out.activityMesgs = [{ ...a0, timestamp: last.timestamp || new Date(end(P[P.length - 1])), localTimestamp: a0.localTimestamp, totalTimerTime: timer }];
+  return out;
+}
+
+// parts: [{ act, sections, messages }] — the owner's activities with their decoded original files
+export async function linkActivities(sb, { uid, parts, profile, gear }) {
+  if (parts.length < 2 || parts.length > 5) throw new Error('link between 2 and 5 activities');
+  if (parts.some(p => p.act.summary?.linked)) throw new Error('one of these is already linked: unlink it first');
+  if (parts.some(p => !p.act.file_path)) throw new Error('activities logged by hand can’t be linked (they have no file)');
+  parts = parts.slice().sort((a, b) => Date.parse(a.act.start_time) - Date.parse(b.act.start_time));
+  const flat = parts.map(p => ({ file_path: p.act.file_path, source_id: p.act.source_id, name: p.act.name, start_time: p.act.start_time, source: p.act.source, messages: p.messages }));
+  const sourceIds = flat.map(f => f.source_id);
+  const merged = mergeMessages(flat);
+  const out = processFit(merged, { source: flat[0].source || 'upload', sourceId: 'linked:' + sourceIds.join('+') });
+  enrichOut(out, profile.settings);
+  const a = out.activity, first = parts[0].act;
+  a.owner = uid; a.visibility = first.visibility; a.share = first.share || DEFAULT_SHARE; a.is_race = parts.some(p => p.act.is_race);
+  a.summary.linked = { parts: flat.map(({ messages, ...f }) => f), sourceIds };
+  // keep the gear each part had: nth run leg gets the nth run's gear
+  const gearQueue = {}; parts.forEach(p => (p.sections.length ? p.sections : [{ sport: p.act.sport, gear_id: p.act.gear_id }]).forEach(s => (gearQueue[s.sport] ||= []).push(s.gear_id || p.act.gear_id || null)));
+  const seen = {}, gearFor = sp => { seen[sp] = (seen[sp] || 0) + 1; return (gearQueue[sp] || [])[seen[sp] - 1] || pickGearFrom(gear, sp, null, a.is_race); };
+  const ins = await sb.from('activities').insert(a).select('id').single();
+  if (ins.error) throw ins.error;
+  const id = ins.data.id;
+  await saveProcessed(sb, uid, id, out, a.share, gearFor, false);
+  await sb.from('activities').update({ streams_path: `${uid}/${id}.json` }).eq('id', id);
+  // photos move to the new activity; the separate rows go (their original files are kept for unlinking)
+  const oldIds = parts.map(p => p.act.id);
+  await sb.from('activity_media').update({ activity_id: id }).in('activity_id', oldIds);
+  const oldStreams = parts.flatMap(p => p.act.streams_path ? [p.act.streams_path, p.act.streams_path.replace(/\.json$/, '.full.json')] : []);
+  const del = await sb.from('activities').delete().in('id', oldIds);
+  if (del.error) throw del.error;
+  if (oldStreams.length) await sb.storage.from('activity-streams').remove(oldStreams);
+  return { id, activity: a };
 }

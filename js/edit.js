@@ -1,8 +1,10 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795094867';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795094867';
-import { openTrim } from './trim.js?v=1795094867';
-import { openIg } from './ig.js?v=1795094867';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795099425';
+import { linkActivities, importDecoded } from './pipeline.js?v=1795099425';
+import { decodeFit } from './fit.js?v=1795099425';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795099425';
+import { openTrim } from './trim.js?v=1795099425';
+import { openIg } from './ig.js?v=1795099425';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
@@ -52,6 +54,8 @@ document.addEventListener('triven:activity', e => {
     paint(); tools.append(rb);
   }
   if (mine && cur.streams) tools.append(el('button', { className: 'btn sm', textContent: 'Trim', onclick: () => openTrim(cur, reopen) }));
+  if (mine && cur.act.summary?.linked) tools.append(unlinkButton(cur));
+  else if (mine && cur.act.file_path) tools.append(el('button', { className: 'btn sm', textContent: 'Link activities', title: 'Join separate swim, bike and run files into one multisport activity', onclick: () => openLinker(cur) }));
   if (mine) tools.append(el('button', { className: 'btn sm primary', textContent: 'Instagram post', onclick: () => igFor(cur) }));
   // who can see it: one click to change
   const vbox = $('actVis'); vbox.replaceChildren(); vbox.hidden = !mine;
@@ -256,6 +260,7 @@ export function openEditor(data, onSaved) {
       if ((data.media || []).length) await sb.storage.from('activity-media').remove(data.media.map(m => m.path));
       if (files.length) await sb.storage.from('activity-streams').remove(files);
       if (act.file_path) await sb.storage.from('activity-files').remove([act.file_path]);
+      if (act.summary?.linked) await sb.storage.from('activity-files').remove(act.summary.linked.parts.map(p => p.file_path));
       const r = await sb.from('activities').delete().eq('id', act.id);
       if (r.error) { msg.textContent = r.error.message; del.disabled = false; return; }
       await loadAll(); close(); toast('Activity deleted'); location.hash = '#log';
@@ -308,4 +313,122 @@ async function uploadMedia(act, f, position) {
   const r = await sb.from('activity_media').insert({ activity_id: act.id, path, kind: isVid ? 'video' : 'photo', width: w, height: h, duration_s: dur, position }).select('*').single();
   if (r.error) throw r.error;
   return r.data;
+}
+
+// ---------- link separate activities into one multisport activity ----------
+const LEG = { run: 'Run', bike: 'Bike', swim: 'Swim', multi: 'Multisport', other: 'Workout' };
+const hm = t => { const d = new Date(t); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+const fmtGap = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
+function openLinker(data) {
+  const me = data.act, t0 = Date.parse(me.start_time);
+  // candidates: your file-based, unlinked activities within 12 hours either side
+  const cands = state.activities.filter(a => a.source !== 'manual' && !a.summary?.linked && Math.abs(Date.parse(a.start_time) - t0) < 12 * 3600e3)
+    .sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
+  const chosen = new Set([me.id]);
+  // pre-tick neighbours that follow on within 30 minutes (a typical brick or race)
+  const endOf = a => Date.parse(a.start_time) + (+a.elapsed_s || 0) * 1000;
+  let i = cands.findIndex(a => a.id === me.id);
+  for (let j = i + 1; j < cands.length && chosen.size < 5 && Date.parse(cands[j].start_time) - endOf(cands[j - 1]) < 30 * 60e3; j++) chosen.add(cands[j].id);
+  for (let j = i - 1; j >= 0 && chosen.size < 5 && Date.parse(cands[j + 1].start_time) - endOf(cands[j]) < 30 * 60e3; j--) chosen.add(cands[j].id);
+  openModal((body, close) => {
+    body.append(el('h3', { textContent: 'Link activities' }), el('p', { className: 'sec', style: 'margin-top:0', textContent: 'Join up to 5 separate activities into one multisport activity. The gap between one finishing and the next starting becomes a transition.' }));
+    const list = el('div', { className: 'linklist' }), prev = el('div', { className: 'linkprev' }), msg = el('div', { className: 'note' });
+    const go = el('button', { className: 'btn primary', type: 'button' });
+    const local = a => Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000;
+    const draw = () => {
+      list.replaceChildren();
+      cands.forEach(a => {
+        const ck = el('input', { type: 'checkbox', checked: chosen.has(a.id), disabled: a.id === me.id || (!chosen.has(a.id) && chosen.size >= 5) });
+        ck.onchange = () => { ck.checked ? chosen.add(a.id) : chosen.delete(a.id); draw(); };
+        list.append(el('label', { className: 'linkrow' + (chosen.has(a.id) ? ' on' : '') }, ck,
+          el('span', { className: 'lt', textContent: `${hm(local(a))}–${hm(local(a) + (+a.elapsed_s || 0) * 1000)}` }),
+          el('b', { textContent: a.name }), el('span', { className: 'muted', textContent: `${LEG[a.sport] || a.sport} · ${(+a.distance_m / 1000).toFixed(2)} km` })));
+      });
+      if (cands.length < 2) list.append(el('div', { className: 'note', textContent: 'No other activities within 12 hours of this one. Upload the other legs first.' }));
+      // preview of the joined activity
+      const sel = cands.filter(a => chosen.has(a.id)); prev.replaceChildren(); let bad = null;
+      sel.forEach((a, k) => {
+        if (k) { const gap = (Date.parse(a.start_time) - endOf(sel[k - 1])) / 1000;
+          if (gap < -5) bad = `${sel[k - 1].name} and ${a.name} overlap in time.`;
+          prev.append(el('span', { className: 'lgap' + (gap > 1800 ? ' long' : ''), textContent: gap > 1 ? `T ${fmtGap(gap)}` : 'no gap' })); }
+        prev.append(el('span', { className: 'lleg', style: `border-color:var(--${a.sport === 'bike' ? 'bike' : a.sport === 'swim' ? 'swim' : 'run'})`, textContent: `${LEG[a.sport] || a.sport} ${(+a.distance_m / 1000).toFixed(1)} km` }));
+      });
+      const longGap = sel.some((a, k) => k && (Date.parse(a.start_time) - endOf(sel[k - 1])) > 1800e3);
+      msg.textContent = bad || (longGap ? 'One gap is over 30 minutes: it will still count as transition time.' : '');
+      go.textContent = sel.length < 2 ? 'Pick another activity' : `Link ${sel.length} activities`;
+      go.disabled = sel.length < 2 || !!bad;
+    };
+    draw();
+    body.append(list, el('div', { className: 'sec wtitle', textContent: 'Joined activity' }), prev, msg,
+      el('div', { className: 'note', textContent: 'Photos move across. Comments and kudos on the separate activities aren’t carried over. You can unlink again later.' }),
+      el('div', { className: 'actions', style: 'justify-content:flex-end' }, el('button', { className: 'btn', type: 'button', textContent: 'Cancel', onclick: close }), go));
+    go.onclick = async () => {
+      go.disabled = true; msg.textContent = 'Linking…';
+      try { const r = await linkIds([...chosen]); close(); toast(`Linked into ${r.activity.name}`); location.hash = '#a/' + r.id; }
+      catch (e) { msg.textContent = 'Could not link: ' + (e.message || e); go.disabled = false; }
+    };
+  });
+}
+async function linkIds(ids) {
+  const [{ data: acts, error: e1 }, { data: secs, error: e2 }] = await Promise.all([sb.from('activities').select('*').in('id', ids), sb.from('activity_sections').select('*').in('activity_id', ids)]);
+  if (e1 || e2) throw (e1 || e2);
+  const parts = await Promise.all(acts.map(async a => {
+    const dl = await sb.storage.from('activity-files').download(a.file_path); if (dl.error) throw dl.error;
+    return { act: a, sections: (secs || []).filter(s => s.activity_id === a.id).sort((p, q) => p.idx - q.idx), messages: decodeFit(new Uint8Array(await dl.data.arrayBuffer())).messages };
+  }));
+  const r = await linkActivities(sb, { uid: state.user.id, parts, profile: state.profile, gear: state.gear });
+  await loadAll();
+  return r;
+}
+// after an upload: separate files that follow on from each other within 10 minutes
+export function offerCombine(groups) {
+  const g = groups[0], rest = groups.slice(1);
+  const acts = g.map(x => state.activities.find(a => a.id === x.id)).filter(Boolean);
+  if (acts.length < 2) { if (rest.length) offerCombine(rest); return; }
+  openModal((body, close) => {
+    const prev = el('div', { className: 'linkprev' });
+    acts.forEach((a, k) => {
+      if (k) { const gap = (Date.parse(a.start_time) - Date.parse(acts[k - 1].start_time) - (+acts[k - 1].elapsed_s || 0) * 1000) / 1000;
+        prev.append(el('span', { className: 'lgap', textContent: gap > 1 ? `T ${fmtGap(gap)}` : 'no gap' })); }
+      prev.append(el('span', { className: 'lleg', style: `border-color:var(--${a.sport === 'bike' ? 'bike' : a.sport === 'swim' ? 'swim' : 'run'})`, textContent: `${LEG[a.sport] || a.sport} ${(+a.distance_m / 1000).toFixed(1)} km` }));
+    });
+    const msg = el('div', { className: 'note' });
+    const yes = el('button', { className: 'btn primary', type: 'button', textContent: 'Combine into one' });
+    const next = () => { close(); if (rest.length) setTimeout(() => offerCombine(rest), 150); };
+    body.append(el('h3', { textContent: 'Combine these into one activity?' }),
+      el('p', { className: 'sec', style: 'margin-top:0', textContent: `These ${acts.length} activities follow straight on from each other. If they were one race or brick session, Triven can join them into a single multisport activity with the gaps counted as transitions.` }),
+      prev, msg, el('div', { className: 'actions', style: 'justify-content:flex-end' }, el('button', { className: 'btn', type: 'button', textContent: 'Keep separate', onclick: next }), yes));
+    yes.onclick = async () => {
+      yes.disabled = true; msg.textContent = 'Combining…';
+      try { const r = await linkIds(acts.map(a => a.id)); toast(`Combined into ${r.activity.name}`); if (!rest.length) location.hash = '#a/' + r.id; next(); }
+      catch (e) { msg.textContent = 'Could not combine: ' + (e.message || e); yes.disabled = false; }
+    };
+  });
+}
+function unlinkButton(data) {
+  const b = el('button', { className: 'btn sm', type: 'button', textContent: 'Unlink', title: `Split back into the ${data.act.summary.linked.parts.length} original activities` });
+  b.onclick = async () => {
+    if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Split into ${data.act.summary.linked.parts.length}?`; return; }
+    b.disabled = true; b.textContent = 'Splitting…';
+    try {
+      const { act } = data, parts = act.summary.linked.parts;
+      const raws = await Promise.all(parts.map(async p => { const dl = await sb.storage.from('activity-files').download(p.file_path); if (dl.error) throw dl.error; return new Uint8Array(await dl.data.arrayBuffer()); }));
+      // the joined activity goes first, so its parts aren't seen as duplicates
+      const { data: media } = await sb.from('activity_media').select('id').eq('activity_id', act.id);
+      const tmp = await sb.from('activities').update({ summary: { ...act.summary, linked: { ...act.summary.linked, sourceIds: [] } } }).eq('id', act.id); if (tmp.error) throw tmp.error;
+      const ids = [];
+      for (let k = 0; k < parts.length; k++) {
+        const { messages, errors } = decodeFit(raws[k]);
+        const r = await importDecoded(sb, { uid: state.user.id, messages, errors, raw: raws[k], source: parts[k].source || 'upload', profile: state.profile, gear: state.gear });
+        if (r.id) ids.push(r.id);
+      }
+      if (media?.length && ids[0]) await sb.from('activity_media').update({ activity_id: ids[0] }).eq('activity_id', act.id);
+      if (act.streams_path) await sb.storage.from('activity-streams').remove([act.streams_path, act.streams_path.replace(/\.json$/, '.full.json')]);
+      await sb.from('activities').delete().eq('id', act.id);
+      // the restored copies were re-uploaded under new names: drop the old part files
+      await sb.storage.from('activity-files').remove(parts.map(p => p.file_path));
+      await loadAll(); toast(`Split into ${ids.length} activities`); location.hash = ids[0] ? '#a/' + ids[0] : '#log';
+    } catch (e) { toast('Could not unlink: ' + (e.message || e)); b.disabled = false; b.textContent = 'Unlink'; }
+  };
+  return b;
 }
