@@ -8,6 +8,7 @@ import { mountLog } from './log.js';
 import { mountGear } from './gear.js';
 import { mountClub } from './club.js';
 import { initSettings } from './settings.js';
+import './edit.js';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
