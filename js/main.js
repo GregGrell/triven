@@ -1,19 +1,21 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795093132';
+import { decodeFit } from './fit.js?v=1795093643';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795093132';
-import { vo2FromActivity } from './vo2.js?v=1795093132';
-import { mountActivity } from './activity.js?v=1795093132';
-import { mountLog } from './log.js?v=1795093132';
-import { mountGear } from './gear.js?v=1795093132';
-import { mountClub } from './club.js?v=1795093132';
-import { mountFeed } from './feed.js?v=1795093132';
-import { perfData } from './perf.js?v=1795093132';
-import { loadData } from './load.js?v=1795093132';
-import { mountManual } from './manual.js?v=1795093132';
-import { mountCal } from './cal.js?v=1795093132';
-import { initSettings, DEFAULTS } from './settings.js?v=1795093132';
-import './edit.js?v=1795093132';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795093643';
+import { vo2FromActivity } from './vo2.js?v=1795093643';
+import { mountActivity } from './activity.js?v=1795093643';
+import { mountLog } from './log.js?v=1795093643';
+import { mountGear } from './gear.js?v=1795093643';
+import { mountClub } from './club.js?v=1795093643';
+import { mountFeed } from './feed.js?v=1795093643';
+import { enrichOut, saveProcessed, importDecoded, pickGearFrom, gearRoles, vo2Summary as vo2SummaryP } from './pipeline.js?v=1795093643';
+import { perfData } from './perf.js?v=1795093643';
+import { loadData } from './load.js?v=1795093643';
+import { processInbox, paintConnections } from './sync.js?v=1795093643';
+import { mountManual } from './manual.js?v=1795093643';
+import { mountCal } from './cal.js?v=1795093643';
+import { initSettings, DEFAULTS } from './settings.js?v=1795093643';
+import './edit.js?v=1795093643';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -58,6 +60,7 @@ sb.auth.onAuthStateChange((_evt, session) => {
 async function boot() {
   show('loading');
   await loadAll();
+  setTimeout(() => processInbox().catch(() => {}), 1500);   // activities the sync server fetched but didn't finish
   $('acctName').textContent = state.profile?.display_name || state.user.email; paintAvatar();
   route();
   backfill();
@@ -95,6 +98,7 @@ export async function loadAll() {
   state.profile = p.data; state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
 }
 initAvatar();
+document.getElementById('openSettings').addEventListener('click', () => paintConnections());
 initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply) window.__actApply(cfg); document.dispatchEvent(new Event('triven:settings')); },
   { get: () => state.profile, save: async upd => { const { error } = await sb.from('profiles').update(upd).eq('id', state.user.id); if (error) { toast('Could not save privacy settings: ' + error.message); return; } Object.assign(state.profile, upd); } });
 export async function saveSettings(cfg) {
@@ -304,13 +308,8 @@ export function raceFlag(size = 18) {
 // default gear: is_default_for holds roles like "run:road,run:race" (old single values 'run'/'bike' mean everyday)
 export const GEAR_ROLES = { shoe: [['run:road', 'Everyday runs'], ['run:trail', 'Trail'], ['run:track', 'Track'], ['run:treadmill', 'Treadmill'], ['run:race', 'Races']],
   bike: [['bike:road', 'Everyday rides'], ['bike:indoor', 'Indoor / virtual'], ['bike:gravel', 'Gravel'], ['bike:mtb', 'Mountain bike'], ['bike:race', 'Races']] };
-export const gearRoles = g => !g.is_default_for ? [] : g.is_default_for === 'run' ? ['run:road'] : g.is_default_for === 'bike' ? ['bike:road'] : g.is_default_for.split(',').filter(Boolean);
-export function pickGear(sport, env, race) {
-  if (sport !== 'run' && sport !== 'bike') return null;
-  const live = state.gear.filter(g => !g.retired), has = role => live.find(g => gearRoles(g).includes(role))?.id;
-  const e = env === 'virtual' ? 'indoor' : env;
-  return (race && has(`${sport}:race`)) || (e && e !== 'road' && has(`${sport}:${e}`)) || has(`${sport}:road`) || null;
-}
+export { gearRoles };
+export const pickGear = (sport, env, race) => pickGearFrom(state.gear, sport, env, race);
 
 // ---------- upload ----------
 const drop = $('drop');
@@ -356,77 +355,19 @@ async function handleFiles(files) {
   if (added) { await loadAll(); toast(`${added} ${added === 1 ? 'activity' : 'activities'} added`); }
 }
 
-// VO2 max per activity (threshold-and-above stretches only); v:2 marks the current method
-function vo2Summary(sections, streams, weight) {
-  const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
-  const Sx = sections.map(s => ({ sport: FIT[s.sport], start: +s.start_offset_s, elapsed: +s.elapsed_s, env: s.summary?.env }));
-  const c = Object.assign({}, DEFAULTS, state.profile.settings || {});
-  const v = vo2FromActivity(Sx, rows(streams), { maxHr: c.maxHr, restHr: c.restHr, lthrRun: c.lthrRun, lthrBike: c.lthrBike, mass: weight || c.mass }, 'power', false);
-  return { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null, v: 2 };
-}
-// extras worked out for every processed activity: VO2 max, route thumbnail, possible driving
-export function enrich(out) {
-  try {
-    out.activity.summary.vo2 = vo2Summary(out.sections, out.streams, out.activity.summary.weight);
-  } catch (e) { /* estimate is optional */ }
-  out.activity.summary.track = makeTrack(out.streams, out.sections);
-  out.activity.summary.driving = detectDriving(out.sections, out.streams);
-  out.activity.summary.loadData = loadData(out.sections, out.streams);
-  out.activity.summary.perf = perfData(out.sections, out.streams);
-}
-const jsonBlob = o => new Blob([JSON.stringify(o)], { type: 'application/json' });
+const vo2Summary = (sections, streams, weight) => vo2SummaryP(sections, streams, weight, state.profile?.settings);
+export function enrich(out) { enrichOut(out, state.profile?.settings); }
 // write streams, sections, laps and bests for an activity (new, or replacing after a trim)
-export async function writeProcessed(id, out, share, gearBySport, replace) {
-  const base = `${state.user.id}/${id}`;
-  const ups = await Promise.all([
-    sb.storage.from('activity-streams').upload(`${base}.full.json`, jsonBlob(out.streams), { upsert: replace }),
-    sb.storage.from('activity-streams').upload(`${base}.json`, jsonBlob(shareStreams(out.streams, share)), { upsert: replace }),
-  ]);
-  const upErr = ups.find(u => u.error); if (upErr) throw upErr.error;
-  if (replace) {
-    const del = await Promise.all(['activity_sections', 'activity_laps', 'best_efforts'].map(t => sb.from(t).delete().eq('activity_id', id)));
-    const e = del.find(x => x.error); if (e) throw e.error;
-  }
-  const multi = out.activity.sport === 'multi';
-  const secs = out.sections.map(s => ({ ...s, activity_id: id, gear_id: multi && (s.sport === 'run' || s.sport === 'bike') ? gearBySport(s.sport, s.idx) : null }));
-  const res = await Promise.all([
-    sb.from('activity_sections').insert(secs),
-    out.laps.length ? sb.from('activity_laps').insert(out.laps.map(l => ({ ...l, activity_id: id }))) : { error: null },
-    out.bests.length ? sb.from('best_efforts').insert(out.bests.map(b => ({ ...b, activity_id: id }))) : { error: null },
-  ]);
-  const err = res.find(x => x.error); if (err) throw err.error;
-}
+export const writeProcessed = (id, out, share, gearBySport, replace) => saveProcessed(sb, state.user.id, id, out, share, gearBySport, replace);
 
 export async function importFit(ent, row) {
   const { messages, errors } = decodeFit(ent.data);
-  if (!messages.sessionMesgs?.length) { row.set('Not an activity (skipped)'); return 'notact'; }
-  if (errors?.length && !messages.recordMesgs?.length) throw new Error('file is damaged');
-  const out = processFit(messages, { source: /^\d+_ACTIVITY\.fit$/i.test(ent.name) ? 'garmin_export' : 'upload' });
-  const uid = state.user.id;
-  // skip duplicates
-  const dup = await sb.from('activities').select('id').eq('owner', uid).eq('source_id', out.activity.source_id).maybeSingle();
-  if (dup.data) { row.set('Already in Triven', 'ok'); return 'skip'; }
-  // first upload fills athlete settings from the watch if they were never set
-  const st = state.profile.settings || {};
-  if (!st.fromWatch && out.activity.summary.lthr) {
-    const lthr = out.activity.summary.lthr;
-    Object.assign(st, { lthrRun: lthr, lthrBike: lthr - 5, maxHr: out.activity.summary.maxHr || st.maxHr, mass: st.massSet ? st.mass : (out.activity.summary.weight || st.mass), fromWatch: true });
-    await sb.from('profiles').update({ settings: st }).eq('id', uid); state.profile.settings = st;
-  }
-  enrich(out);
-  const defGear = (sp, idx) => pickGear(sp, out.sections[idx]?.summary?.env, false);
-  const a = out.activity;
-  if (a.sport === 'run' || a.sport === 'bike') a.gear_id = pickGear(a.sport, out.sections.find(s => s.sport === a.sport)?.summary?.env, false);
-  a.visibility = state.profile.default_visibility; a.share = state.profile.default_share;
   row.set('Saving');
-  const ins = await sb.from('activities').insert(a).select('id').single();
-  if (ins.error) throw ins.error;
-  const id = ins.data.id, base = `${uid}/${id}`;
-  const up = await sb.storage.from('activity-files').upload(`${base}.fit`, new Blob([ent.data], { type: 'application/octet-stream' }));
-  if (up.error) throw up.error;
-  await writeProcessed(id, out, a.share, defGear, false);
-  const r2 = await sb.from('activities').update({ file_path: `${base}.fit`, streams_path: `${base}.json` }).eq('id', id); if (r2.error) throw r2.error;
-  const drv = a.summary.driving?.length ? ' · looks like it includes driving, check it' : '';
+  const r = await importDecoded(sb, { uid: state.user.id, messages, errors, raw: ent.data, source: /^\d+_ACTIVITY\.fit$/i.test(ent.name) ? 'garmin_export' : 'upload', profile: state.profile, gear: state.gear });
+  if (r.settings) state.profile.settings = r.settings;
+  if (r.status === 'notact') { row.set('Not an activity (skipped)'); return 'notact'; }
+  if (r.status === 'skip') { row.set('Already in Triven', 'ok'); return 'skip'; }
+  const a = r.activity, drv = a.summary.driving?.length ? ' · looks like it includes driving, check it' : '';
   row.set(`Added: ${a.name}, ${(a.distance_m / 1000).toFixed(1)} km${drv}`, 'ok');
   return 'ok';
 }

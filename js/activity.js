@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795093132';
+import { vo2FromActivity, vo2Band } from './vo2.js?v=1795093643';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -102,7 +102,7 @@ function statItems(){
   if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[(total.dist/1000).toFixed(2)+' km','Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:[(total.dist/total.elapsed*3.6).toFixed(1)+' km/h','Avg speed']),
     ...(total.avgHr?[[total.avgHr+' bpm','Avg HR'+(total.maxHr?' · max '+total.maxHr:'')]]:[]),...(total.ascent||R.length?[[(total.ascent||0)+' m','Elevation gain'+(R.length?' (watch)':'')]]:[]),...(total.cal?[[total.cal+' kcal','Energy']]:[])];
   if(sel.kind==='span'){const [a,b]=range();const rs=R.filter(r=>r.t>=a&&r.t<=b);
-    return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/d3.mean(rs,r=>r.kmh))+' /km','Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
+    return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/(((d=>d.length>1?(d[d.length-1].dist-d[0].dist)/((d[d.length-1].t-d[0].t)||1):d3.mean(rs,r=>r.kmh)/3.6)(rs.filter(r=>r.dist!=null)))*3.6))+' /km','Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
   const o=sel.kind==='seg'?S[sel.i]:L[sel.i], sp=o.sport;
   const it=[[fmtDur(o.elapsed),'Time'],[sp==='transition'?Math.round(o.dist)+' m':km(o.dist)+' km','Distance']];
   it.push(sp==='running'?[fmtPace(paceOf(o.avgSpeed))+' /km','Avg pace']:[(o.avgSpeed*3.6).toFixed(1)+' km/h','Avg speed']);
@@ -318,12 +318,22 @@ function renderCharts(){
   const [a,b]=range(), W=Math.max(320,host.clientWidth-32), m={l:46,r:8,t:6,b:4};
   xScale=d3.scaleLinear().domain([a,b]).range([m.l,W-m.r]);
   const vis=R.filter(r=>r.t>=a-2&&r.t<=b+2), defs=chartDefs().filter(d=>vis.some(r=>r[d.key]!=null));
+  // averages for the selection: pace and speed the way the watch does it (lap or leg distance over its time, or the
+  // distance covered over the span); everything else from the samples strictly inside the selection
+  const inR=R.filter(r=>r.t>=a&&r.t<=b), selObj=sel.kind==='lap'?L[sel.i]:sel.kind==='seg'?S[sel.i]:null;
+  const spanSpeed=()=>{const d=inR.filter(r=>r.dist!=null);return d.length>1&&b>a?(d[d.length-1].dist-d[0].dist)/(d[d.length-1].t-d[0].t||b-a):null};
+  const avgMs=selObj&&selObj.avgSpeed>0?+selObj.avgSpeed:selObj&&selObj.dist>0&&selObj.elapsed>0?selObj.dist/selObj.elapsed:spanSpeed();
+  const avgOf=d=>{
+    if((d.key==='pace'||d.key==='kmhS')&&avgMs>0) return d.key==='pace'?fmtPace(60/(avgMs*3.6)):d.fmt(avgMs*3.6);
+    if(d.key==='hr'&&selObj&&selObj.avgHr) return d.fmt(+selObj.avgHr);
+    if((d.key==='pw'||d.key==='bpw')&&selObj&&selObj.avgPower>0&&!(d.key==='bpw'&&!(BIKE&&BIKE.has))) return d.fmt(+selObj.avgPower);
+    const v=inR.map(r=>r[d.key]).filter(v=>v!=null);return v.length?d.fmt(d3.mean(v)):'–'};
   defs.forEach((d,ci)=>{
     const vals=vis.map(r=>r[d.key]).filter(v=>v!=null), H=d.bal?120:84, last=ci===defs.length-1, HH=H+(last?18:0);
     const div=document.createElement('div');div.className='chart';const head=document.createElement('div');head.className='chead';
     const t=document.createElement('div');t.className='t';t.textContent=d.title;if(d.note){const em=document.createElement('em');em.textContent=d.note;t.append(em)}
     const cur=document.createElement('div');cur.className='cur';
-    const avg=d.key==='pace'?fmtPace(60/d3.mean(vis.filter(r=>r.pace!=null),r=>r.kmh)):d.fmt(d3.mean(vals));
+    const avg=avgOf(d);
     cur.dataset.avg=`avg ${avg}`;cur.append(document.createTextNode(`avg ${avg}`));const u=document.createElement('small');u.textContent=d.unit;cur.append(u);
     head.append(t,cur);div.append(head);host.append(div);
     const svg=d3.select(div).append('svg').attr('viewBox',`0 0 ${W+16} ${HH}`).attr('height',HH);

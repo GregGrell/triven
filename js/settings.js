@@ -1,7 +1,8 @@
 // Athlete settings sheet: heart-rate zones, running-balance flags, cycling model.
 const $=id=>document.getElementById(id), ov=$('settings');
 const ZNAMES=['Recovery','Aerobic','Tempo','Sub-threshold','Threshold','VO₂ max +'];
-export const DEFAULTS={lthrRun:163,lthrBike:158,maxHr:175,restHr:50,age:null,zones:[85,90,95,100,103],balLo:48.5,balHi:51.5,balMin:10,ftp:null,mass:75,bikeMass:9,cda:0.27,crr:0.004};
+import { DEFAULTS } from './defaults.js?v=1795093643';
+export { DEFAULTS };
 const FIELDS=['lthrRun','lthrBike','maxHr','restHr','age','balLo','balHi','balMin','ftp','mass','bikeMass','cda','crr'];
 let getCfg=()=>DEFAULTS, onApply=()=>{}, priv=null;
 function fillZoneTable(z,lr,lb){const t=$('ztable');t.replaceChildren();const h=t.insertRow();['Zone','From (% threshold HR)','Run bpm','Bike bpm'].forEach(x=>{const th=document.createElement('th');th.textContent=x;h.append(th)});
