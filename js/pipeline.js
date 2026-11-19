@@ -1,10 +1,10 @@
 // Turning a decoded FIT file into Triven rows and files. No browser or app state in here, so the same code runs in
 // the app (uploads, trims) and on the server (automatic sync from intervals.icu).
-import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795093643';
-import { loadData } from './load.js?v=1795093643';
-import { perfData } from './perf.js?v=1795093643';
-import { vo2FromActivity } from './vo2.js?v=1795093643';
-import { DEFAULTS } from './defaults.js?v=1795093643';
+import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795094867';
+import { loadData } from './load.js?v=1795094867';
+import { perfData } from './perf.js?v=1795094867';
+import { vo2FromActivity } from './vo2.js?v=1795094867';
+import { DEFAULTS } from './defaults.js?v=1795094867';
 
 // default gear: is_default_for holds roles like "run:road,run:race" (old single values 'run'/'bike' mean everyday)
 export const gearRoles = g => !g.is_default_for ? [] : g.is_default_for === 'run' ? ['run:road'] : g.is_default_for === 'bike' ? ['bike:road'] : g.is_default_for.split(',').filter(Boolean);

@@ -1,4 +1,4 @@
-import { snapToTrack, pathLength } from './track.js?v=1795093643';
+import { snapToTrack, pathLength } from './track.js?v=1795094867';
 // Triven: turn a decoded FIT file into activity rows, streams and best efforts.
 // Pure functions only (no network), so the same code runs in the browser and in tests.
 

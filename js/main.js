@@ -1,21 +1,21 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795093643';
+import { decodeFit } from './fit.js?v=1795094867';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795093643';
-import { vo2FromActivity } from './vo2.js?v=1795093643';
-import { mountActivity } from './activity.js?v=1795093643';
-import { mountLog } from './log.js?v=1795093643';
-import { mountGear } from './gear.js?v=1795093643';
-import { mountClub } from './club.js?v=1795093643';
-import { mountFeed } from './feed.js?v=1795093643';
-import { enrichOut, saveProcessed, importDecoded, pickGearFrom, gearRoles, vo2Summary as vo2SummaryP } from './pipeline.js?v=1795093643';
-import { perfData } from './perf.js?v=1795093643';
-import { loadData } from './load.js?v=1795093643';
-import { processInbox, paintConnections } from './sync.js?v=1795093643';
-import { mountManual } from './manual.js?v=1795093643';
-import { mountCal } from './cal.js?v=1795093643';
-import { initSettings, DEFAULTS } from './settings.js?v=1795093643';
-import './edit.js?v=1795093643';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795094867';
+import { vo2FromActivity } from './vo2.js?v=1795094867';
+import { mountActivity } from './activity.js?v=1795094867';
+import { mountLog } from './log.js?v=1795094867';
+import { mountGear } from './gear.js?v=1795094867';
+import { mountClub } from './club.js?v=1795094867';
+import { mountFeed } from './feed.js?v=1795094867';
+import { enrichOut, saveProcessed, importDecoded, pickGearFrom, gearRoles, vo2Summary as vo2SummaryP } from './pipeline.js?v=1795094867';
+import { perfData } from './perf.js?v=1795094867';
+import { loadData } from './load.js?v=1795094867';
+import { processInbox, paintConnections } from './sync.js?v=1795094867';
+import { mountManual } from './manual.js?v=1795094867';
+import { mountCal } from './cal.js?v=1795094867';
+import { initSettings, DEFAULTS } from './settings.js?v=1795094867';
+import './edit.js?v=1795094867';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';

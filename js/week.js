@@ -3,10 +3,10 @@
 //
 // Suggested weekly load range: your chronic load (fitness x 7) times 0.8 to 1.3, the acute:chronic workload ratio
 // band sports science treats as the "sweet spot" (below it fitness drifts, well above it injury risk climbs).
-import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795093643';
-import { DEFAULTS } from './settings.js?v=1795093643';
-import { loadOf, pmc } from './load.js?v=1795093643';
-import { openModal } from './edit.js?v=1795093643';
+import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795094867';
+import { DEFAULTS } from './settings.js?v=1795094867';
+import { loadOf, pmc } from './load.js?v=1795094867';
+import { openModal } from './edit.js?v=1795094867';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const DAY = 864e5, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
