@@ -1,8 +1,8 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795091609';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795091609';
-import { openTrim } from './trim.js?v=1795091609';
-import { openIg } from './ig.js?v=1795091609';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795092477';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795092477';
+import { openTrim } from './trim.js?v=1795092477';
+import { openIg } from './ig.js?v=1795092477';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
@@ -156,10 +156,15 @@ export function openEditor(data, onSaved) {
     { const real = sections.filter(s => ENVS[s.sport]); const cnt = {}, tot = {}; real.forEach(s => tot[s.sport] = (tot[s.sport] || 0) + 1);
       real.forEach(s => { cnt[s.sport] = (cnt[s.sport] || 0) + 1;
         const sel = el('select'); ENVS[s.sport].forEach(([v, t]) => sel.append(el('option', { value: v, textContent: t, selected: (s.summary?.env || ENVS[s.sport][0][0]) === v })));
-        typeInputs.push({ sec: s, sel });
-        typeSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${tot[s.sport] > 1 ? ' ' + cnt[s.sport] : ''}${s.distance_m ? ` · ${(s.distance_m / 1000).toFixed(2)} km` : ''}`, sel)); });
+        // treadmill: what the machine said, so the watch's distance (and every pace and lap) can be corrected
+        const dist = el('input', { type: 'number', min: 0.1, step: 0.01, value: s.distance_m ? (+s.distance_m / 1000).toFixed(2) : '', style: 'width:110px' });
+        const watch = s.summary?.watchDistance;
+        const fixRow = el('label', { className: 'mf', style: 'margin-top:6px' }, 'Treadmill distance', dist, 'km', watch ? el('span', { className: 'muted', textContent: ` (watch said ${(watch / 1000).toFixed(2)} km)` }) : null);
+        const showFix = () => { fixRow.hidden = sel.value !== 'treadmill'; }; sel.addEventListener('change', showFix); showFix();
+        typeInputs.push({ sec: s, sel, dist });
+        typeSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${tot[s.sport] > 1 ? ' ' + cnt[s.sport] : ''}${s.distance_m ? ` · ${(s.distance_m / 1000).toFixed(2)} km` : ''}`, sel), fixRow); });
       if (!real.length) typeSec.hidden = true;
-      typeSec.append(el('div', { className: 'note', textContent: 'Track snaps your GPS onto the 400 m track and measures the distance round lane 1. Treadmill and indoor rides don’t count towards distance bests (power bests still count).' })); }
+      typeSec.append(el('div', { className: 'note', textContent: 'Track snaps your GPS onto the 400 m track and measures the distance round lane 1. For a treadmill run, enter the distance the treadmill showed: the leg’s pace, laps and stride are rescaled to match. Treadmill and indoor rides don’t count towards distance bests (power bests still count).' })); }
     // gear
     const gearSec = el('section', {}, el('h2', { textContent: 'Gear' }));
     const gearInputs = [];
@@ -202,15 +207,24 @@ export function openEditor(data, onSaved) {
       if (raceCk.checked !== !!act.is_race) await setRace(data, raceCk.checked);
       // type changes: uploaded files are re-processed (track snapping, bests); manual entries just store it
       const changed = typeInputs.filter(t => t.sel.value !== (t.sec.summary?.env || ENVS[t.sec.sport][0][0]));
-      if (changed.length) {
+      // treadmill distances that differ from what's stored (10 m tolerance)
+      const fixes = typeInputs.filter(t => t.sel.value === 'treadmill' && +t.dist.value > 0 && Math.abs(+t.dist.value * 1000 - (+t.sec.distance_m || 0)) > 10);
+      if (changed.length || fixes.length) {
         if (act.file_path) {
-          msg.textContent = 'Re-processing with the new type…';
+          msg.textContent = fixes.length ? 'Correcting the treadmill distance…' : 'Re-processing with the new type…';
           const env = sections.map(s => { const t = typeInputs.find(x => x.sec === s); return t ? t.sel.value : (s.summary?.env || null); });
-          try { await reprocess({ act: { ...act, ...upd }, sections }, { env }); }
+          const distFix = { ...(act.summary?.distFix || {}) };
+          // stored as a factor of the watch's distance, so it still holds if the run is trimmed later
+          fixes.forEach(t => { distFix[t.sec.idx] = +(+t.dist.value * 1000 / (+t.sec.summary?.watchDistance || +t.sec.distance_m)).toFixed(5); });
+          try { await reprocess({ act: { ...act, ...upd }, sections }, { env, distFix }); }
           catch (e) { msg.textContent = 'Saved, but the type could not be applied: ' + (e.message || e); save.disabled = false; return; }
         } else {
-          for (const t of changed) { const q = await sb.from('activity_sections').update({ summary: { ...(t.sec.summary || {}), env: t.sel.value } }).eq('activity_id', act.id).eq('idx', t.sec.idx);
-            if (q.error) { msg.textContent = q.error.message; save.disabled = false; return; } }
+          for (const t of new Set([...changed, ...fixes])) { const d = fixes.includes(t) ? Math.round(+t.dist.value * 1000) : null;
+            const q = await sb.from('activity_sections').update({ summary: { ...(t.sec.summary || {}), env: t.sel.value },
+              ...(d ? { distance_m: d, avg_speed: +(d / (+t.sec.elapsed_s || 1)).toFixed(3) } : {}) }).eq('activity_id', act.id).eq('idx', t.sec.idx);
+            if (q.error) { msg.textContent = q.error.message; save.disabled = false; return; }
+            if (d) t.sec.distance_m = d; }
+          if (fixes.length) await sb.from('activities').update({ distance_m: sections.reduce((p, s) => p + (+s.distance_m || 0), 0) }).eq('id', act.id);
           const envs = sections.map(s => { const t = typeInputs.find(x => x.sec === s); return t ? t.sel.value : s.summary?.env; }).filter(Boolean);
           await sb.from('activities').update({ indoor: envs.length > 0 && envs.every(e => INDOOR.has(e)) }).eq('id', act.id);
         }

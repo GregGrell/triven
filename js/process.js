@@ -1,4 +1,4 @@
-import { snapToTrack, pathLength } from './track.js?v=1795091609';
+import { snapToTrack, pathLength } from './track.js?v=1795092477';
 // Triven: turn a decoded FIT file into activity rows, streams and best efforts.
 // Pure functions only (no network), so the same code runs in the browser and in tests.
 
@@ -139,6 +139,24 @@ export function processFit(messages, opts = {}) {
       if (s.elapsed_s) s.avg_speed = r(s.distance_m / (s.timer_s || s.elapsed_s), 3);
       s.summary.trackFit = snap.fit; s.summary.trackOval = snap.oval;
     }
+  });
+  // treadmill distance correction (opts.distFix[idx] = treadmill distance / watch distance): scale the leg's distance, speed,
+  // stride and laps by the same factor, and shift everything after it so the later legs keep their own distances
+  if (opts.distFix) sections.forEach((s, i) => {
+    const f = +opts.distFix[i]; if (!(f > 0) || !(s.distance_m > 0) || Math.abs(f - 1) < 1e-4) return;
+    const want = s.distance_m * f;
+    const a = s.start_offset_s, b = a + s.elapsed_s;
+    const inSec = recs.filter(x => x.t >= a && x.t <= b);
+    const d0 = inSec.find(x => x.dist != null)?.dist ?? 0, dEnd = inSec.filter(x => x.dist != null).at(-1)?.dist ?? d0;
+    for (const x of inSec) { if (x.dist != null) x.dist = r(d0 + (x.dist - d0) * f, 1); if (x.speed != null) x.speed = r(x.speed * f, 3); if (x.stride != null) x.stride = r(x.stride * f, 0); }
+    const delta = (dEnd - d0) * (f - 1);
+    recs.forEach(x => { if (x.t > b && x.dist != null) x.dist = r(x.dist + delta, 1); });
+    s.summary.watchDistance = s.distance_m; s.distance_m = r(want, 1);
+    if (s.avg_speed != null) s.avg_speed = r(s.avg_speed * f, 3);
+    if (s.summary.maxSpeed != null) s.summary.maxSpeed = r(s.summary.maxSpeed * f, 3);
+    if (s.summary.avgStride != null) s.summary.avgStride = r(s.summary.avgStride * f, 0);
+    s.summary.distFix = r(f, 4);
+    laps.forEach(l => { if (l.sport === s.sport && l.start_offset_s >= a - 0.5 && l.start_offset_s < b - 0.5) { if (l.distance_m != null) l.distance_m = r(l.distance_m * f, 1); if (l.avg_speed != null) l.avg_speed = r(l.avg_speed * f, 3); } });
   });
   const streams = { fields: STREAM_FIELDS, v: 1 };
   for (const f of STREAM_FIELDS) streams[f] = recs.map(x => x[f]);

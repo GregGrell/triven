@@ -1,19 +1,19 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795091609';
+import { decodeFit } from './fit.js?v=1795092477';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795091609';
-import { vo2FromActivity } from './vo2.js?v=1795091609';
-import { mountActivity } from './activity.js?v=1795091609';
-import { mountLog } from './log.js?v=1795091609';
-import { mountGear } from './gear.js?v=1795091609';
-import { mountClub } from './club.js?v=1795091609';
-import { mountFeed } from './feed.js?v=1795091609';
-import { perfData } from './perf.js?v=1795091609';
-import { loadData } from './load.js?v=1795091609';
-import { mountManual } from './manual.js?v=1795091609';
-import { mountCal } from './cal.js?v=1795091609';
-import { initSettings, DEFAULTS } from './settings.js?v=1795091609';
-import './edit.js?v=1795091609';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795092477';
+import { vo2FromActivity } from './vo2.js?v=1795092477';
+import { mountActivity } from './activity.js?v=1795092477';
+import { mountLog } from './log.js?v=1795092477';
+import { mountGear } from './gear.js?v=1795092477';
+import { mountClub } from './club.js?v=1795092477';
+import { mountFeed } from './feed.js?v=1795092477';
+import { perfData } from './perf.js?v=1795092477';
+import { loadData } from './load.js?v=1795092477';
+import { mountManual } from './manual.js?v=1795092477';
+import { mountCal } from './cal.js?v=1795092477';
+import { initSettings, DEFAULTS } from './settings.js?v=1795092477';
+import './edit.js?v=1795092477';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -160,17 +160,20 @@ const SPORT_FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transitio
 // Re-run the original file through processing: used by trim, restore and changing a leg's type (treadmill, track...).
 // trim: [from, to] seconds from the file's start, 'none' to restore the full file, or undefined to keep the current trim.
 // env: per-section types chosen by the user (kept for later re-processing).
-export async function reprocess({ act, sections }, { trim, env } = {}) {
+export async function reprocess({ act, sections }, { trim, env, distFix } = {}) {
   const dl = await sb.storage.from('activity-files').download(act.file_path);
   if (dl.error) throw dl.error;
   const { messages } = decodeFit(new Uint8Array(await dl.data.arrayBuffer()));
   const cur = act.summary?.trim, win = trim === 'none' ? null : trim || (cur ? [cur.from, cur.to] : null);
   const envs = env || act.summary?.env || null;
-  const out = processFit(win ? trimMessages(messages, win[0], win[1]) : messages, { source: act.source, env: envs });
+  // treadmill corrections only apply to legs that are still treadmill
+  const fix = Object.fromEntries(Object.entries(distFix || act.summary?.distFix || {}).filter(([i, v]) => v > 0 && (!envs || envs[i] === 'treadmill')));
+  const out = processFit(win ? trimMessages(messages, win[0], win[1]) : messages, { source: act.source, env: envs, distFix: fix });
   enrich(out);
   const n = out.activity;
   if (win) n.summary.trim = { from: win[0], to: win[1], origElapsed: cur?.origElapsed || +act.elapsed_s }; else delete n.summary.trim;
   if (envs) n.summary.env = envs;
+  if (Object.keys(fix).length) n.summary.distFix = fix; else delete n.summary.distFix;
   const upd = { start_time: n.start_time, distance_m: n.distance_m, elapsed_s: n.elapsed_s, moving_s: n.moving_s, ascent_m: n.ascent_m, descent_m: n.descent_m,
     calories: n.calories, avg_hr: n.avg_hr, max_hr: n.max_hr, indoor: n.indoor, summary: n.summary };
   const r = await sb.from('activities').update(upd).eq('id', act.id); if (r.error) throw r.error;
