@@ -24,6 +24,6 @@ export function initSettings(get,apply){
   $('saveSettings').onclick=()=>{const o=readForm();const z=o.zones;
     if(!(z.every((v,i)=>i===0||v>z[i-1]))){alertBox('Zone boundaries must increase from Z2 to Z6.');return}
     if(!(o.balLo<50&&o.balHi>50)){alertBox('Balance thresholds must sit either side of 50%.');return}
-    const cfg=Object.assign({},getCfg(),Object.fromEntries(Object.entries(o).filter(([k,v])=>v!=null||k==='ftp')));
+    const cfg=Object.assign({},getCfg(),Object.fromEntries(Object.entries(o).filter(([k,v])=>v!=null||k==='ftp')),{massSet:true});
     ov.classList.remove('open');onApply(cfg);};
 }

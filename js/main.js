@@ -131,7 +131,15 @@ export async function fetchActivity(id) {
     sb.from('activity_sections').select('*').eq('activity_id', id).order('idx'),
     sb.from('activity_laps').select('*').eq('activity_id', id).order('idx'),
   ]);
-  if (a.error) throw a.error;
+  if (a.error || !a.data) {
+    // not ours: read it through the sharing-aware function
+    const v = await sb.rpc('view_activity', { aid: id });
+    if (v.error || !v.data) throw (v.error || new Error('not visible'));
+    const { act, sections, laps } = v.data;
+    let streams = null;
+    if (act.streams_path) { const dl = await sb.storage.from('activity-streams').download(act.streams_path); if (!dl.error) streams = JSON.parse(await dl.data.text()); }
+    return { act, sections, laps, streams };
+  }
   const act = a.data, path = act.owner === state.user.id ? act.streams_path?.replace(/\.json$/, '.full.json') : act.streams_path;
   let streams = null;
   if (path) { const dl = await sb.storage.from('activity-streams').download(path); if (!dl.error) streams = JSON.parse(await dl.data.text()); }
@@ -148,7 +156,7 @@ export function toRaw({ act, sections, laps, streams }) {
       avgSpeed: l.avg_speed, avgPower: l.avg_power, ascent: l.ascent_m })),
     recordFields: streams ? streams.fields : ['t'],
     records: streams ? rows(streams).map(o => streams.fields.map(f => o[f])) : [],
-    meta: { start: act.start_time, device: act.device, sensors: [], utcOffsetH: act.utc_offset_min / 60 },
+    meta: { start: act.start_time, device: act.device, sensors: [], utcOffsetH: act.utc_offset_min / 60, weight: act.summary?.weight || null },
   };
 }
 async function openActivity(id) {
@@ -173,6 +181,7 @@ export function renderActHeader(act, sections) {
   const add = t => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; tags.append(s); };
   if (act.sport === 'multi') { add(act.multisport_profile === 'other' ? 'Multisport' : act.multisport_profile); add(sections.filter(s => s.sport !== 'transition').map(s => T[s.sport] === 'Ride' ? 'Bike' : T[s.sport]).join(' · ')); }
   else add(T[act.sport] || 'Workout');
+  if (act.athlete && act.owner !== state.user.id) add(act.athlete);
   if (act.indoor) add('Indoor');
   add({ private: 'Only you', club: 'Club', public: 'Public' }[act.visibility]);
 }
@@ -236,7 +245,7 @@ export async function importFit(ent, row) {
   const st = state.profile.settings || {};
   if (!st.fromWatch && out.activity.summary.lthr) {
     const lthr = out.activity.summary.lthr;
-    Object.assign(st, { lthrRun: lthr, lthrBike: lthr - 5, maxHr: out.activity.summary.maxHr || st.maxHr, mass: out.activity.summary.weight || st.mass, fromWatch: true });
+    Object.assign(st, { lthrRun: lthr, lthrBike: lthr - 5, maxHr: out.activity.summary.maxHr || st.maxHr, mass: st.massSet ? st.mass : (out.activity.summary.weight || st.mass), fromWatch: true });
     await sb.from('profiles').update({ settings: st }).eq('id', uid); state.profile.settings = st;
   }
   // VO2 max from this activity (bike only with a power meter; estimated power is handled live on the activity page)
@@ -244,7 +253,7 @@ export async function importFit(ent, row) {
     const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
     const Sx = out.sections.map(s => ({ sport: FIT[s.sport], start: s.start_offset_s, elapsed: s.elapsed_s }));
     const cfgv = state.profile.settings || {};
-    const v = vo2FromActivity(Sx, rows(out.streams), { maxHr: cfgv.maxHr || 175, restHr: cfgv.restHr || 50, mass: cfgv.mass || 75 }, 'power', false);
+    const v = vo2FromActivity(Sx, rows(out.streams), { maxHr: cfgv.maxHr || 175, restHr: cfgv.restHr || 50, mass: out.activity.summary.weight || cfgv.mass || 75 }, 'power', false);
     out.activity.summary.vo2 = { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null };
   } catch (e) { /* estimate is optional */ }
   // default gear

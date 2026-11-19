@@ -10,6 +10,8 @@ const DEFAULTS={lthrRun:S[0].lthr||163,lthrBike:(S[0].lthr||163)-5,maxHr:S[0].ma
   zones:[85,90,95,100,103], balLo:48.5, balHi:51.5, balMin:10, ftp:null, mass:78.4, bikeMass:9, cda:0.27, crr:0.004};
 const ZNAMES=['Recovery','Aerobic','Tempo','Sub-threshold','Threshold','VO₂ max +'];
 let CFG=Object.assign({},DEFAULTS,cfgIn||{});
+// weight on the day (from the watch file) beats today's weight in Settings
+const MASS=()=>raw.meta.weight||CFG.mass;
 
 // ---------- records ----------
 const NAMES=[]; let rc=0,tc=0; let sc=0; const nRun=S.filter(s=>s.sport==='running').length; S.forEach(s=>{ if(s.sport==='running') NAMES.push(nRun>1?'Run '+(++rc):'Run'); else if(s.sport==='cycling') NAMES.push('Bike'); else if(s.sport==='swimming') NAMES.push(++sc>1?'Swim '+sc:'Swim'); else if(s.sport==='transition') NAMES.push('T'+(++tc)); else NAMES.push('Workout') });
@@ -69,7 +71,7 @@ function computeBike(){
   if(has){ P=interp('power'); }
   else{
     const v=roll(interp('speed'),5), alt=roll(interp('alt'),61), dist=interp('dist');
-    const m=CFG.mass+CFG.bikeMass, rho=1.19, eta=0.975, g=9.81;
+    const m=MASS()+CFG.bikeMass, rho=1.19, eta=0.975, g=9.81;
     const grade=new Float64Array(n); for(let k=0;k<n;k++){const a=Math.max(0,k-30),b=Math.min(n-1,k+30);const dd=dist[b]-dist[a];grade[k]=dd>40?Math.max(-0.06,Math.min(0.06,(alt[b]-alt[a])/dd)):0}
     P=new Float64Array(n);
     for(let k=0;k<n;k++){const acc=k>0&&k<n-1?(v[k+1]-v[k-1])/2:0;const th=Math.atan(grade[k]);
@@ -187,7 +189,7 @@ function renderFtp(){
   if(!BIKE){el.append(Object.assign(document.createElement('div'),{className:'note',textContent:'No cycling in this activity.'}));return}
   const manual=CFG.ftp>0, ftp=manual?CFG.ftp:BIKE.est;
   const top=document.createElement('div');top.style.marginTop='10px';
-  const big=document.createElement('div');big.className='big';big.textContent=ftp?Math.round(ftp):'–';const u=document.createElement('small');u.textContent=`W · ${ftp?(ftp/CFG.mass).toFixed(2):'–'} W/kg`;big.append(u);
+  const big=document.createElement('div');big.className='big';big.textContent=ftp?Math.round(ftp):'–';const u=document.createElement('small');u.textContent=`W · ${ftp?(ftp/MASS()).toFixed(2):'–'} W/kg`;big.append(u);
   const pill=document.createElement('span');pill.className='pill';pill.style.marginTop='6px';pill.textContent=manual?'Set manually in Settings':BIKE.has?'From power meter':'Estimate · low confidence';
   top.append(big,pill);el.append(top);
   const kv=document.createElement('div');kv.className='kv';
@@ -202,7 +204,7 @@ function renderFtp(){
     const unreliable=BIKE.estimated&&c.w<60; if(c.p==null||unreliable){td.className='na';td.textContent=c.p==null?'—':'n/a'} else td.textContent=Math.round(c.p);});
   const cap=document.createElement('div');cap.className='note';cap.style.marginTop='6px';
   cap.textContent=BIKE.has?'Best power for each duration (W). Method B is the headline FTP.':
-   `Best power for each duration (W, estimated). No power meter on this ride, so power is modelled from speed, gradient, weight (${CFG.mass}+${CFG.bikeMass} kg) and riding position, assuming no wind. Under a minute is shown as n/a because speed data is too noisy at that length. Method A is the headline: this ride was steady and below threshold, so Method B gives only a lower bound. A ride with a power meter will replace the estimate.`;
+   `Best power for each duration (W, estimated). No power meter on this ride, so power is modelled from speed, gradient, weight (${MASS()} kg rider${raw.meta.weight?', from your watch that day':''} + ${CFG.bikeMass} kg bike) and riding position, assuming no wind. Under a minute is shown as n/a because speed data is too noisy at that length. Method A is the headline: this ride was steady and below threshold, so Method B gives only a lower bound. A ride with a power meter will replace the estimate.`;
   el.append(t,cap);
 }
 
@@ -332,7 +334,7 @@ function renderLaps(){
 function renderVo2(){
   const el=document.getElementById('vo2card');el.replaceChildren();
   const h=document.createElement('h2');h.textContent='VO₂ max estimate';el.append(h);
-  const est=vo2FromActivity(S,R,{maxHr:CFG.maxHr,restHr:CFG.restHr,mass:CFG.mass},BIKE&&BIKE.has?'power':'bpw',!(BIKE&&BIKE.has));
+  const est=vo2FromActivity(S,R,{maxHr:CFG.maxHr,restHr:CFG.restHr,mass:MASS()},BIKE&&BIKE.has?'power':'bpw',!(BIKE&&BIKE.has));
   const row=document.createElement('div');row.className='vo2row';
   const block=(label,e,note)=>{const d=document.createElement('div');d.className='vo2b';const t=document.createElement('div');t.className='sec';t.textContent=label;d.append(t);
     if(!e){const n=document.createElement('div');n.className='note';n.style.marginTop='6px';n.textContent=note;d.append(n);return d}
@@ -344,7 +346,7 @@ function renderVo2(){
   if(S.some(s=>s.sport==='cycling')) row.append(block('Cycling',est.bike,'Not enough steady riding with settled heart rate in this activity.'));
   if(!row.children.length){el.append(Object.assign(document.createElement('div'),{className:'note',textContent:'VO₂ max is estimated from runs and rides.'}));return}
   el.append(row);
-  el.append(Object.assign(document.createElement('div'),{className:'note',textContent:`How it works: on steady stretches, the oxygen cost of your pace (or power) is divided by the share of your heart-rate reserve you were using, then the middle value is taken. It uses max HR ${CFG.maxHr} and resting HR ${CFG.restHr} from Settings, so getting those right matters most. Heat, fatigue and caffeine raise heart rate and pull the estimate down. Treat one activity as a data point; the trend on the Training log is more reliable.`}));
+  el.append(Object.assign(document.createElement('div'),{className:'note',textContent:`How it works: on steady stretches, the oxygen cost of your pace (or power) is divided by the share of your heart-rate reserve you were using, then the middle value is taken. It uses max HR ${CFG.maxHr} and resting HR ${CFG.restHr} from Settings, so getting those right matters most. The cycling figure is per kilo, so it also uses your weight: ${MASS()} kg${raw.meta.weight?' (recorded by your watch that day)':' (from Settings)'}. Running VO₂ max comes from pace and heart rate and doesn't depend on weight. Heat, fatigue and caffeine raise heart rate and pull the estimate down. Treat one activity as a data point; the trend on the Training log is more reliable.`}));
 }
 
 // settings are edited in settings.js; it calls this to re-render with new values
