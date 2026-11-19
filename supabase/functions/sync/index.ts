@@ -5,7 +5,7 @@
 // The import code is the same module the app uses, loaded from the GitHub repo at a fixed commit.
 import { createClient } from 'npm:@supabase/supabase-js@2.119.1';
 import { Decoder, Stream } from 'npm:@garmin/fitsdk@21.222.0';
-import { importDecoded } from 'https://cdn.jsdelivr.net/gh/GregGrell/triven@905f9f80f1f11a1ce4d717c631b4e62da2f95ba6/js/pipeline.js';
+import { importDecoded } from 'https://cdn.jsdelivr.net/gh/GregGrell/triven@45541ee178342a633006b449dcbb2418810c4d63/js/pipeline.js';
 
 const BASE = Deno.env.get('SUPABASE_URL')!;
 const secretKey = (() => { try { return JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default; } catch { return null; } })() || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
