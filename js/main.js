@@ -1,21 +1,21 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795099504';
+import { decodeFit } from './fit.js?v=1795099558';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795099504';
-import { vo2FromActivity } from './vo2.js?v=1795099504';
-import { mountActivity } from './activity.js?v=1795099504';
-import { mountLog } from './log.js?v=1795099504';
-import { mountGear } from './gear.js?v=1795099504';
-import { mountClub } from './club.js?v=1795099504';
-import { mountFeed } from './feed.js?v=1795099504';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles, vo2Summary as vo2SummaryP } from './pipeline.js?v=1795099504';
-import { perfData } from './perf.js?v=1795099504';
-import { loadData } from './load.js?v=1795099504';
-import { processInbox, paintConnections } from './sync.js?v=1795099504';
-import { mountManual } from './manual.js?v=1795099504';
-import { mountCal } from './cal.js?v=1795099504';
-import { initSettings, DEFAULTS } from './settings.js?v=1795099504';
-import { offerCombine } from './edit.js?v=1795099504';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795099558';
+import { vo2FromActivity } from './vo2.js?v=1795099558';
+import { mountActivity } from './activity.js?v=1795099558';
+import { mountLog } from './log.js?v=1795099558';
+import { mountGear } from './gear.js?v=1795099558';
+import { mountClub } from './club.js?v=1795099558';
+import { mountFeed } from './feed.js?v=1795099558';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles, vo2Summary as vo2SummaryP } from './pipeline.js?v=1795099558';
+import { perfData } from './perf.js?v=1795099558';
+import { loadData } from './load.js?v=1795099558';
+import { processInbox, paintConnections } from './sync.js?v=1795099558';
+import { mountManual } from './manual.js?v=1795099558';
+import { mountCal } from './cal.js?v=1795099558';
+import { initSettings, DEFAULTS } from './settings.js?v=1795099558';
+import { offerCombine } from './edit.js?v=1795099558';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
