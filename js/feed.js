@@ -1,15 +1,14 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity } from './main.js?v=1795084751';
-import { drawRouteMap } from './mapcanvas.js?v=1795084751';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795084751';
-import { openTrim } from './trim.js?v=1795084751';
+import { sb, state, toast, fetchActivity, VIS } from './main.js?v=1795085683';
+import { drawRouteMap } from './mapcanvas.js?v=1795085683';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795085683';
+import { openTrim } from './trim.js?v=1795085683';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
 const SPC = { run: 'var(--run)', bike: 'var(--bike)', swim: 'var(--swim)', transition: 'var(--trans)' };
 const SPN = { run: 'Run', bike: 'Ride', swim: 'Swim', multi: 'Multisport', other: 'Workout' };
-const VIS = { private: 'Only you', club: 'Club', public: 'Public' };
 const dark = () => matchMedia('(prefers-color-scheme: dark)').matches;
 let scope = 'me', cursor = null, io = null;
 
@@ -17,8 +16,8 @@ export async function mountFeed(sc) {
   scope = sc || 'me'; cursor = null;
   const v = document.getElementById('view-feed'); v.replaceChildren();
   const bar = el('div', { className: 'feedbar' });
-  [['me', 'Me'], ['club', 'Club'], ['everyone', 'Everyone']].forEach(([k, t]) => { const a = el('a', { className: 'chip', href: k === 'me' ? '#feed' : '#feed/' + k, textContent: t }); a.setAttribute('aria-pressed', k === scope); bar.append(a); });
-  bar.append(el('span', { className: 'muted', style: 'font-size:12px;margin-left:6px', textContent: { me: 'Your activities, newest first', club: 'You and your club mates', everyone: 'Public activities from other Triven athletes' }[scope] }));
+  [['me', 'Me'], ['following', 'Following'], ['club', 'Club'], ['everyone', 'Everyone']].forEach(([k, t]) => { const a = el('a', { className: 'chip', href: k === 'me' ? '#feed' : '#feed/' + k, textContent: t }); a.setAttribute('aria-pressed', k === scope); bar.append(a); });
+  bar.append(el('span', { className: 'muted', style: 'font-size:12px;margin-left:6px', textContent: { me: 'Your activities, newest first', following: 'People you follow', club: 'You and your club mates', everyone: 'Public activities from other Triven athletes' }[scope] }));
   const list = el('div', { className: 'feed' });
   v.append(bar, list);
   io?.disconnect();
@@ -33,8 +32,9 @@ async function more(list) {
   const rows = r.data || [];
   if (!rows.length && !cursor) {
     const msg = { me: ['Nothing here yet', 'Upload a .fit file or your Garmin export to fill your feed.', '#upload', 'Upload activities'],
+      following: ['Nobody to show yet', 'Follow other athletes and their activities will appear here.', '#club', 'Find athletes'],
       club: ['No club activities yet', 'Join or create a club, and your club mates’ activities will appear here.', '#club', 'Clubs'],
-      everyone: ['No public activities yet', 'Activities other athletes set to Public appear here.', null, null] }[scope];
+      everyone: ['No public activities yet', 'Activities other athletes set to Everyone appear here.', null, null] }[scope];
     const c = el('div', { className: 'card empty' }, el('h2', { textContent: msg[0] }), el('p', { className: 'sec', textContent: msg[1] }));
     if (msg[2]) c.append(el('a', { className: 'btn primary', href: msg[2], textContent: msg[3], style: 'text-decoration:none' }));
     list.append(c); return;

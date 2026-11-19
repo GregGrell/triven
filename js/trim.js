@@ -1,8 +1,8 @@
 // Trim an activity's start or end (e.g. forgot to stop the watch and drove home). Re-processes the original file, so totals, laps and bests are exact.
-import { sb, state, toast, loadAll, enrich, writeProcessed } from './main.js?v=1795084751';
-import { decodeFit } from './fit.js?v=1795084751';
-import { processFit, trimMessages, rows } from './process.js?v=1795084751';
-import { openModal } from './edit.js?v=1795084751';
+import { sb, state, toast, loadAll, enrich, writeProcessed } from './main.js?v=1795085683';
+import { decodeFit } from './fit.js?v=1795085683';
+import { processFit, trimMessages, rows } from './process.js?v=1795085683';
+import { openModal } from './edit.js?v=1795085683';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const fmtDur = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };

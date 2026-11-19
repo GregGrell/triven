@@ -1,14 +1,15 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity } from './main.js?v=1795084751';
-import { shareStreams } from './process.js?v=1795084751';
-import { openTrim } from './trim.js?v=1795084751';
-import { openIg } from './ig.js?v=1795084751';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS } from './main.js?v=1795085683';
+import { shareStreams } from './process.js?v=1795085683';
+import { openTrim } from './trim.js?v=1795085683';
+import { openIg } from './ig.js?v=1795085683';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const SHARE = [['map', 'Map and route'], ['pace', 'Pace and speed'], ['hr', 'Heart rate'], ['power', 'Power'], ['cadence', 'Cadence'], ['dynamics', 'Running dynamics (ground contact, balance, oscillation)'], ['description', 'Description']];
 const SPORTNAME = { run: 'Run', bike: 'Bike', swim: 'Swim' };
 let cur = null;
+const VISHELP = { private: 'only you', followers: 'your followers and club mates', club: 'your club mates', public: 'everyone on Triven' };
 
 export function openModal(build) {
   const ov = $('modal'), body = $('modalBody'); body.replaceChildren(); body.className = 'sheet'; build(body, () => { ov.classList.remove('open'); body.querySelectorAll('video').forEach(v => v.pause()); }); ov.classList.add('open');
@@ -26,6 +27,22 @@ document.addEventListener('triven:activity', e => {
   if (mine) tools.append(el('button', { className: 'btn sm', textContent: 'Edit', onclick: () => openEditor(cur, reopen) }));
   if (mine && cur.streams) tools.append(el('button', { className: 'btn sm', textContent: 'Trim', onclick: () => openTrim(cur, reopen) }));
   if (mine) tools.append(el('button', { className: 'btn sm primary', textContent: 'Instagram post', onclick: () => igFor(cur) }));
+  // who can see it: one click to change
+  const vbox = $('actVis'); vbox.replaceChildren(); vbox.hidden = !mine;
+  if (mine) {
+    vbox.append(el('span', { className: 'muted', textContent: 'Who can see this' }));
+    const seg = el('div', { className: 'vseg', role: 'group', ariaLabel: 'Who can see this activity' });
+    for (const [v, t] of Object.entries(VIS)) {
+      const b = el('button', { type: 'button', className: 'chip', textContent: (v === 'private' ? '🔒 ' : '') + t, title: VISHELP[v] }); b.setAttribute('aria-pressed', cur.act.visibility === v);
+      b.onclick = async () => { if (cur.act.visibility === v) return; const prev = cur.act.visibility;
+        seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+        const { error } = await sb.from('activities').update({ visibility: v }).eq('id', cur.act.id);
+        if (error) { toast('Could not change: ' + error.message); seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.textContent.endsWith(VIS[prev]))); return; }
+        cur.act.visibility = v; const la = state.activities.find(a => a.id === cur.act.id); if (la) la.visibility = v; toast('Now visible to: ' + VISHELP[v]); };
+      seg.append(b);
+    }
+    vbox.append(seg);
+  }
   // driving warning
   const warn = $('actWarn'); warn.replaceChildren(); warn.hidden = true;
   const drv = cur.act.summary?.driving || [];
@@ -83,7 +100,7 @@ export function openEditor(data, onSaved) {
     const name = el('input', { value: act.name, maxLength: 120 });
     const desc = el('textarea', { rows: 4, value: act.description || '' });
     const vis = el('select');
-    [['private', 'Only me'], ['club', 'My clubs'], ['public', 'Anyone with Triven']].forEach(([v, t]) => vis.append(el('option', { value: v, textContent: t, selected: act.visibility === v })));
+    Object.entries(VIS).forEach(([v, t]) => vis.append(el('option', { value: v, textContent: t, selected: act.visibility === v })));
     const notes = el('textarea', { rows: 3, value: act.notes || '', placeholder: 'How it felt, niggles, fuelling, conditions…' });
     const sec1 = el('section', {}, el('label', { className: 'f' }, 'Name', name), el('label', { className: 'f', style: 'margin-top:10px' }, 'Description (shown to people who can see it)', desc),
       el('label', { className: 'f', style: 'margin-top:10px' }, 'Private notes (only you)', notes));

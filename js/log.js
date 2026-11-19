@@ -1,5 +1,5 @@
 // Training log: period totals, fitness, volume chart, calendar, bests, gear.
-import { vdotFromBests, vo2Band } from './vo2.js?v=1795084751';
+import { vdotFromBests, vo2Band } from './vo2.js?v=1795085683';
 const $=id=>document.getElementById(id), css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountLog(D){
@@ -101,34 +101,7 @@ function renderVolume(s,e){
   });
 }
 
-// ---------- calendar ----------
-let calMonth=Date.UTC(new Date(TODAY).getUTCFullYear(),new Date(TODAY).getUTCMonth(),1);
-$('mPrev').onclick=()=>{const d=new Date(calMonth);calMonth=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-1,1);renderCal()};
-$('mNext').onclick=()=>{const d=new Date(calMonth);calMonth=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1);renderCal()};
-$('mToday').onclick=()=>{calMonth=Date.UTC(new Date(TODAY).getUTCFullYear(),new Date(TODAY).getUTCMonth(),1);renderCal()};
-function chip(a){
-  const b=document.createElement('button');b.className='chipact';
-  const col=a.sport==='multi'?'--text-secondary':SP[a.sport].v;b.style.borderLeftColor=`var(${col})`;
-  const v=document.createElement('b');v.textContent=`${km(a.dist)} km`+(a.sport==='multi'?' · '+(a.profile||'multisport'):'');
-  const n=document.createElement('span');n.textContent=a.name;b.append(v,n);
-  if(a.sport==='multi'){const mb=document.createElement('div');mb.className='mbar';a.sections.forEach(s=>{const i=document.createElement('i');i.style.flex=String(s.elapsed);i.style.background=s.sport==='trans'?'var(--trans)':`var(${SP[s.sport].v})`;mb.append(i)});b.append(mb)}
-  b.title=`${a.name} · ${km(a.dist)} km · ${fmtDur(actTime(a))}`;
-  b.onclick=e=>{e.stopPropagation();showPop(a,b)};return b;
-}
-function renderCal(){
-  const d=new Date(calMonth),y=d.getUTCFullYear(),mo=d.getUTCMonth();
-  $('calTitle').textContent=`${['January','February','March','April','May','June','July','August','September','October','November','December'][mo]} ${y}`;
-  const el=$('cal');el.replaceChildren();
-  [...WD,'Week'].forEach(w=>{const c=document.createElement('div');c.className='dow';c.textContent=w;el.append(c)});
-  const end=Date.UTC(y,mo+1,1);
-  for(let w=mondayOf(calMonth);w<end;w+=7*DAY){
-    let wd=0,wt=0;
-    for(let i=0;i<7;i++){const t=w+i*DAY;const c=document.createElement('div');c.className='day'+(new Date(t).getUTCMonth()!==mo?' out':'')+(t===TODAY?' today':'');
-      const n=document.createElement('span');n.className='n';n.textContent=new Date(t).getUTCDate();c.append(n);
-      A.filter(a=>d0(a.t)===t).forEach(a=>{c.append(chip(a));wd+=a.dist;wt+=actTime(a)});el.append(c)}
-    const wk=document.createElement('div');wk.className='wk';if(wt){const b=document.createElement('b');b.textContent=km(wd)+' km';wk.append(b,document.createTextNode(fmtHM(wt)))}el.append(wk);
-  }
-}
+// (the calendar now lives on the Calendar tab: cal.js)
 function showPop(a,anchor){
   const p=$('actpop');p.replaceChildren();
   const h=document.createElement('h4');h.textContent=a.name;const sub=document.createElement('div');sub.className='muted';
@@ -154,7 +127,7 @@ function showPop(a,anchor){
 // ---------- fitness (VO2 max trend) ----------
 function renderFitness(){
   const el=$('fitcard');el.replaceChildren();
-  const h=document.createElement('h2');h.textContent='Fitness · VO₂ max';el.append(h);
+  const h=document.createElement('h2');h.textContent='VO₂ max';el.append(h);
   const grid=document.createElement('div');grid.className='fit';el.append(grid);
   const SIX=42*DAY, now=TODAY+DAY;
   const block=(title,sport,col)=>{
@@ -225,7 +198,7 @@ function renderGear(){
 }
 
 window.__log={renderTotals};
-renderTotals();renderFitness();renderCal();renderBests();renderGear();
+renderTotals();renderFitness();renderBests();renderGear();
 if(!bound){bound=true;let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!$('view-log').hidden)window.__log.renderTotals()},150)});
  document.addEventListener('click',e=>{const p=$('actpop');if(!p.hidden&&!p.contains(e.target))p.hidden=true});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('actpop').hidden=true});}

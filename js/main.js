@@ -1,15 +1,17 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795084751';
+import { decodeFit } from './fit.js?v=1795085683';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving } from './process.js?v=1795084751';
-import { vo2FromActivity } from './vo2.js?v=1795084751';
-import { mountActivity } from './activity.js?v=1795084751';
-import { mountLog } from './log.js?v=1795084751';
-import { mountGear } from './gear.js?v=1795084751';
-import { mountClub } from './club.js?v=1795084751';
-import { mountFeed } from './feed.js?v=1795084751';
-import { initSettings } from './settings.js?v=1795084751';
-import './edit.js';
+import { processFit, shareStreams, rows, makeTrack, detectDriving } from './process.js?v=1795085683';
+import { vo2FromActivity } from './vo2.js?v=1795085683';
+import { mountActivity } from './activity.js?v=1795085683';
+import { mountLog } from './log.js?v=1795085683';
+import { mountGear } from './gear.js?v=1795085683';
+import { mountClub } from './club.js?v=1795085683';
+import { mountFeed } from './feed.js?v=1795085683';
+import { loadData } from './load.js?v=1795085683';
+import { mountCal } from './cal.js?v=1795085683';
+import { initSettings } from './settings.js?v=1795085683';
+import './edit.js?v=1795085683';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -61,10 +63,10 @@ async function boot() {
 let backfilled = false;
 async function backfill() {
   if (backfilled) return; backfilled = true;
-  const todo = state.activities.filter(a => !a.summary || !('track' in a.summary));
+  const todo = state.activities.filter(a => !a.summary || !('track' in a.summary) || !('loadData' in a.summary));
   for (const a of todo) {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
-      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams) };
+      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
   }
 }
@@ -81,7 +83,8 @@ export async function loadAll() {
   for (const r of [p, a, g, b]) if (r.error) { toast('Could not load your data: ' + r.error.message, 6000); }
   state.profile = p.data; state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
 }
-initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply) window.__actApply(cfg); });
+initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply) window.__actApply(cfg); document.dispatchEvent(new Event('triven:settings')); },
+  { get: () => state.profile, save: async upd => { const { error } = await sb.from('profiles').update(upd).eq('id', state.user.id); if (error) { toast('Could not save privacy settings: ' + error.message); return; } Object.assign(state.profile, upd); } });
 export async function saveSettings(cfg) {
   state.profile.settings = cfg;
   const { error } = await sb.from('profiles').update({ settings: cfg }).eq('id', state.user.id);
@@ -122,9 +125,13 @@ async function route() {
   if (h === '#feed' || h.startsWith('#feed/')) { show('feed'); return mountFeed(h.split('/')[1] || 'me'); }
   if (h === '#upload') { show('upload'); return; }
   if (h === '#gear') { show('gear'); mountGear(); return; }
-  if (h === '#club') { show('club'); mountClub(); return; }
+  if (h === '#club' || h === '#people') { show('club'); mountClub(); return; }
   show('log');
+  const bests = h === '#log/bests';
+  $('logMain').hidden = bests; $('logBests').hidden = !bests; $('logGear').hidden = bests;
+  $('lognavMain').setAttribute('aria-pressed', !bests); $('lognavBests').setAttribute('aria-pressed', bests);
   mountLog(logData());
+  if (!bests) mountCal();
   emptyHint();
 }
 function emptyHint() {
@@ -198,8 +205,9 @@ export function renderActHeader(act, sections) {
   else add(T[act.sport] || 'Workout');
   if (act.athlete && act.owner !== state.user.id) add(act.athlete);
   if (act.indoor) add('Indoor');
-  add({ private: 'Only you', club: 'Club', public: 'Public' }[act.visibility]);
+  if (act.owner !== state.user.id) add(VIS[act.visibility]);
 }
+export const VIS = { private: 'Only me', followers: 'Followers', club: 'Club', public: 'Everyone' };
 
 // ---------- upload ----------
 const drop = $('drop');
@@ -256,6 +264,7 @@ export function enrich(out) {
   } catch (e) { /* estimate is optional */ }
   out.activity.summary.track = makeTrack(out.streams, out.sections);
   out.activity.summary.driving = detectDriving(out.sections, out.streams);
+  out.activity.summary.loadData = loadData(out.sections, out.streams);
 }
 const jsonBlob = o => new Blob([JSON.stringify(o)], { type: 'application/json' });
 // write streams, sections, laps and bests for an activity (new, or replacing after a trim)
