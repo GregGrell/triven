@@ -1,10 +1,11 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795179270';
-import { linkActivities, importDecoded } from './pipeline.js?v=1795179270';
-import { decodeFit } from './fit.js?v=1795179270';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795179270';
-import { openTrim } from './trim.js?v=1795179270';
-import { openIg } from './ig.js?v=1795179270';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795184861';
+import { linkActivities, importDecoded } from './pipeline.js?v=1795184861';
+import { decodeFit } from './fit.js?v=1795184861';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795184861';
+import { openTrim } from './trim.js?v=1795184861';
+import { openIg } from './ig.js?v=1795184861';
+import { shareButton, linkUrl } from './profile.js?v=1795184861';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
@@ -57,6 +58,11 @@ document.addEventListener('triven:activity', e => {
   if (mine && cur.act.summary?.linked) tools.append(unlinkButton(cur));
   else if (mine && cur.act.file_path) tools.append(el('button', { className: 'btn sm', textContent: 'Link activities', title: 'Join separate swim, bike and run files into one multisport activity', onclick: () => openLinker(cur) }));
   if (mine) tools.append(el('button', { className: 'btn sm primary', textContent: 'Instagram post', onclick: () => igFor(cur) }));
+  const a0 = cur.act;
+  tools.append(shareButton(async () => {   // triven.fit/<username>/<n>; opens for members who can see it
+    if (mine && state.profile?.handle && a0.num) return linkUrl(state.profile.handle + '/' + a0.num);
+    const r = await sb.rpc('activity_link', { aid: a0.id }); return r.data ? linkUrl(r.data) : null;
+  }, a0.name));
   // who can see it: one click to change
   const vbox = $('actVis'); vbox.replaceChildren(); vbox.hidden = !mine;
   if (mine) {

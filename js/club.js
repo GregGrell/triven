@@ -1,6 +1,6 @@
 // People tab: find and follow athletes, follow requests, followers/following, and clubs (clubs.js).
-import { sb, state, toast, avatarEl } from './main.js?v=1795179270';
-import { clubsCard } from './clubs.js?v=1795179270';
+import { sb, state, toast, avatarEl } from './main.js?v=1795184861';
+import { clubsCard } from './clubs.js?v=1795184861';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -20,7 +20,7 @@ export async function mountClub() {
 }
 
 // ---------- follows ----------
-const followBtn = (id, status, followsYou, onDone) => {
+export const followBtn = (id, status, followsYou, onDone) => {
   const b = el('button', { className: 'btn sm' + (status ? '' : ' primary'), type: 'button',
     textContent: status === 'accepted' ? 'Following' : status === 'pending' ? 'Requested' : followsYou ? 'Follow back' : 'Follow' });
   if (status) b.title = status === 'accepted' ? 'Click to unfollow' : 'Click to cancel the request';

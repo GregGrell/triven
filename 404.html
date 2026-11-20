@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Triven</title>
+<meta name="robots" content="noindex">
+<script>
+// Short links: triven.fit/<username> and triven.fit/<username>/<n> open in the app. Anything else goes home.
+(function () {
+  var p = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+  var ok = /^[a-z0-9][a-z0-9_-]{2,29}$/i.test(p[0]) && (p.length === 1 || (p.length === 2 && /^\d{1,7}$/.test(p[1])));
+  location.replace('/' + (ok ? '#u/' + p.join('/').toLowerCase() : ''));
+})();
+</script></head>
+<body style="font-family:system-ui,sans-serif;padding:40px;text-align:center;color:#555">Opening Triven… <a href="/">triven.fit</a></body></html>

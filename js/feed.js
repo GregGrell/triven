@@ -1,11 +1,11 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795179270';
-import { mountWeek } from './week.js?v=1795179270';
-import { envLabel } from './process.js?v=1795179270';
-import { drawRouteMap } from './mapcanvas.js?v=1795179270';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795179270';
-import { openTrim } from './trim.js?v=1795179270';
-import { relayCard, relayInvites } from './relay.js?v=1795179270';
+import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795184861';
+import { mountWeek } from './week.js?v=1795184861';
+import { envLabel } from './process.js?v=1795184861';
+import { drawRouteMap } from './mapcanvas.js?v=1795184861';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795184861';
+import { openTrim } from './trim.js?v=1795184861';
+import { relayCard, relayInvites } from './relay.js?v=1795184861';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -37,7 +37,7 @@ export async function feedList(list, args, empty) {
   const st = { cursor: null, relays: new Set() };
   const more = async () => {
     list.querySelector('.more')?.remove();
-    const r = await sb.rpc('feed', { scope: args.scope, before: st.cursor || new Date(Date.now() + 864e5).toISOString(), lim: 15, ...(args.club ? { club: args.club } : {}) });
+    const r = await sb.rpc('feed', { scope: args.scope, before: st.cursor || new Date(Date.now() + 864e5).toISOString(), lim: 15, ...(args.club ? { club: args.club } : {}), ...(args.person ? { person: args.person } : {}) });
     if (r.error) { list.append(el('div', { className: 'card', textContent: 'Could not load the feed: ' + r.error.message })); return; }
     const rows = r.data || [];
     if (!rows.length && !st.cursor) {
@@ -70,8 +70,9 @@ function card(a, urls, refresh) {
   const mine = a.owner === state.user.id;
   const s0 = (a.sections || []).find(x => x.sport !== 'transition');
   const type = a.sport === 'multi' ? (a.multisport_profile === 'other' ? 'Multisport' : a.multisport_profile[0].toUpperCase() + a.multisport_profile.slice(1)) : envLabel(a.sport, s0?.env);
-  const head = el('div', { className: 'fhead' }, avatarEl(a.athlete, mine ? state.profile?.avatar_path : a.avatar, 38),
-    el('div', { style: 'flex:1' }, el('b', { textContent: mine ? 'You' : a.athlete }), el('div', { className: 'muted', style: 'font-size:12px', textContent: `${when} · ${type}${mine ? ' · ' + VIS[a.visibility] : ''}` })));
+  const prof = a.handle ? '#u/' + a.handle : null;
+  const head = el('div', { className: 'fhead' }, prof ? el('a', { href: prof, className: 'favlink' }, avatarEl(a.athlete, mine ? state.profile?.avatar_path : a.avatar, 38)) : avatarEl(a.athlete, mine ? state.profile?.avatar_path : a.avatar, 38),
+    el('div', { style: 'flex:1' }, prof ? el('a', { href: prof, className: 'fwho' }, el('b', { textContent: mine ? 'You' : a.athlete })) : el('b', { textContent: mine ? 'You' : a.athlete }), el('div', { className: 'muted', style: 'font-size:12px', textContent: `${when} · ${type}${mine ? ' · ' + VIS[a.visibility] : ''}` })));
   const c = el('div', { className: 'card fcard' }, head, el('a', { href: '#a/' + a.id, className: 'ftitle' }, a.name, a.is_race ? ' ' : null, a.is_race ? raceFlag(18) : null));
   if (a.description) c.append(el('div', { className: 'actdesc', textContent: a.description }));
   // stats

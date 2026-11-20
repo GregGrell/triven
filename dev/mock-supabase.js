@@ -48,7 +48,7 @@ export function createClient(){
       const W=window.__rpcData||{};
       if(fn in W){const v=W[fn];return typeof v==='function'?v(args):(v&&v.error?{data:null,error:v.error}:{data:v,error:null})}
       if(fn==='my_clubs')return{data:window.__clubs||[],error:null};
-      if(fn==='feed')return{data:(window.__feed||db.activities).slice().sort((a,b)=>a.start_time<b.start_time?1:-1).map(a=>({...a,athlete:'Carl',sections:db.activity_sections.filter(s=>s.activity_id===a.id).sort((x,y)=>x.idx-y.idx),track:a.summary?.track||null,flags:a.summary?.driving||null,media:db.activity_media.filter(m=>m.activity_id===a.id),kudos:2,comments:1,you_kudoed:false,relay:(window.__feedRelay||{})[a.id]||null})),error:null};
+      if(fn==='feed')return{data:(window.__feed||db.activities).slice().sort((a,b)=>a.start_time<b.start_time?1:-1).map(a=>({...a,athlete:'Carl',handle:'carl',sections:db.activity_sections.filter(s=>s.activity_id===a.id).sort((x,y)=>x.idx-y.idx),track:a.summary?.track||null,flags:a.summary?.driving||null,media:db.activity_media.filter(m=>m.activity_id===a.id),kudos:2,comments:1,you_kudoed:false,relay:(window.__feedRelay||{})[a.id]||null})),error:null};
       if(fn==='connect_intervals'){db.connections.push({owner:'u1',provider:'intervals',athlete_id:args.p_athlete,status:'ok',created_at:new Date().toISOString()});return{data:null,error:null}}
       if(fn==='my_network')return{data:window.__net||[],error:null};
       if(fn==='search_athletes')return{data:(window.__search||[]).map(a=>({...a,you_follow:(db.follows.find(f=>f.followee===a.id)||{}).status||null})),error:null};
