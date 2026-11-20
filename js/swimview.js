@@ -1,6 +1,6 @@
 // Pool swim card on an activity page: swim time vs rest, pace on swimming time, SWOLF, strokes, stroke mix,
 // a per-length pace chart, and intervals (sets between rests) that open into their lengths.
-import { lengthsIn, poolStats, poolIntervals, STROKE_NAME, fmtPace } from './swim.js?v=1795207239';
+import { lengthsIn, poolStats, poolIntervals, STROKE_NAME, fmtPace } from './swim.js?v=1795209497';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();

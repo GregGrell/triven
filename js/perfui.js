@@ -1,9 +1,9 @@
 // Training log: training status, suggested thresholds (FTP, threshold heart rate), threshold pace and race predictions.
-import { sb, state, toast } from './main.js?v=1795207239';
-import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795207239';
-import { applyChange, dayKey, todayKey } from './athlete.js?v=1795207239';
-import { DEFAULTS } from './defaults.js?v=1795207239';
-import * as U from './units.js?v=1795207239';
+import { sb, state, toast } from './main.js?v=1795209497';
+import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795209497';
+import { applyChange, dayKey, todayKey } from './athlete.js?v=1795209497';
+import { DEFAULTS } from './defaults.js?v=1795209497';
+import * as U from './units.js?v=1795209497';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();

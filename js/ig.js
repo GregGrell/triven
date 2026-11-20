@@ -1,9 +1,9 @@
 // One-tap Instagram image: route over a map (or your photo, or transparent sticker), activity type, title and stats.
-import { drawRouteMap } from './mapcanvas.js?v=1795207239';
-import { envLabel } from './process.js?v=1795207239';
-import * as U from './units.js?v=1795207239';
-import { openModal } from './edit.js?v=1795207239';
-import { toast } from './main.js?v=1795207239';
+import { drawRouteMap } from './mapcanvas.js?v=1795209497';
+import { envLabel } from './process.js?v=1795209497';
+import * as U from './units.js?v=1795209497';
+import { openModal } from './edit.js?v=1795209497';
+import { toast } from './main.js?v=1795209497';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

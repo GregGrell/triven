@@ -1,6 +1,6 @@
 // Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
-import { srcText } from './athlete.js?v=1795207239';
-import * as U from './units.js?v=1795207239';
+import { srcText } from './athlete.js?v=1795209497';
+import * as U from './units.js?v=1795209497';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -21,7 +21,11 @@ const R=raw.records.map(a=>{const o={};F.forEach((k,i)=>o[k]=a[i]);o.seg=segOf(o
 R.forEach(r=>{const run=r.sport==='running';
   r.spm=run&&r.cad>20?r.cad*2:null; r.pw=run&&r.power>0?r.power:null; r.gct=run&&r.gct>0?r.gct:null;
   r.bal=run&&r.gctBal>0&&(r.t-S[r.seg].start)>=15?r.gctBal:null; r.vo=run&&r.vo>0?r.vo/10:null; r.kmh=r.speed!=null?r.speed*3.6:null;});
+// stride length: the watch's own figure (running dynamics) when recorded, otherwise speed ÷ step rate
+const STRIDE_REC=R.some(r=>r.sport==='running'&&r.stride>0);
 R.forEach((r,i)=>{const w=R.slice(Math.max(0,i-2),i+3).filter(x=>x.seg===r.seg&&x.kmh!=null);r.kmhS=w.length?d3.mean(w,x=>x.kmh):null;
+  {const sm=r.sport!=='running'?null:STRIDE_REC?(r.stride>0?r.stride/1000:null):(()=>{const c=w.filter(x=>x.spm>100);return r.kmhS>5&&c.length?r.kmhS/3.6*60/d3.mean(c,x=>x.spm):null})();
+   r.strideU=sm==null||sm>3?null:U.imperial()?sm/U.FT:sm;}
   r.pace=r.sport==='running'&&r.kmhS>5?60/U.kmhTo(r.kmhS):null; r.spdU=U.kmhTo(r.kmhS); r.altU=r.alt!=null?U.toE(r.alt):null;
   r.brk=i>0&&(r.t-R[i-1].t>10||r.seg!==R[i-1].seg);});
 // balance smoothed over ~10 s (time-based)
@@ -306,6 +310,7 @@ function chartDefs(){
   if(sp==='multi'||sp==='running'){
     d.push({key:'pw',title:'Run power',unit:'W',fmt:v=>v.toFixed(0)});
     d.push({key:'spm',title:'Cadence',unit:'spm',fmt:v=>v.toFixed(0)});
+    d.push({key:'strideU',title:'Stride length',note:STRIDE_REC?'':'estimated from speed and cadence',unit:U.imperial()?'ft':'m',fmt:v=>v.toFixed(2)});
     d.push({key:'gct',title:'Ground contact time',unit:'ms',fmt:v=>v.toFixed(0)});
     d.push({key:'balS',title:'GCT balance',note:'10 s avg · above line = left-heavy',unit:'',fmt:balTxt,bal:true});
     d.push({key:'vo',title:'Vertical oscillation',unit:'cm',fmt:v=>v.toFixed(1)});
