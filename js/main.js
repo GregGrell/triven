@@ -1,29 +1,30 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795178358';
+import { decodeFit } from './fit.js?v=1795178617';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795178358';
-import { mountActivity } from './activity.js?v=1795178358';
-import { mountLog } from './log.js?v=1795178358';
-import { mountGear } from './gear.js?v=1795178358';
-import { mountClub } from './club.js?v=1795178358';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795178358';
-import { mountRelay } from './relay.js?v=1795178358';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795178358';
-import { SWIM_DISTANCES } from './process.js?v=1795178358';
-import { installHint } from './install.js?v=1795178358';
-import { openWelcome } from './settings.js?v=1795178358';
-import './swimview.js?v=1795178358';
-import './trophies.js?v=1795178358';
-import { mountFeed } from './feed.js?v=1795178358';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795178358';
-import { perfData } from './perf.js?v=1795178358';
-import { loadData } from './load.js?v=1795178358';
-import { processInbox, paintConnections } from './sync.js?v=1795178358';
-import { mountManual } from './manual.js?v=1795178358';
-import { mountCal } from './cal.js?v=1795178358';
-import { settingsAt } from './athlete.js?v=1795178358';
-import { initSettings, DEFAULTS } from './settings.js?v=1795178358';
-import { offerCombine } from './edit.js?v=1795178358';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795178617';
+import { mountActivity } from './activity.js?v=1795178617';
+import { mountLog } from './log.js?v=1795178617';
+import { mountGear } from './gear.js?v=1795178617';
+import { mountClub } from './club.js?v=1795178617';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795178617';
+import { mountRelay } from './relay.js?v=1795178617';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795178617';
+import { SWIM_DISTANCES } from './process.js?v=1795178617';
+import { mountActivities } from './actlist.js?v=1795178617';
+import { installHint } from './install.js?v=1795178617';
+import { openWelcome } from './settings.js?v=1795178617';
+import './swimview.js?v=1795178617';
+import './trophies.js?v=1795178617';
+import { mountFeed } from './feed.js?v=1795178617';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795178617';
+import { perfData } from './perf.js?v=1795178617';
+import { loadData } from './load.js?v=1795178617';
+import { processInbox, paintConnections } from './sync.js?v=1795178617';
+import { mountManual } from './manual.js?v=1795178617';
+import { mountCal } from './cal.js?v=1795178617';
+import { settingsAt } from './athlete.js?v=1795178617';
+import { initSettings, DEFAULTS } from './settings.js?v=1795178617';
+import { offerCombine } from './edit.js?v=1795178617';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -173,7 +174,7 @@ export async function loadAll() {
   const uid = state.user.id;
   const [p, a, g, b] = await Promise.all([
     sb.from('profiles').select('*').eq('id', uid).single(),
-    allRows(() => sb.from('activities').select('id,name,description,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time').order('id')),
+    allRows(() => sb.from('activities').select('id,name,description,notes,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time').order('id')),
     sb.from('gear').select('*').eq('owner', uid).order('created_at'),
     allRows(() => sb.from('best_efforts').select('*').eq('owner', uid).order('id')),
   ]);
@@ -229,9 +230,10 @@ async function route() {
   if (h.startsWith('#join/')) { show('club'); mountJoin(h.slice(6).split('?')[0]); return; }
   if (h.startsWith('#r/')) { show('relay'); mountRelay(h.slice(3).split('?')[0]); return; }
   show('log');
-  const bests = h === '#log/bests';
-  $('logMain').hidden = bests; $('logBests').hidden = !bests; $('logGear').hidden = bests;
-  $('lognavMain').setAttribute('aria-pressed', !bests); $('lognavBests').setAttribute('aria-pressed', bests);
+  const bests = h === '#log/bests', acts = h === '#log/activities';
+  $('logMain').hidden = bests || acts; $('logBests').hidden = !bests; $('logGear').hidden = bests || acts; $('logActs').hidden = !acts;
+  $('lognavMain').setAttribute('aria-pressed', !bests && !acts); $('lognavBests').setAttribute('aria-pressed', bests); $('lognavActs').setAttribute('aria-pressed', acts);
+  if (acts) { mountActivities($('logActs')); emptyHint(); return; }
   mountLog(logData());
   if (!bests) mountCal();
   emptyHint();
@@ -244,6 +246,8 @@ function emptyHint() {
     $('view-log').prepend(el); }
 }
 window.addEventListener('hashchange', route);
+// press / anywhere (outside a text box) to search your activities
+document.addEventListener('keydown', e => { if (e.key !== '/' || e.metaKey || e.ctrlKey || /input|textarea|select/i.test(document.activeElement?.tagName) || !state.user) return; e.preventDefault(); if (location.hash === '#log/activities') document.querySelector('.actsearch')?.focus(); else location.hash = '#log/activities'; });
 
 // ---------- one activity ----------
 const SPORT_FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };

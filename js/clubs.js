@@ -1,7 +1,7 @@
 // Clubs: list and search, create, club pages (posts from admins, members, the club's activities), invite links, admin settings.
-import { sb, state, toast, avatarEl, avatarUrl } from './main.js?v=1795178358';
-import { openModal } from './edit.js?v=1795178358';
-import { feedList } from './feed.js?v=1795178358';
+import { sb, state, toast, avatarEl, avatarUrl } from './main.js?v=1795178617';
+import { openModal } from './edit.js?v=1795178617';
+import { feedList } from './feed.js?v=1795178617';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
