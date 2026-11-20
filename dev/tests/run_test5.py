@@ -1,0 +1,75 @@
+import os
+DEV=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT=os.path.join(DEV,'out');os.makedirs(OUT,exist_ok=True)
+FIT=os.environ.get('TRIVEN_FIT',os.path.join(DEV,'fixtures','multisport.fit'))
+import subprocess,time,json
+from playwright.sync_api import sync_playwright
+srv=subprocess.Popen(['python3','-m','http.server','8778'],cwd=DEV,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+FIT=FIT;U='http://localhost:8778/site/index.html'
+try:
+  with sync_playwright() as p:
+    b=p.chromium.launch();pg=b.new_page(viewport={'width':1240,'height':950})
+    errs=[];pg.on('pageerror',lambda e:errs.append('PAGEERR '+str(e)+' '+(e.stack or '')[:400]));pg.on('console',lambda m:errs.append('CONSOLE '+m.text) if m.type=='error' and 'Failed to load resource' not in m.text else None)
+    pg.goto(U);pg.wait_for_timeout(1200)
+    pg.goto(U+'#upload');pg.wait_for_timeout(300);pg.set_input_files('#fileIn',FIT);pg.wait_for_timeout(3500)
+    aid=pg.evaluate("__db.activities[0].id")
+    print('envs on upload', pg.evaluate("__db.activity_sections.map(s=>s.summary.env).join(',')"), 'vo2', json.dumps(pg.evaluate("__db.activities[0].summary.vo2")))
+    pg.goto(U+'#a/'+aid);pg.wait_for_timeout(2500)
+    print('vo2 card:', pg.inner_text('#vo2card')[:300].replace('\n',' | '))
+    pg.click('#actTools >> text=Edit');pg.wait_for_timeout(600)
+    sels=pg.query_selector_all('#modalBody section:nth-of-type(2) select')
+    print('type selects', len(sels))
+    sels[0].select_option('treadmill'); sels[1].select_option('indoor')
+    pg.click('#modalBody .actions .btn.primary');pg.wait_for_timeout(5000)
+    print('envs after edit', pg.evaluate("__db.activity_sections.filter(s=>s.activity_id==='"+aid+"').sort((a,b)=>a.idx-b.idx).map(s=>s.sport+':'+s.summary.env).join(',')"), 'summary.env', json.dumps(pg.evaluate("__db.activities[0].summary.env")), 'bests', pg.evaluate("__db.best_efforts.filter(b=>b.activity_id==='"+aid+"').map(b=>b.sport+' '+b.effort).join(', ')"))
+    pg.goto(U+'#a/'+aid+'?r');pg.wait_for_timeout(2500)
+    print('tags:', pg.inner_text('#actTags').replace('\n',' | '), '| segbar:', pg.inner_text('#segbar').replace('\n',' ')[:120])
+    # manual multisport
+    pg.goto(U+'#upload');pg.wait_for_timeout(600)
+    pg.click('#manualBox .chip[data-k=multi]');pg.wait_for_timeout(300)
+    legs=pg.query_selector_all('#manualBox .mleg')
+    vals=[('45:00','30',''),('2:00','',''),('30:00','6.2','')]
+    for l,(d,km,hr) in zip(legs,vals):
+      l.query_selector('input[placeholder="h:mm:ss"]').fill(d)
+      di=l.query_selector('input[type=number][step=any]'); 
+      if km and di.is_visible(): di.fill(km)
+    legs[0].query_selector('input[placeholder="avg HR"]').fill('145')
+    pg.click('#manualBox >> text=Save activity');pg.wait_for_timeout(3000)
+    print('after manual url', pg.url.split('#')[1][:12], 'tags:', pg.inner_text('#actTags').replace('\n',' | '))
+    m=pg.evaluate("__db.activities.find(a=>a.source==='manual')")
+    print('manual row', m['name'], m['sport'], m['multisport_profile'], m['distance_m'], m['elapsed_s'], m['indoor'], json.dumps(m['summary']['loadData']))
+    print('route card hidden', pg.evaluate("document.getElementById('mapsvg').closest('.card').hidden"))
+    pg.screenshot(path=os.path.join(OUT,'manual.png'),full_page=True)
+    # IG brand
+    pg.goto(U+'#a/'+aid+'?ig');pg.wait_for_timeout(2500)
+    pg.click('#actTools >> text=Instagram post');pg.wait_for_timeout(3000)
+    pg.locator('#modalBody canvas, #modalBody img').first.screenshot(path=os.path.join(OUT,'ig_brand.png'))
+    pg.keyboard.press('Escape')
+    pg.goto(U+'#log');pg.wait_for_timeout(2000)
+    print('log ok', pg.is_visible('.pmcstats'))
+    # gear roles
+    pg.evaluate("__db.gear.push({id:'g1',owner:'u1',kind:'shoe',name:'Daily trainers',start_km:0,retired:false,is_default_for:'run'},{id:'g2',owner:'u1',kind:'shoe',name:'Spikes',start_km:0,retired:false,is_default_for:null},{id:'g3',owner:'u1',kind:'shoe',name:'Racers',start_km:0,retired:false,is_default_for:null})")
+    pg.evaluate("(async()=>{const v=document.querySelector('script[type=module]').src.split('v=')[1];const m=await import('./js/main.js?v='+v);await m.loadAll();})()");pg.wait_for_timeout(600)
+    pg.goto(U+'#gear');pg.wait_for_timeout(1500)
+    pg.click('.gearrow:has-text("Spikes") >> text=Edit');pg.wait_for_timeout(500)
+    pg.click('#modalBody .chip >> text=Track');pg.click('#modalBody .chip >> text=Everyday runs');pg.click('#modalBody .btn.primary');pg.wait_for_timeout(1000)
+    pg.click('.gearrow:has-text("Racers") >> text=Edit');pg.wait_for_timeout(500);pg.click('#modalBody .chip >> text=Races');pg.click('#modalBody .btn.primary');pg.wait_for_timeout(1000)
+    print('gear roles', json.dumps({g['name']:g['is_default_for'] for g in pg.evaluate("__db.gear")}))
+    # manual single run: race flag + gear pick
+    pg.goto(U+'#upload');pg.wait_for_timeout(600)
+    l=pg.query_selector('#manualBox .mleg');l.query_selector('select:nth-of-type(2)').select_option('track');l.query_selector('input[placeholder="h:mm:ss"]').fill('20:00');l.query_selector('input[step=any]').fill('5')
+    pg.click('#manualBox .ck input');pg.click('#manualBox >> text=Save activity');pg.wait_for_timeout(2500)
+    r=pg.evaluate("__db.activities.at(-1)");print('manual race', r['name'], r['is_race'], r['gear_id'])
+    print('title has flag', pg.evaluate("!!document.querySelector('#actName .raceflag')"))
+    pg.click('#actTools button[aria-pressed]');pg.wait_for_timeout(800)
+    r=pg.evaluate("__db.activities.at(-1)");print('after unrace', r['is_race'], r['gear_id'], 'flag', pg.evaluate("!!document.querySelector('#actName .raceflag')"))
+    # avatar
+    pg.click('#openSettings');pg.wait_for_timeout(300)
+    pg.set_input_files('#p_avfile','f_ig.png');pg.wait_for_timeout(1500)
+    print('avatar', pg.evaluate("__db.profiles[0].avatar_path"), 'img in chip', pg.evaluate("!!document.querySelector('#acctAvatar img')"))
+    pg.keyboard.press('Escape')
+    pg.goto(U+'#feed/me');pg.wait_for_timeout(2500)
+    print('feed avatar img', pg.evaluate("!!document.querySelector('.fhead .avatar img')"), 'feed flags', pg.evaluate("document.querySelectorAll('.ftitle .raceflag').length"))
+    pg.screenshot(path=os.path.join(OUT,'feed5.png'))
+    print('ERRORS',errs)
+finally: srv.terminate()

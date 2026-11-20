@@ -1,0 +1,13 @@
+import { Decoder, Stream } from '@garmin/fitsdk';
+import fs from 'fs';
+import { processFit, shareStreams } from '../../js/process.js';
+const buf=fs.readFileSync(process.argv[2]);
+const dec=new Decoder(Stream.fromByteArray(buf));
+const {messages}=dec.read({convertDateTimesToDates:true,expandComponents:true,mergeHeartRates:true,applyScaleAndOffset:true,expandSubFields:true,convertTypesToStrings:true});
+const o=processFit(messages);
+console.log(o.activity);
+console.log(o.sections.map(s=>[s.idx,s.sport,s.start_offset_s,s.elapsed_s,s.distance_m,s.avg_hr]));
+console.log('laps',o.laps.length,'recs',o.streams.t.length, 'json KB', (JSON.stringify(o.streams).length/1024).toFixed(0));
+console.log(o.bests);
+const sh=shareStreams(o.streams,{map:false,hr:true,power:true,pace:true,cadence:true,dynamics:false});
+console.log('shared lat null', sh.lat.every(v=>v==null), 'gct null', sh.gct.every(v=>v==null), 'hr kept', sh.hr.some(v=>v));

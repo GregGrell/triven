@@ -1,0 +1,12 @@
+{
+  "name": "triven-dev",
+  "private": true,
+  "description": "Local test setup for Triven: a fake Supabase, browser tests and pipeline scripts",
+  "type": "module",
+  "dependencies": {
+    "@garmin/fitsdk": "^21.222.0",
+    "d3": "^7.9.0",
+    "jszip": "^3.10.2",
+    "leaflet": "^1.9.4"
+  }
+}

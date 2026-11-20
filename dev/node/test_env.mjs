@@ -1,0 +1,12 @@
+import { Decoder, Stream } from '@garmin/fitsdk';
+import fs from 'fs';
+import { processFit } from '../../js/process.js';
+const buf=fs.readFileSync(process.argv[2]);
+const {messages}=new Decoder(Stream.fromByteArray(buf)).read({convertDateTimesToDates:true,expandComponents:true,mergeHeartRates:true,applyScaleAndOffset:true,expandSubFields:true,convertTypesToStrings:true});
+const a=processFit(messages);
+console.log('auto', a.activity.name, a.activity.indoor, a.sections.map(s=>s.sport+':'+s.summary.env+':'+s.summary.subSport).join(' '), 'bests', a.bests.length);
+const b=processFit(messages,{env:[ 'treadmill',null,'indoor',null,'track']});
+console.log('override', b.activity.name, b.activity.indoor, b.sections.map(s=>s.sport+':'+s.summary.env+':'+(s.summary.trackFit===undefined?'-':s.summary.trackFit)).join(' '), 'bests', b.bests.map(x=>x.sport+' '+x.effort).join(', '));
+const c=processFit(messages,{env:['treadmill',null,'indoor',null,'road'],distFix:{0:2000/1826.9}});
+const s0=c.sections[0], s4=c.sections[4], laps0=c.laps.filter(l=>l.start_offset_s<s0.start_offset_s+s0.elapsed_s);
+console.log('fix', s0.summary.watchDistance,'->',s0.distance_m,'f',s0.summary.distFix,'speed',a.sections[0].avg_speed,'->',s0.avg_speed,'laps',laps0.map(l=>l.distance_m).join('/'),'(was',a.laps.filter(l=>l.start_offset_s<s0.start_offset_s+s0.elapsed_s).map(l=>l.distance_m).join('/')+')','run2 dist',a.sections[4].distance_m,'->',s4.distance_m,'total',a.activity.distance_m,'->',c.activity.distance_m, 'last rec dist', a.streams.dist.filter(x=>x!=null).at(-1),'->',c.streams.dist.filter(x=>x!=null).at(-1));

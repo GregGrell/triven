@@ -1,0 +1,5 @@
+node_modules/
+site/
+out/
+fixtures/*
+!fixtures/README.md

@@ -1,0 +1,13 @@
+import { Decoder, Stream } from '@garmin/fitsdk';
+import fs from 'fs';
+const buf=fs.readFileSync(process.argv[2]);
+const stream=Stream.fromByteArray(buf);
+const dec=new Decoder(stream);
+console.log('isFIT',dec.isFIT(),'integrity',dec.checkIntegrity());
+const {messages,errors}=dec.read({convertDateTimesToDates:true,expandComponents:true,mergeHeartRates:true,applyScaleAndOffset:true,expandSubFields:true,convertTypesToStrings:true});
+console.log(errors);
+console.log(Object.keys(messages).map(k=>k+':'+messages[k].length).join(' '));
+console.log(messages.sessionMesgs[0]);
+console.log(messages.recordMesgs[500]);
+console.log(messages.fileIdMesgs[0], messages.activityMesgs[0]);
+console.log(messages.lapMesgs[0]);
