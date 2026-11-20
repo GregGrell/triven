@@ -1,7 +1,7 @@
 // Gear tab: shoes and bikes, distance, replacement guide, defaults, retire, bulk-assign.
-import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795209497';
-import { openModal } from './edit.js?v=1795209497';
-import * as U from './units.js?v=1795209497';
+import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795209850';
+import { openModal } from './edit.js?v=1795209850';
+import * as U from './units.js?v=1795209850';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const km = m => U.toD(m).toFixed(U.toD(m) >= 100 ? 0 : 1);   // km or miles

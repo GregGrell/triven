@@ -1,7 +1,7 @@
 // Log an activity without a file: treadmill, indoor bike, a gym session, or a multisport brick done on machines.
-import { sb, state, toast, loadAll, pickGear, raceFlag } from './main.js?v=1795209497';
-import { ENVS, INDOOR, envLabel, multisportProfile } from './process.js?v=1795209497';
-import * as U from './units.js?v=1795209497';
+import { sb, state, toast, loadAll, pickGear, raceFlag } from './main.js?v=1795209850';
+import { ENVS, INDOOR, envLabel, multisportProfile } from './process.js?v=1795209850';
+import * as U from './units.js?v=1795209850';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const SPN = { run: 'Run', bike: 'Bike', swim: 'Swim', transition: 'Transition' };

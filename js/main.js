@@ -1,32 +1,32 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795209497';
+import { decodeFit } from './fit.js?v=1795209850';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795209497';
-import { mountActivity } from './activity.js?v=1795209497';
-import { mountLog } from './log.js?v=1795209497';
-import { mountGear } from './gear.js?v=1795209497';
-import { mountClub } from './club.js?v=1795209497';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795209497';
-import { mountRelay } from './relay.js?v=1795209497';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795209497';
-import { SWIM_DISTANCES } from './process.js?v=1795209497';
-import { setUnits, dist as uDist } from './units.js?v=1795209497';
-import { openLink } from './profile.js?v=1795209497';
-import { mountActivities } from './actlist.js?v=1795209497';
-import { installHint } from './install.js?v=1795209497';
-import { openWelcome } from './settings.js?v=1795209497';
-import './swimview.js?v=1795209497';
-import './trophies.js?v=1795209497';
-import { mountFeed } from './feed.js?v=1795209497';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795209497';
-import { perfData } from './perf.js?v=1795209497';
-import { loadData } from './load.js?v=1795209497';
-import { processInbox, paintConnections } from './sync.js?v=1795209497';
-import { mountManual } from './manual.js?v=1795209497';
-import { mountCal } from './cal.js?v=1795209497';
-import { settingsAt } from './athlete.js?v=1795209497';
-import { initSettings, DEFAULTS } from './settings.js?v=1795209497';
-import { offerCombine } from './edit.js?v=1795209497';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795209850';
+import { mountActivity } from './activity.js?v=1795209850';
+import { mountLog } from './log.js?v=1795209850';
+import { mountGear } from './gear.js?v=1795209850';
+import { mountClub } from './club.js?v=1795209850';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795209850';
+import { mountRelay } from './relay.js?v=1795209850';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795209850';
+import { SWIM_DISTANCES } from './process.js?v=1795209850';
+import { setUnits, dist as uDist } from './units.js?v=1795209850';
+import { openLink } from './profile.js?v=1795209850';
+import { mountActivities } from './actlist.js?v=1795209850';
+import { installHint } from './install.js?v=1795209850';
+import { openWelcome } from './settings.js?v=1795209850';
+import './swimview.js?v=1795209850';
+import './trophies.js?v=1795209850';
+import { mountFeed } from './feed.js?v=1795209850';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795209850';
+import { perfData } from './perf.js?v=1795209850';
+import { loadData } from './load.js?v=1795209850';
+import { processInbox, paintConnections } from './sync.js?v=1795209850';
+import { mountManual } from './manual.js?v=1795209850';
+import { mountCal } from './cal.js?v=1795209850';
+import { settingsAt } from './athlete.js?v=1795209850';
+import { initSettings, DEFAULTS } from './settings.js?v=1795209850';
+import { offerCombine } from './edit.js?v=1795209850';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -213,7 +213,7 @@ function logData() {
   const acts = state.activities.map(a => {
     const local = new Date(Date.parse(a.start_time) + a.utc_offset_min * 60000).toISOString().slice(0, 19);
     const secs = (a.activity_sections || []).slice().sort((x, y) => x.idx - y.idx);
-    return { id: a.id, name: a.name, start: local, sport: a.sport === 'other' ? 'run' : a.sport, dist: +a.distance_m, moving: +(a.moving_s ?? a.elapsed_s), elapsed: +a.elapsed_s,
+    return { id: a.id, name: a.name, start: local, sport: a.sport, dist: +a.distance_m, moving: +(a.moving_s ?? a.elapsed_s), elapsed: +a.elapsed_s,
       elev: +(a.ascent_m || 0), indoor: a.indoor, gear: a.gear_id, cal: a.calories, source: a.source === 'upload' ? 'Upload' : a.source, detail: true, profile: a.multisport_profile,
       sections: secs.map(s => ({ sport: s.sport === 'transition' ? 'trans' : s.sport, dist: +s.distance_m || 0, elapsed: +s.elapsed_s, elev: +s.ascent_m || 0 })) };
   });

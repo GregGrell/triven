@@ -1,11 +1,12 @@
 // Training log: period totals, fitness, volume chart, calendar, bests, gear.
-import * as U from './units.js?v=1795209497';
+import * as U from './units.js?v=1795209850';
 const $=id=>document.getElementById(id), css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountLog(D){
 const A=D.activities.map(a=>({...a,t:Date.parse(a.start+'Z')})).sort((x,y)=>x.t-y.t);
 const DAY=864e5, _n=new Date(), TODAY=Date.UTC(_n.getFullYear(),_n.getMonth(),_n.getDate());
-const SP={run:{name:'Run',v:'--run'},bike:{name:'Bike',v:'--bike'},swim:{name:'Swim',v:'--swim'}};
+const SP={run:{name:'Run',v:'--run'},bike:{name:'Bike',v:'--bike'},swim:{name:'Swim',v:'--swim'},other:{name:'Other',v:'--trans'}};   // other: walks, hikes, gym and anything that isn't a swim, ride or run
+const spOf=s=>SP[s]?s:'other';
 const fmtDur=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`};
 const fmtHM=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m`};
 const km=m=>U.toD(m).toFixed(U.toD(m)>=100?0:1);   // km or miles
@@ -16,8 +17,8 @@ const mondayOf=t=>{const d=new Date(d0(t));return d0(t)-((d.getUTCDay()+6)%7)*DA
 const fmtDate=t=>{const d=new Date(t);return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`};
 const gearName=id=>{const g=D.gear.find(g=>g.id===id);return g?(g.name||g.model):null};
 // split an activity into per-sport parts (multisport counted by section)
-function parts(a){ if(a.sport!=='multi') return [{sport:a.sport,dist:a.dist,time:a.moving,elev:a.elev||0}];
-  return a.sections.filter(s=>s.sport!=='trans').map(s=>({sport:s.sport,dist:s.dist,time:s.elapsed,elev:s.elev||0})); }
+function parts(a){ if(a.sport!=='multi') return [{sport:spOf(a.sport),dist:a.dist,time:a.moving,elev:a.elev||0}];
+  return a.sections.filter(s=>s.sport!=='trans').map(s=>({sport:spOf(s.sport),dist:s.dist,time:s.elapsed,elev:s.elev||0})); }
 const actTime=a=>a.sport==='multi'?a.elapsed:a.moving;
 
 // ---------- period state ----------
@@ -57,7 +58,7 @@ function renderTotals(){
     const d=document.createElement('div');d.className='d';d.textContent=t.dist?km(t.dist):'0';const u=document.createElement('small');u.textContent=U.dU();d.append(u);
     const s2=document.createElement('div');s2.className='s';s2.textContent=sub;c.append(h,d,s2);el.append(c)};
   card('All sports',null,T.all,`${T.all.n} ${T.all.n===1?'activity':'activities'}${T.all.multi?` (${T.all.multi} multisport)`:''} · ${fmtHM(T.all.time)} · ${U.elev(T.all.elev)}`);
-  Object.entries(SP).forEach(([k,v])=>{const t=T[k];card(v.name,v.v,t,t.n?`${t.n} · ${fmtHM(t.time)} · ${U.elev(t.elev)}${k==='run'&&t.dist?` · ${pace(t.time,t.dist)}`:''}${k==='bike'&&t.dist?` · ${U.speed(t.time,t.dist)}`:''}`:'No activities')});
+  Object.entries(SP).forEach(([k,v])=>{const t=T[k];if(k==='other'&&!t.n)return;card(v.name,v.v,t,t.n?`${t.n} · ${fmtHM(t.time)} · ${U.elev(t.elev)}${k==='run'&&t.dist?` · ${pace(t.time,t.dist)}`:''}${k==='bike'&&t.dist?` · ${U.speed(t.time,t.dist)}`:''}`:'No activities')});
   $('totNote').textContent=(P.type==='month'||P.type==='custom'?'Weeks that run into the previous or next month only count the days inside this period. ':'')+(T.all.multi?'Multisport races count once as an activity, and each section is added to its own sport: the run legs go into Run and the ride into Bike. Transition time counts towards All sports only.':'Multisport races count once as an activity, and each section is added to its own sport.');
   renderVolume(s,e);
 }
@@ -113,7 +114,7 @@ function showPop(a,anchor){
   const add=(k,v)=>{const x=document.createElement('span');x.className='sec';x.textContent=k;const y=document.createElement('b');y.textContent=v;kv.append(x,y)};
   add('Distance',km(a.dist)+' '+U.dU());add(a.sport==='multi'?'Total time':'Moving time',fmtDur(actTime(a)));
   if(a.sport==='run') add('Pace',pace(a.moving,a.dist));
-  if(a.sport==='multi') a.sections.forEach((s,i)=>add(s.sport==='trans'?'Transition':SP[s.sport].name,`${s.sport==='trans'?'':km(s.dist)+' '+U.dU()+' · '}${fmtDur(s.elapsed)}`));
+  if(a.sport==='multi') a.sections.forEach((s,i)=>add(s.sport==='trans'?'Transition':SP[spOf(s.sport)].name,`${s.sport==='trans'?'':km(s.dist)+' '+U.dU()+' · '}${fmtDur(s.elapsed)}`));
   add('Elevation',U.elev(a.elev||0));if(a.gear) add('Shoes',gearName(a.gear)||'—');add('Source',a.source);
   p.append(h,sub,kv);
   const act=document.createElement('div');act.style.marginTop='12px';act.style.display='flex';act.style.gap='8px';

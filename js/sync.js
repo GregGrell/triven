@@ -1,8 +1,8 @@
 // Automatic sync. The server (Edge Function "sync", every 10 minutes) fetches new activities from connected services
 // into an inbox and processes them; anything it couldn't finish is processed here the next time the app opens.
-import { sb, state, toast, loadAll } from './main.js?v=1795209497';
-import { decodeFit } from './fit.js?v=1795209497';
-import { importDecoded } from './pipeline.js?v=1795209497';
+import { sb, state, toast, loadAll } from './main.js?v=1795209850';
+import { decodeFit } from './fit.js?v=1795209850';
+import { importDecoded } from './pipeline.js?v=1795209850';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };

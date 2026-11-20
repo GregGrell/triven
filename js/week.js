@@ -3,13 +3,14 @@
 //
 // Suggested weekly load range: your chronic load (fitness x 7) times 0.8 to 1.3, the acute:chronic workload ratio
 // band sports science treats as the "sweet spot" (below it fitness drifts, well above it injury risk climbs).
-import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795209497';
-import { DEFAULTS } from './settings.js?v=1795209497';
-import * as U from './units.js?v=1795209497';
-import { loadOf, pmc } from './load.js?v=1795209497';
-import { openModal } from './edit.js?v=1795209497';
+import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795209850';
+import { DEFAULTS } from './settings.js?v=1795209850';
+import * as U from './units.js?v=1795209850';
+import { loadOf, pmc } from './load.js?v=1795209850';
+import { openModal } from './edit.js?v=1795209850';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY = 864e5, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const SPV = { run: '--run', bike: '--bike', swim: '--swim' }, SPN = { all: 'All', run: 'Run', bike: 'Ride', swim: 'Swim' };
 const fmtHM = s => { const h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`; };
@@ -91,21 +92,33 @@ function weekCard(acts, cfg) {
   }
   c.append(chart(W, tab, range));
 
-  // goals
-  const goals = cfg.goals || {};
+  // goals: weekly (settings.goals), monthly (goalsMonth), annual (goalsYear)
   const gl = el('div', { className: 'goals' });
   const sports = tab === 'all' ? ['swim', 'bike', 'run', 'all'] : [tab];
-  const weekActs = acts.filter(a => localDay(a) >= wk0 && localDay(a) <= TODAY);
-  const tot = sp => { let d = 0, t = 0, e = 0; weekActs.forEach(a => legs(a).forEach(l => { if (sp === 'all' || l.sp === sp) { d += l.d; t += l.t; e += l.e; } })); return { distance: d, time: t, elevation: e }; };
-  const left = 7 - (TODAY - wk0) / DAY - 1;
-  sports.forEach(sp => { const g = goals[sp]; if (!g?.target) return; const have = tot(sp)[g.metric] || 0, want = g.metric === 'distance' ? g.target * 1000 : g.metric === 'time' ? g.target * 3600 : g.target;
-    const f = Math.min(1, have / want), show = v => g.metric === 'distance' ? U.dist(v, 1) : g.metric === 'time' ? fmtHM(v) : U.elev(v);
-    const bar = el('div', { className: 'gbar' }, el('i', { style: `width:${f * 100}%;background:var(${SPV[sp] || '--accent'})` }));
-    gl.append(el('div', { className: 'goal' }, el('div', { className: 'gtop' }, el('b', { textContent: sp === 'all' ? 'All sports' : SPN[sp] }), el('span', { textContent: `${show(have)} / ${show(want)}` })), bar,
-      el('div', { className: 'muted', style: 'font-size:11px', textContent: have >= want ? 'Goal done this week' : `${show(want - have)} to go · ${left} ${left === 1 ? 'day' : 'days'} left after today` }))); });
-  if (!gl.children.length) gl.append(el('div', { className: 'muted', style: 'font-size:12px', textContent: tab === 'all' ? 'No weekly goals yet.' : `No weekly ${SPN[tab].toLowerCase()} goal yet.` }));
-  c.append(el('div', { className: 'sec wtitle', textContent: 'Weekly goals' }), gl,
-    el('button', { className: 'linkbtn', type: 'button', textContent: 'Set weekly goals', style: 'margin-top:8px', onclick: () => editGoals(() => mountWeek(c.parentElement)) }));
+  const t0 = new Date(TODAY), m0 = Date.UTC(t0.getUTCFullYear(), t0.getUTCMonth(), 1), y0 = Date.UTC(t0.getUTCFullYear(), 0, 1);
+  const PERIODS = [
+    ['goals', 'This week', wk0, wk0 + 7 * DAY],
+    ['goalsMonth', MONTHS[t0.getUTCMonth()], m0, Date.UTC(t0.getUTCFullYear(), t0.getUTCMonth() + 1, 1)],
+    ['goalsYear', String(t0.getUTCFullYear()), y0, Date.UTC(t0.getUTCFullYear() + 1, 0, 1)]];
+  PERIODS.forEach(([key, label, start, end]) => {
+    const goals = cfg[key] || {}, inP = acts.filter(a => localDay(a) >= start && localDay(a) <= TODAY);
+    const tot = sp => { let d = 0, t = 0, e = 0; inP.forEach(a => legs(a).forEach(l => { if (sp === 'all' || l.sp === sp) { d += l.d; t += l.t; e += l.e; } })); return { distance: d, time: t, elevation: e }; };
+    const days = Math.round((end - start) / DAY), done = (TODAY - start) / DAY + 1, left = days - done;   // today counts as done
+    const rows = sports.filter(sp => goals[sp]?.target);
+    if (!rows.length) return;
+    gl.append(el('div', { className: 'gper', textContent: label }));
+    rows.forEach(sp => { const g = goals[sp]; const have = tot(sp)[g.metric] || 0, want = g.metric === 'distance' ? g.target * 1000 : g.metric === 'time' ? g.target * 3600 : g.target;
+      const f = Math.min(1, have / want), due = want * done / days, show = v => g.metric === 'distance' ? U.dist(v, 1) : g.metric === 'time' ? fmtHM(v) : U.elev(v);
+      // the tick marks where you'd be by today at an even rate
+      const bar = el('div', { className: 'gbar' }, el('i', { style: `width:${f * 100}%;background:var(${SPV[sp] || '--accent'})` }), key === 'goals' ? null : el('b', { className: 'gdue', style: `left:${Math.min(100, done / days * 100)}%`, title: `On pace: ${show(due)} by today` }));
+      const note = have >= want ? `Goal done ${key === 'goals' ? 'this week' : key === 'goalsMonth' ? 'this month' : 'this year'}`
+        : `${show(want - have)} to go · ${left} ${left === 1 ? 'day' : 'days'} left after today` + (key === 'goals' ? '' : have >= due ? ` · ${show(have - due)} ahead of pace` : ` · ${show(due - have)} behind pace`);
+      gl.append(el('div', { className: 'goal' }, el('div', { className: 'gtop' }, el('b', { textContent: sp === 'all' ? 'All sports' : SPN[sp] }), el('span', { textContent: `${show(have)} / ${show(want)}` })), bar,
+        el('div', { className: 'muted', style: 'font-size:11px', textContent: note }))); });
+  });
+  if (!gl.children.length) gl.append(el('div', { className: 'muted', style: 'font-size:12px', textContent: tab === 'all' ? 'No goals yet.' : `No ${SPN[tab].toLowerCase()} goals yet.` }));
+  c.append(el('div', { className: 'sec wtitle', textContent: 'Goals' }), gl,
+    el('button', { className: 'linkbtn', type: 'button', textContent: 'Set goals', style: 'margin-top:8px', onclick: () => editGoals(() => mountWeek(c.parentElement)) }));
   return c;
 }
 
@@ -129,20 +142,36 @@ function chart(W, tab, range) {
 
 function editGoals(onDone) {
   openModal((body, close) => {
-    const g = Object.assign({}, state.profile?.settings?.goals || {});
-    body.append(el('h3', { textContent: 'Weekly goals' }), el('p', { className: 'sec', style: 'margin-top:0', textContent: 'Weeks run Monday to Sunday. Multisport legs count towards their own sport. Leave a target empty for no goal.' }));
-    const rows = {};
-    [['swim', 'Swim'], ['bike', 'Ride'], ['run', 'Run'], ['all', 'All sports']].forEach(([k, t]) => {
-      const metric = el('select'); [['distance', `Distance (${U.dU()})`], ['time', 'Time (hours)'], ['elevation', `Elevation (${U.eU()})`]].forEach(([v, l]) => metric.append(el('option', { value: v, textContent: l, selected: (g[k]?.metric || (k === 'all' ? 'time' : 'distance')) === v })));
-      const target = el('input', { type: 'number', min: 0, step: 'any', value: g[k]?.target == null ? '' : g[k].metric === 'distance' || (!g[k].metric && k !== 'all') ? +U.toD(g[k].target * 1000).toFixed(1) : g[k].metric === 'elevation' ? Math.round(U.toE(g[k].target)) : g[k].target, placeholder: 'no goal', style: 'width:110px' });
-      rows[k] = { metric, target };
-      body.append(el('div', { className: 'goalrow' }, el('b', { textContent: t }), metric, target));
-    });
+    const S = state.profile?.settings || {};
+    const P = [['goals', 'Weekly', 'Weeks run Monday to Sunday.'], ['goalsMonth', 'Monthly', 'Calendar months.'], ['goalsYear', 'Annual', 'Calendar years, January to December.']];
+    const draft = Object.fromEntries(P.map(([k]) => [k, { ...(S[k] || {}) }]));   // stored in km, hours or metres
+    let cur = 'goals';
+    body.append(el('h3', { textContent: 'Goals' }));
+    const chips = el('div', { className: 'segrow', style: 'margin:4px 0 6px' }), hint = el('p', { className: 'sec', style: 'margin-top:0' }), box = el('div');
+    body.append(chips, hint, box);
+    const toBox = (k, g) => g?.target == null ? '' : (g.metric || (k === 'all' ? 'time' : 'distance')) === 'distance' ? +U.toD(g.target * 1000).toFixed(1) : g.metric === 'elevation' ? Math.round(U.toE(g.target)) : g.target;
+    let rows = {};
+    const keep = () => { const out = {}; for (const k in rows) { const v = parseFloat(rows[k].target.value); if (v > 0) { const m = rows[k].metric.value, old = draft[cur][k];
+      // an untouched box keeps the stored value exactly
+      out[k] = old && old.metric === m && String(toBox(k, old)) === rows[k].target.value ? old : { metric: m, target: m === 'distance' ? U.fromD(v) / 1000 : m === 'elevation' ? (U.imperial() ? v * U.FT : v) : v }; } }
+      draft[cur] = out; };
+    const paint = () => {
+      chips.replaceChildren(...P.map(([k, t]) => { const b = el('button', { type: 'button', className: 'chip', textContent: t }); b.setAttribute('aria-pressed', k === cur); b.onclick = () => { keep(); cur = k; paint(); }; return b; }));
+      hint.textContent = P.find(p => p[0] === cur)[2] + ' Multisport legs count towards their own sport. Leave a target empty for no goal.';
+      const g = draft[cur]; rows = {}; box.replaceChildren();
+      [['swim', 'Swim'], ['bike', 'Ride'], ['run', 'Run'], ['all', 'All sports']].forEach(([k, t]) => {
+        const metric = el('select'); [['distance', `Distance (${U.dU()})`], ['time', 'Time (hours)'], ['elevation', `Elevation (${U.eU()})`]].forEach(([v, l]) => metric.append(el('option', { value: v, textContent: l, selected: (g[k]?.metric || (k === 'all' ? 'time' : 'distance')) === v })));
+        const target = el('input', { type: 'number', min: 0, step: 'any', value: toBox(k, g[k]), placeholder: 'no goal', style: 'width:110px' });
+        rows[k] = { metric, target };
+        box.append(el('div', { className: 'goalrow' }, el('b', { textContent: t }), metric, target));
+      });
+    };
+    paint();
     const save = el('button', { className: 'btn primary', type: 'button', textContent: 'Save goals' });
     body.append(el('div', { className: 'actions', style: 'justify-content:flex-end' }, el('button', { className: 'btn', type: 'button', textContent: 'Cancel', onclick: close }), save));
     save.onclick = async () => {
-      const goals = {}; for (const k in rows) { const v = parseFloat(rows[k].target.value); if (v > 0) { const m = rows[k].metric.value; goals[k] = { metric: m, target: m === 'distance' ? U.fromD(v) / 1000 : m === 'elevation' ? (U.imperial() ? v * U.FT : v) : v }; } }   // stored in km, hours or metres
-      const settings = { ...(state.profile.settings || {}), goals };
+      keep();
+      const settings = { ...(state.profile.settings || {}), ...draft };
       const r = await sb.from('profiles').update({ settings }).eq('id', state.user.id);
       if (r.error) { toast(r.error.message); return; }
       state.profile.settings = settings; close(); toast('Goals saved'); onDone && onDone();

@@ -1,12 +1,12 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795209497';
-import { linkActivities, importDecoded } from './pipeline.js?v=1795209497';
-import { decodeFit } from './fit.js?v=1795209497';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795209497';
-import { openTrim } from './trim.js?v=1795209497';
-import { openIg } from './ig.js?v=1795209497';
-import * as U from './units.js?v=1795209497';
-import { shareButton, linkUrl } from './profile.js?v=1795209497';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795209850';
+import { linkActivities, importDecoded } from './pipeline.js?v=1795209850';
+import { decodeFit } from './fit.js?v=1795209850';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795209850';
+import { openTrim } from './trim.js?v=1795209850';
+import { openIg } from './ig.js?v=1795209850';
+import * as U from './units.js?v=1795209850';
+import { shareButton, linkUrl } from './profile.js?v=1795209850';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
