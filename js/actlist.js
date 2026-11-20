@@ -1,7 +1,7 @@
 // Training log → Activities: search and filter every activity, with totals for what matches.
 // Words in the search box must all match (names, descriptions, private notes, type, race distance, gear, month and year).
-import { state, raceFlag } from './main.js?v=1795178617';
-import { envLabel } from './process.js?v=1795178617';
+import { state, raceFlag } from './main.js?v=1795179270';
+import { envLabel } from './process.js?v=1795179270';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
