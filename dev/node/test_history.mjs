@@ -1,0 +1,20 @@
+// Thresholds on the day: changing FTP or threshold HR today must not change the load of older activities.
+import { loadOf } from '../../js/load.js';
+import { applyChange, settingsAt } from '../../js/athlete.js';
+let fails = 0; const ok = (c, m) => { console.log((c ? '  ok  ' : '  FAIL ') + m); if (!c) fails++; };
+const ride = (day, extra = {}) => ({ start_time: day + 'T05:00:00Z', utc_offset_min: 180, sport: 'bike', moving_s: 3600, summary: { loadData: { v: 1, t: { bike: 3600 }, hr: { bike: { 150: 3600 } }, pw: [{ np: 240, s: 3600 }] }, ...extra } });
+const run = (day, extra = {}) => ({ start_time: day + 'T05:00:00Z', utc_offset_min: 180, sport: 'run', moving_s: 3600, summary: { loadData: { v: 1, t: { run: 3600 }, hr: { run: { 160: 3600 } }, pw: [] }, ...extra } });
+let cfg = { lthrRun: 163, lthrBike: 158, maxHr: 175, restHr: 50, ftp: 240, mass: 75 };
+const old = ride('2025-11-20'), oldRun = run('2025-11-20');
+const before = loadOf(old, cfg).value, beforeRun = loadOf(oldRun, cfg).value;
+cfg = applyChange(cfg, { ftp: 270, lthrRun: 170 }, '2026-11-20');
+ok(loadOf(old, cfg).value === before, `year-old ride keeps its load (${before}) after FTP 240 → 270`);
+ok(loadOf(oldRun, cfg).value === beforeRun, `year-old run keeps its load (${beforeRun}) after run threshold 163 → 170`);
+ok(loadOf(ride('2026-11-21'), cfg).value < before, `new ride at the same power scores lower with FTP 270 (${loadOf(ride('2026-11-21'), cfg).value})`);
+ok(loadOf(ride('2025-11-20', { ftp: 220 }), cfg).value > before, 'an old ride with FTP 220 on the watch uses 220');
+ok(settingsAt(cfg, run('2025-06-01', { lthr: 158 })).lthrRun === 158 && settingsAt(cfg, ride('2025-06-01', { lthr: 158 })).lthrRun === 163, 'watch threshold HR applies to its own sport only');
+cfg = applyChange(cfg, { ftp: 250 }, '2026-03-01');
+ok(settingsAt(cfg, ride('2026-05-01', { ftp: 220 })).ftp === 250 && cfg.ftp === 270, 'a backdated change beats the watch from its date; today stays 270');
+const fresh = applyChange({ lthrRun: 163, ftp: null }, { lthrRun: 168, ftp: 250 }, null);
+ok(settingsAt(fresh, run('2024-01-01')).lthrRun === 168 && fresh.lthrRun === 168, '"past activities too" sets the standing value');
+console.log(fails ? fails + ' FAILED' : 'all passed');

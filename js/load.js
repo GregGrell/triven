@@ -7,8 +7,10 @@
 //  - No heart rate or power: 50 per hour (an easy aerobic hour), marked as an estimate.
 // Fitness = 42-day exponentially weighted average of daily load, fatigue = 7-day, form = yesterday's fitness - fatigue.
 //
-// To keep loads correct when thresholds change, uploads store a compact summary (seconds at each heart rate,
-// normalised power and duration) and the load is worked out from it with the current settings.
+// Uploads store a compact summary (seconds at each heart rate, normalised power and duration) and the load is worked
+// out from it with the thresholds in effect on the activity's day (see athlete.js), so changing them today leaves history alone.
+
+import { settingsAt } from './athlete.js?v=1795170722';
 
 const SP = { run: 'run', running: 'run', bike: 'bike', cycling: 'bike', swim: 'swim', swimming: 'swim' };
 
@@ -43,8 +45,9 @@ export function loadData(sections, streams) {
   return out;
 }
 
-// load for one activity with the current settings -> { value, bySport, method: 'power'|'hr'|'time'|'mixed' }
-export function loadOf(a, cfg) {
+// load for one activity with the settings in effect on its day (athlete.js) -> { value, bySport, method: 'power'|'hr'|'time'|'mixed' }
+export function loadOf(a, cfgNow) {
+  const cfg = settingsAt(cfgNow, a);
   const d = a.summary?.loadData;
   const rest = cfg.restHr || 50;
   const lthr = sp => sp === 'bike' || sp === 'swim' ? (cfg.lthrBike || 158) : (cfg.lthrRun || 163);

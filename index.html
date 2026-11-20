@@ -361,6 +361,7 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
 .confirm{display:flex;gap:8px;align-items:center;justify-content:flex-end;font-size:13px;padding:6px 0;border-bottom:1px solid var(--grid)}.confirm span{flex:1}
 .people input[type=search],.people .clubform input{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text-primary)}
 .welcome{background:var(--band);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin:12px 0 4px;font-size:13px}.welcome b{font-size:15px}.welcome p{margin:6px 0 0;color:var(--text-secondary)}
+.hist{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden}.hist .hrow{display:flex;gap:10px;align-items:baseline;padding:7px 10px;font-size:13px;border-top:1px solid var(--grid)}.hist .hrow:first-child{border-top:0}.hist .hrow b{min-width:150px}.hist .hrow span{flex:1;color:var(--text-secondary)}
 </style>
 </head>
 <body>
@@ -524,7 +525,7 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
   <div class="sheet">
     <h3 id="setTitle">Athlete settings</h3>
     <div class="welcome" id="setWelcome" hidden><b>Welcome to Triven</b><p>Start here: choose the name other athletes see, add a photo and decide who can find you and see your training. Then set your threshold heart rates, which your zones and training load depend on. You can change all of this later. Click <b>Apply</b> when you’re done.</p><p><a href="help.html" target="_blank" rel="noopener">Read the help guide</a> for a tour of everything Triven does.</p></div>
-    <div class="muted" style="font-size:12px">Every chart, zone and estimate on this page recalculates from these. Threshold HR, max HR and rider weight start from what your watch recorded in this file.</div>
+    <div class="muted" style="font-size:12px">Zones, training load and estimates use these. Past activities keep the values that were in effect on their day.</div>
     <section>
       <h2>Profile and privacy</h2>
       <div class="avrow"><span id="p_avatar"></span><button class="btn sm" type="button" id="p_avpick">Change photo</button><button class="linkbtn" type="button" id="p_avdel" hidden>Remove</button><input type="file" id="p_avfile" accept="image/*" hidden></div>
@@ -570,6 +571,16 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
         <label class="f">Tyres / surface<select id="s_crr"><option value="0.003">Race tyres, smooth tarmac</option><option value="0.004">Road tyres, good tarmac</option><option value="0.006">Training tyres / rough road</option></select></label>
       </div>
     </section>
+    <section>
+      <h2>When changes apply</h2>
+      <div class="note" style="margin-top:4px">Threshold heart rates, max and resting HR, FTP and weight are kept as a dated history. Every activity is worked out with the values in effect on its day, so changing them now doesn’t alter past activities.</div>
+      <div class="rpick" style="margin-top:8px">
+        <label class="ropt"><input type="radio" name="s_when" value="date" checked> <span style="flex:1"><b>From</b> <input type="date" id="s_from" style="width:auto;display:inline-block;margin-left:6px;padding:3px 6px"></span></label>
+        <label class="ropt"><input type="radio" name="s_when" value="all"> <span style="flex:1"><b>For past activities too</b><div class="muted" style="font-size:12px">Becomes your usual value for activities before your first dated change, where your watch didn’t record one</div></span></label>
+      </div>
+      <div id="s_hist"></div>
+      <div class="note">Before your first dated change, each activity uses what your watch recorded in that file, if it recorded anything.</div>
+    </section>
     <div class="actions">
       <button class="btn" id="resetSettings">Reset to defaults</button>
       <div style="display:flex;gap:8px"><button class="btn" id="closeSettings">Cancel</button><button class="btn primary" id="saveSettings">Apply</button></div>
@@ -578,6 +589,6 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=1795169942"></script>
+<script type="module" src="js/main.js?v=1795170722"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
+import { srcText } from './athlete.js?v=1795170722';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -229,7 +230,7 @@ function renderZones(){
     const bar=document.createElement('div');bar.className='bar';const f=document.createElement('div');f.style.width=(tz[i]/sum*100)+'%';f.style.background=`var(--z${i+1})`;bar.append(f);
     const v=document.createElement('div');v.className='val';v.textContent=tz[i]>0?`${fmtDur(tz[i])} · ${Math.round(tz[i]/sum*100)}%`:'–';
     row.append(l,bar,v);el.append(row);});
-  document.getElementById('znote').textContent=`${selSport()==='multi'?'R = run, B = bike. ':''}Zones use run threshold HR ${CFG.lthrRun} bpm and bike threshold HR ${CFG.lthrBike} bpm, applied to every HR sample. Change them in Settings. ${S[S.length-1].te!=null?`Garmin's own Training Effect: ${S[S.length-1].te} aerobic / ${S[S.length-1].ate} anaerobic.`:''}`;
+  document.getElementById('znote').textContent=`${selSport()==='multi'?'R = run, B = bike. ':''}Zones use run threshold HR ${CFG.lthrRun} bpm (${srcText(CFG._src?.lthrRun)}) and bike threshold HR ${CFG.lthrBike} bpm (${srcText(CFG._src?.lthrBike)}), the values in effect on this day, applied to every HR sample. Settings keeps a dated history, so changing them later doesn’t alter past activities. ${S[S.length-1].te!=null?`Garmin's own Training Effect: ${S[S.length-1].te} aerobic / ${S[S.length-1].ate} anaerobic.`:''}`;
 }
 
 // ---------- FTP card ----------
@@ -240,7 +241,7 @@ function renderFtp(){
   const manual=CFG.ftp>0, ftp=manual?CFG.ftp:BIKE.est;
   const top=document.createElement('div');top.style.marginTop='10px';
   const big=document.createElement('div');big.className='big';big.textContent=ftp?Math.round(ftp):'–';const u=document.createElement('small');u.textContent=`W · ${ftp?(ftp/MASS()).toFixed(2):'–'} W/kg`;big.append(u);
-  const pill=document.createElement('span');pill.className='pill';pill.style.marginTop='6px';pill.textContent=manual?'Set manually in Settings':BIKE.has?'From power meter':'Estimate · low confidence';
+  const pill=document.createElement('span');pill.className='pill';pill.style.marginTop='6px';pill.textContent=manual?(CFG._src?.ftp==='watch'?'FTP on your watch that day':'FTP in Settings that day'):BIKE.has?'From power meter':'Estimate · low confidence';
   top.append(big,pill);el.append(top);
   const kv=document.createElement('div');kv.className='kv';
   const add=(k,v)=>{const a=document.createElement('span');a.className='sec';a.textContent=k;const b=document.createElement('b');b.textContent=v;kv.append(a,b)};

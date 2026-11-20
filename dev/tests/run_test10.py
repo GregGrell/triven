@@ -99,6 +99,15 @@ try:
     # settings + log
     pg.goto(U+'#log');pg.wait_for_timeout(2000);check(not pg.locator('#fitcard').count() and 'VO₂ max' not in pg.inner_text('#view-log').replace('VO₂ max +',''),'no VO2 max in the training log')
     pg.click('#openSettings');pg.wait_for_timeout(400);check(not pg.is_visible('#setWelcome'),'no welcome note on later visits');print('   audience',pg.input_value('#p_audience'),pg.evaluate("JSON.stringify(__db.profiles[0].feed_audience)"));check(pg.input_value('#p_audience')=='followers' and pg.evaluate("document.querySelector('#p_audience option[value=everyone]').disabled"),'settings show the audience; Everyone off while hidden')
+    pg.click('#closeSettings')
+    # thresholds on the day: change run threshold HR from today; a 14 Nov activity keeps 163
+    pg.goto(U+'#a/a1');pg.wait_for_timeout(2500)
+    z=pg.inner_text('#znote');check('163 bpm' in z,'activity uses 163 before the change: '+z[:90])
+    pg.click('#openSettings');pg.wait_for_timeout(300);pg.fill('#s_lthrRun','170');pg.click('#saveSettings');pg.wait_for_timeout(800)
+    st=pg.evaluate("__db.profiles[0].settings");check(st['lthrRun']==170 and any(e.get('from') is None and e.get('lthrRun')==163 for e in st.get('history',[])),'history saved: '+json.dumps(st.get('history')))
+    z=pg.inner_text('#znote');check('163 bpm (your earlier setting)' in z,'14 Nov activity still uses 163: '+z[:110])
+    pg.click('#openSettings');pg.wait_for_timeout(300);check('Before your first change' in pg.inner_text('#s_hist'),'history listed in Settings')
+    pg.screenshot(path=os.path.join(OUT,'t10_history.png'));pg.click('#closeSettings')
     print('ERRORS',errs)
     if errs: fails.append('page errors')
 finally: srv.terminate()

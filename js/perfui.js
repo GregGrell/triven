@@ -1,6 +1,8 @@
 // Training log: training status, suggested thresholds (FTP, threshold heart rate), threshold pace and race predictions.
-import { sb, state, toast } from './main.js?v=1795169942';
-import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795169942';
+import { sb, state, toast } from './main.js?v=1795170722';
+import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795170722';
+import { applyChange, dayKey, todayKey } from './athlete.js?v=1795170722';
+import { DEFAULTS } from './defaults.js?v=1795170722';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -32,7 +34,13 @@ function suggestionBar(s, cfg) {
   const save = async patch => { const settings = { ...(state.profile.settings || {}), ...patch };
     const r = await sb.from('profiles').update({ settings }).eq('id', state.user.id); if (r.error) { toast(r.error.message); return false; }
     state.profile.settings = settings; document.dispatchEvent(new Event('triven:settings')); return true; };
-  use.onclick = async () => { if (await save({ [s.key]: s.to })) toast(`${s.label} set to ${s.to} ${s.unit}. Zones and loads updated.`); };
+  // a higher threshold applies from the activity that showed it; anything else from today
+  use.onclick = async () => {
+    const src = !s.down && state.activities.find(a => a.id === s.activity_id), from = src ? dayKey(src.start_time, src.utc_offset_min) : todayKey();
+    const settings = applyChange(Object.assign({}, DEFAULTS, state.profile.settings || {}), { [s.key]: s.to }, from);
+    const r = await sb.from('profiles').update({ settings }).eq('id', state.user.id); if (r.error) { toast(r.error.message); return; }
+    state.profile.settings = settings; document.dispatchEvent(new Event('triven:settings'));
+    toast(`${s.label} set to ${s.to} ${s.unit} from ${src ? 'the day of that activity' : 'today'}. Earlier activities keep their old value.`); };
   no.onclick = async () => { await save({ dismissed: { ...(cfg.dismissed || {}), [s.key]: s.to } }); bar.remove(); };
   return bar;
 }

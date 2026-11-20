@@ -1,24 +1,25 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795169942';
+import { decodeFit } from './fit.js?v=1795170722';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795169942';
-import { mountActivity } from './activity.js?v=1795169942';
-import { mountLog } from './log.js?v=1795169942';
-import { mountGear } from './gear.js?v=1795169942';
-import { mountClub } from './club.js?v=1795169942';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795169942';
-import { mountRelay } from './relay.js?v=1795169942';
-import { openWelcome } from './settings.js?v=1795169942';
-import './trophies.js?v=1795169942';
-import { mountFeed } from './feed.js?v=1795169942';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795169942';
-import { perfData } from './perf.js?v=1795169942';
-import { loadData } from './load.js?v=1795169942';
-import { processInbox, paintConnections } from './sync.js?v=1795169942';
-import { mountManual } from './manual.js?v=1795169942';
-import { mountCal } from './cal.js?v=1795169942';
-import { initSettings, DEFAULTS } from './settings.js?v=1795169942';
-import { offerCombine } from './edit.js?v=1795169942';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795170722';
+import { mountActivity } from './activity.js?v=1795170722';
+import { mountLog } from './log.js?v=1795170722';
+import { mountGear } from './gear.js?v=1795170722';
+import { mountClub } from './club.js?v=1795170722';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795170722';
+import { mountRelay } from './relay.js?v=1795170722';
+import { openWelcome } from './settings.js?v=1795170722';
+import './trophies.js?v=1795170722';
+import { mountFeed } from './feed.js?v=1795170722';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795170722';
+import { perfData } from './perf.js?v=1795170722';
+import { loadData } from './load.js?v=1795170722';
+import { processInbox, paintConnections } from './sync.js?v=1795170722';
+import { mountManual } from './manual.js?v=1795170722';
+import { mountCal } from './cal.js?v=1795170722';
+import { settingsAt } from './athlete.js?v=1795170722';
+import { initSettings, DEFAULTS } from './settings.js?v=1795170722';
+import { offerCombine } from './edit.js?v=1795170722';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -106,7 +107,7 @@ export async function loadAll() {
 }
 initAvatar();
 document.getElementById('openSettings').addEventListener('click', () => paintConnections());
-initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply) window.__actApply(cfg); document.dispatchEvent(new Event('triven:settings')); },
+initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply && curAct) window.__actApply(cfgFor(curAct)); document.dispatchEvent(new Event('triven:settings')); },
   { get: () => state.profile, save: async upd => { const { error } = await sb.from('profiles').update(upd).eq('id', state.user.id); if (error) { toast('Could not save privacy settings: ' + error.message); return; } Object.assign(state.profile, upd); } });
 export async function saveSettings(cfg) {
   state.profile.settings = cfg;
@@ -237,6 +238,12 @@ export function toRaw({ act, sections, laps, streams }) {
     meta: { start: act.start_time, device: act.device, sensors: [], utcOffsetH: act.utc_offset_min / 60, weight: act.summary?.weight || null },
   };
 }
+// settings in effect on the activity's day; other people's activities use what their watch recorded, else your own settings
+let curAct = null;
+export function cfgFor(act) {
+  const now = Object.assign({}, DEFAULTS, state.profile?.settings || {});
+  return settingsAt(act.owner === state.user.id ? now : { ...now, history: [] }, act);
+}
 async function openActivity(id) {
   show('loading');
   let data;
@@ -249,7 +256,8 @@ async function openActivity(id) {
   renderActHeader(act, data.sections);
   if (!data.streams && !act.summary?.manual) toast('This activity has no detailed data file.', 4000);
   $('view-activity').classList.toggle('nodata', !data.streams);
-  mountActivity(toRaw(data), state.profile?.settings);
+  curAct = act;
+  mountActivity(toRaw(data), cfgFor(act));
   document.dispatchEvent(new CustomEvent('triven:activity', { detail: data }));
 }
 export function renderActHeader(act, sections) {

@@ -137,7 +137,7 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <li><b>Calendar:</b> every day's activities with their training load.</li>
 <li><b>Fitness and form:</b> load is scored on the familiar TSS scale. Fitness is your 42-day average load, fatigue your 7-day average, and form is fitness minus fatigue (negative when you're carrying fatigue, positive when fresh).</li>
 <li><b>Training status:</b> productive, maintaining, recovery, peaking, overreaching or detraining, from how your load is changing. It needs about six weeks of activities with heart rate.</li>
-<li><b>Thresholds:</b> suggestions for threshold heart rate, threshold pace and FTP from your hardest recent efforts. One click applies a suggestion, and your zones and loads update.</li>
+<li><b>Thresholds:</b> suggestions for threshold heart rate, threshold pace and FTP from your hardest recent efforts. One click applies a suggestion from the day of the activity that showed it; earlier activities keep their old values.</li>
 <li><b>Race predictor:</b> 5K, 10K, half marathon and marathon times from your best running efforts of the last 12 weeks.</li>
 </ul>
 <p>The feed sidebar shows this week's load against a suggested range, a 12-week chart and your weekly goals.</p>
@@ -154,12 +154,14 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <li><b>Running form:</b> the left/right balance range that gets flagged.</li>
 <li><b>Cycling:</b> FTP, your weight, bike weight, riding position and tyres, used to estimate power on rides without a power meter.</li>
 </ul>
+<h3>Thresholds over time</h3>
+<p>Triven keeps a dated history of your threshold heart rates, max and resting heart rate, FTP and weight. Every activity is worked out with the values in effect on its day: if your FTP was 240 a year ago and is 270 now, last year's rides still use 240. When you change a value, choose <b>From</b> a date (today, or the day of a lab test) or <b>For past activities too</b>. For days before your first change, Triven uses what your watch recorded in that activity's file, if anything. The activity page says which values it used and where they came from.</p>
 
 <h2 id="faq">Questions</h2>
 <h3>An activity is missing.</h3>
 <p>If you use automatic sync, click <b>Sync now</b> in Settings and check the activity reached intervals.icu. Activities that reached intervals.icu from Strava aren't imported, under Strava's terms; upload the original file instead.</p>
 <h3>My zones or load look wrong.</h3>
-<p>Check your threshold and max heart rates in Settings. Every chart recalculates when you change them.</p>
+<p>Check your threshold and max heart rates in Settings. The activity page's training-focus note shows which values it used for that day and where they came from (your setting or your watch). To correct a past period, add a change <b>From</b> the right date.</p>
 <h3>How do I delete my account?</h3>
 <p>Email <a href="mailto:hello@triven.fit">hello@triven.fit</a> from your account's address and everything will be deleted within 30 days.</p>
 <h3>Something else?</h3>
