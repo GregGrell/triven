@@ -127,6 +127,7 @@ function showPop(a,anchor){
 
 
 // ---------- bests ----------
+const SWIM_PB=[['100 m',100,'100 m'],['200 m',200,'200 m'],['400 m',400,'400 m'],['750 m',750,'750 m (sprint tri)'],['800 m',800,'800 m'],['1500 m',1500,'1500 m (Olympic tri)'],['1900 m',1900,'1.9 km (70.3)'],['3800 m',3800,'3.8 km (Ironman)']];
 const RUN_PB=[['400 m',400],['1 km',1000],['1 mile',1609.34],['5 km',5000],['10 km',10000],['15 km',15000],['10 mile',16093.4],['Half marathon',21097.5],['30 km',30000],['Marathon',42195],['50 km',50000],['50 mile',80467.2],['100 km',100000],['100 mile',160934.4]];
 const BIKE_PB=[['10 mile TT',16093.4],['25 mile TT',40233.6],['50 mile TT',80467.2],['100 km ride',100000,'100 km'],['100 mile TT',160934.4]];
 const PWR=[['power 1 s','1 s'],['power 5 s','5 s'],['power 10 s','10 s'],['power 30 s','30 s'],['power 1 min','1 min'],['power 5 min','5 min'],['power 10 min','10 min'],['power 20 min','20 min'],['power 30 min','30 min'],['power 1 hour','1 hour']];
@@ -146,6 +147,8 @@ function renderBests(){
   const bk=$('pbBike');bk.replaceChildren();hdr(bk,['Distance','Time','Speed','Date','Activity']);
   BIKE_PB.forEach(([n,m,label])=>{const b=bestOf('bike',n);const x=pbRow(bk,label||n,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=`${(m/b.value*3.6).toFixed(1)} km/h`;x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
   [['longest ride','Longest ride',v=>(v/1000).toFixed(1)+' km'],['most elevation','Most elevation gain',v=>Math.round(v)+' m']].forEach(([e,label,f])=>{const b=bestOf('bike',e,true);const x=pbRow(bk,label,b);if(!x)return;x[1].textContent=f(b.value);x[0].insertCell();x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
+  const sw=$('pbSwim');sw.replaceChildren();hdr(sw,['Distance','Time','Pace /100 m','Date','Activity']);
+  SWIM_PB.forEach(([n,m,label])=>{const b=bestOf('swim',n);const x=pbRow(sw,label,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=fmtDur(b.value/m*100);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
   const p=$('pbPower');p.replaceChildren();hdr(p,['Duration','Power','W/kg','Date','Activity']);
   PWR.forEach(([e,label])=>{const b=bestOf('bike',e,true);const x=pbRow(p,label,b,'Needs a ride with a power meter');if(!x)return;x[1].textContent=Math.round(b.value)+' W';x[0].insertCell().textContent=D.mass?(b.value/D.mass).toFixed(2):'—';x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
 }

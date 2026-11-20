@@ -1,4 +1,5 @@
-import { snapToTrack, pathLength } from './track.js?v=1795176261';
+import { snapToTrack, pathLength } from './track.js?v=1795178358';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795178358';
 // Triven: turn a decoded FIT file into activity rows, streams and best efforts.
 // Pure functions only (no network), so the same code runs in the browser and in tests.
 
@@ -13,7 +14,7 @@ export const RUN_DISTANCES = [['400 m', 400], ['1 km', 1000], ['1 mile', 1609.34
 export const BIKE_DISTANCES = [['10 mile TT', 16093.4], ['25 mile TT', 40233.6], ['50 mile TT', 80467.2], ['100 km', 100000], ['100 mile TT', 160934.4]];
 export const POWER_DURATIONS = [['power 1 s', 1], ['power 5 s', 5], ['power 10 s', 10], ['power 30 s', 30], ['power 1 min', 60], ['power 5 min', 300],
   ['power 10 min', 600], ['power 20 min', 1200], ['power 30 min', 1800], ['power 1 hour', 3600]];
-export const SWIM_DISTANCES = [['100 m', 100], ['400 m', 400], ['750 m', 750], ['1500 m', 1500], ['1900 m', 1900], ['3800 m', 3800]];
+export const SWIM_DISTANCES = [['100 m', 100], ['200 m', 200], ['400 m', 400], ['750 m', 750], ['800 m', 800], ['1500 m', 1500], ['1900 m', 1900], ['3800 m', 3800]];
 
 export const STREAM_FIELDS = ['t', 'lat', 'lon', 'dist', 'speed', 'alt', 'hr', 'power', 'cad', 'gct', 'gctBal', 'vo', 'stride', 'temp'];
 
@@ -180,6 +181,15 @@ export function processFit(messages, opts = {}) {
   const streams = { fields: STREAM_FIELDS, v: 1 };
   for (const f of STREAM_FIELDS) streams[f] = recs.map(x => x[f]);
   if (messages.lengthMesgs?.length) streams.lengths = messages.lengthMesgs.map(l => ({ t: r(off(l.startTime), 1), dur: r(l.totalElapsedTime, 2), type: l.lengthType, strokes: l.totalStrokes ?? null, stroke: l.swimStroke ?? null }));
+  // pool swims: swim time from active lengths (rest excluded), so pace and moving time ignore rests
+  for (const sec of sections) {
+    if (sec.sport !== 'swim' || sec.summary.env !== 'pool') continue;
+    const st = poolStats(lengthsIn(sec, streams.lengths), sec.summary.poolLength);
+    if (!st) continue;
+    Object.assign(sec.summary, { swimTime: st.swimTime, rest: st.rest, swolf: st.swolf != null ? r(st.swolf, 1) : sec.summary.swolf, strokeRate: st.strokeRate != null ? r(st.strokeRate, 1) : null,
+      strokesPerLength: st.strokesPerLength != null ? r(st.strokesPerLength, 1) : null, numLengths: st.lengths, swimV: 1 });
+    if (sec.distance_m > 0 && st.swimTime > 0) sec.avg_speed = r(sec.distance_m / st.swimTime, 3);
+  }
 
   // activity row
   const real = sections.filter(s => s.sport !== 'transition');
@@ -207,7 +217,7 @@ export function processFit(messages, opts = {}) {
 
   const activity = {
     name, sport, multisport_profile: profile, start_time: new Date(startMs).toISOString(), utc_offset_min: utcOffsetMin,
-    distance_m: r(sum('distance_m'), 1), elapsed_s: r(totalElapsed), moving_s: r(act.totalTimerTime ?? sum('timer_s')),
+    distance_m: r(sum('distance_m'), 1), elapsed_s: r(totalElapsed), moving_s: r(sport === 'swim' && real.every(x => x.summary.swimTime) ? real.reduce((p, x) => p + x.summary.swimTime, 0) : (act.totalTimerTime ?? sum('timer_s'))),
     ascent_m: sum('ascent_m') || null, descent_m: sections.reduce((a, s) => a + (s.summary.descent || 0), 0) || null,
     calories: sections.reduce((a, s) => a + (s.summary.calories || 0), 0) || null, avg_hr: hrW ? Math.round(hrW) : null,
     max_hr: Math.max(0, ...sections.map(s => s.max_hr || 0)) || null, indoor,
@@ -232,7 +242,9 @@ export function processFit(messages, opts = {}) {
       const pr = recs.filter(x => x.t >= s.start_offset_s && x.t <= s.start_offset_s + s.elapsed_s);
       if (pr.some(x => x.power > 0)) Object.entries(bestPower(pr, POWER_DURATIONS)).forEach(([n, v]) => add('bike', n, v.w, 'W', v.start));
     }
-    if (s.sport === 'swim' && sr.length > 1) SWIM_DISTANCES.forEach(([n, d]) => { if (s.distance_m >= d) { const b = bestOverDistance(sr, d); if (b) add('swim', n, b.t, 's', b.start); } });
+    if (s.sport === 'swim' && s.summary.env === 'pool' && streams.lengths?.length) {
+      Object.entries(poolBests(lengthsIn(s, streams.lengths), s.summary.poolLength, SWIM_DISTANCES)).forEach(([n, b]) => add('swim', n, b.t, 's', b.start));
+    } else if (s.sport === 'swim' && sr.length > 1) SWIM_DISTANCES.forEach(([n, d]) => { if (s.distance_m >= d) { const b = bestOverDistance(sr, d); if (b) add('swim', n, b.t, 's', b.start); } });
   });
   // keep the best of each effort across sections (e.g. run 1 vs run 2 of a duathlon)
   const keep = new Map();
@@ -256,7 +268,7 @@ export function shareStreams(streams, share) {
   if (!share.map) { drop('lat'); drop('lon'); }
   if (!share.hr) drop('hr');
   if (!share.power) drop('power');
-  if (!share.pace) drop('speed');
+  if (!share.pace) { drop('speed'); delete s.lengths; }
   if (!share.cadence) drop('cad');
   if (!share.dynamics) { drop('gct'); drop('gctBal'); drop('vo'); drop('stride'); }
   return s;

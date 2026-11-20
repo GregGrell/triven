@@ -3,6 +3,7 @@ const db={profiles:[{id:'u1',display_name:'Carl',settings:{lthrRun:163,lthrBike:
  activities:[],activity_media:[],activity_sections:[],activity_laps:[],best_efforts:[],gear:[],comments:[],kudos:[],clubs:[],club_members:[],follows:[],connections:[],sync_inbox:[],club_posts:[],relay_legs:[]};
 const files={};
 if(window.__seedDb)Object.entries(window.__seedDb).forEach(([k,v])=>{if(k==='profile')Object.assign(db.profiles[0],v);else db[k].push(...v)});
+if(window.__seedFiles)Object.assign(files,window.__seedFiles);
 window.__db=db;window.__files=files;
 let n=0;const uuid=()=>'00000000-0000-4000-8000-'+String(++n).padStart(12,'0');
 function q(table){

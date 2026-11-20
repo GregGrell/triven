@@ -1,8 +1,8 @@
 // Training log: fitness / fatigue / form chart and the month calendar with training load per day and week.
-import { state } from './main.js?v=1795176261';
-import { DEFAULTS } from './settings.js?v=1795176261';
-import { mountPerf } from './perfui.js?v=1795176261';
-import { loadOf, pmc, formBand } from './load.js?v=1795176261';
+import { state } from './main.js?v=1795178358';
+import { DEFAULTS } from './settings.js?v=1795178358';
+import { mountPerf } from './perfui.js?v=1795178358';
+import { loadOf, pmc, formBand } from './load.js?v=1795178358';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();

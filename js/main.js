@@ -1,26 +1,29 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795176261';
+import { decodeFit } from './fit.js?v=1795178358';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795176261';
-import { mountActivity } from './activity.js?v=1795176261';
-import { mountLog } from './log.js?v=1795176261';
-import { mountGear } from './gear.js?v=1795176261';
-import { mountClub } from './club.js?v=1795176261';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795176261';
-import { mountRelay } from './relay.js?v=1795176261';
-import { installHint } from './install.js?v=1795176261';
-import { openWelcome } from './settings.js?v=1795176261';
-import './trophies.js?v=1795176261';
-import { mountFeed } from './feed.js?v=1795176261';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795176261';
-import { perfData } from './perf.js?v=1795176261';
-import { loadData } from './load.js?v=1795176261';
-import { processInbox, paintConnections } from './sync.js?v=1795176261';
-import { mountManual } from './manual.js?v=1795176261';
-import { mountCal } from './cal.js?v=1795176261';
-import { settingsAt } from './athlete.js?v=1795176261';
-import { initSettings, DEFAULTS } from './settings.js?v=1795176261';
-import { offerCombine } from './edit.js?v=1795176261';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795178358';
+import { mountActivity } from './activity.js?v=1795178358';
+import { mountLog } from './log.js?v=1795178358';
+import { mountGear } from './gear.js?v=1795178358';
+import { mountClub } from './club.js?v=1795178358';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795178358';
+import { mountRelay } from './relay.js?v=1795178358';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795178358';
+import { SWIM_DISTANCES } from './process.js?v=1795178358';
+import { installHint } from './install.js?v=1795178358';
+import { openWelcome } from './settings.js?v=1795178358';
+import './swimview.js?v=1795178358';
+import './trophies.js?v=1795178358';
+import { mountFeed } from './feed.js?v=1795178358';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795178358';
+import { perfData } from './perf.js?v=1795178358';
+import { loadData } from './load.js?v=1795178358';
+import { processInbox, paintConnections } from './sync.js?v=1795178358';
+import { mountManual } from './manual.js?v=1795178358';
+import { mountCal } from './cal.js?v=1795178358';
+import { settingsAt } from './athlete.js?v=1795178358';
+import { initSettings, DEFAULTS } from './settings.js?v=1795178358';
+import { offerCombine } from './edit.js?v=1795178358';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -118,7 +121,42 @@ async function backfill() {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
       const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), perf: perfData(d.sections, d.streams) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
+  }  await swimBackfill();
+}
+// pool swims imported before 20 Nov 2026: swim time without rests, pace on it, and bests over continuous swimming,
+// worked out from the lengths already saved with each activity (no need to read the file again)
+async function swimBackfill() {
+  const todo = state.activities.filter(a => (a.activity_sections || []).some(s => s.sport === 'swim' && s.summary?.env === 'pool' && !s.summary?.swimV));
+  let changed = 0;
+  for (const a of todo) {
+    try {
+      const d = await fetchActivity(a.id), lens = d.streams?.lengths || [];
+      const newBests = []; let swimTotal = 0, allPool = true;
+      for (const sec of d.sections) {
+        if (sec.sport !== 'swim') continue;
+        if (sec.summary?.env !== 'pool') { allPool = false; continue; }
+        const L = sec.summary?.poolLength, st = poolStats(lengthsIn(sec, lens), L);
+        const sm = { ...sec.summary, swimV: 1 }, upd = { summary: sm };
+        if (st) {
+          Object.assign(sm, { swimTime: st.swimTime, rest: st.rest, swolf: st.swolf != null ? Math.round(st.swolf * 10) / 10 : sm.swolf, strokeRate: st.strokeRate != null ? Math.round(st.strokeRate * 10) / 10 : null,
+            strokesPerLength: st.strokesPerLength != null ? Math.round(st.strokesPerLength * 10) / 10 : null, numLengths: st.lengths });
+          if (+sec.distance_m > 0 && st.swimTime > 0) upd.avg_speed = Math.round(sec.distance_m / st.swimTime * 1000) / 1000;
+          swimTotal += st.swimTime;
+          Object.entries(poolBests(lengthsIn(sec, lens), L, SWIM_DISTANCES)).forEach(([effort, b]) => newBests.push({ owner: state.user.id, activity_id: a.id, sport: 'swim', effort, value: Math.round(b.t * 100) / 100, unit: 's', start_offset_s: Math.round(b.start * 10) / 10, measured: true, achieved_at: d.act.start_time }));
+        } else allPool = false;
+        await sb.from('activity_sections').update(upd).eq('activity_id', a.id).eq('idx', sec.idx);
+      }
+      if (swimTotal > 0) {
+        // keep the best per distance across legs, replace the old swim bests (which could include rests)
+        const keep = new Map(); newBests.forEach(b => { const c = keep.get(b.effort); if (!c || b.value < c.value) keep.set(b.effort, b); });
+        await sb.from('best_efforts').delete().eq('activity_id', a.id).eq('sport', 'swim');
+        if (keep.size) await sb.from('best_efforts').insert([...keep.values()]);
+        if (d.act.sport === 'swim' && allPool) await sb.from('activities').update({ moving_s: Math.round(swimTotal) }).eq('id', a.id);
+        changed++;
+      }
+    } catch (e) { /* try again next visit */ }
   }
+  if (changed) await loadAll();
 }
 
 // ---------- data ----------
@@ -267,7 +305,7 @@ export function toRaw({ act, sections, laps, streams }) {
     sessions: sections.map(s => ({ sport: SPORT_FIT[s.sport] || 'other', start: +s.start_offset_s, elapsed: +s.elapsed_s, timer: +s.timer_s, dist: +s.distance_m || 0,
       avgHr: s.avg_hr, maxHr: s.max_hr, ascent: s.ascent_m, descent: s.summary?.descent, avgSpeed: s.avg_speed, maxSpeed: s.summary?.maxSpeed,
       avgPower: s.avg_power, maxPower: s.summary?.maxPower, avgCad: s.avg_cadence, cal: s.summary?.calories, avgGct: s.summary?.avgGct, avgVo: s.summary?.avgVo,
-      avgStride: s.summary?.avgStride, te: s.summary?.te, ate: s.summary?.ate, hrZones: [], lthr: sm.lthr, maxHrSet: sm.maxHr, env: s.summary?.env || null, trackOval: s.summary?.trackOval || null })),
+      avgStride: s.summary?.avgStride, te: s.summary?.te, ate: s.summary?.ate, hrZones: [], lthr: sm.lthr, maxHrSet: sm.maxHr, env: s.summary?.env || null, trackOval: s.summary?.trackOval || null, swimTime: s.summary?.swimTime || null, swolf: s.summary?.swolf ?? null })),
     laps: laps.map(l => ({ sport: SPORT_FIT[l.sport] || 'other', start: +l.start_offset_s, elapsed: +l.elapsed_s, dist: +l.distance_m || 0, avgHr: l.avg_hr, maxHr: l.max_hr,
       avgSpeed: l.avg_speed, avgPower: l.avg_power, ascent: l.ascent_m })),
     recordFields: streams ? streams.fields : ['t'],

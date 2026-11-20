@@ -26,7 +26,7 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <header><a class="home" href="./"><img src="logo.svg" alt="">TRIVEN</a><a class="open" href="./">Open Triven</a></header>
 <div class="layout">
 <nav class="toc" aria-label="Contents"><b>Help guide</b>
-<a href="#start">Getting started</a><a href="#install">Install on your phone</a><a href="#import">Getting activities in</a><a href="#multisport">Multisport</a><a href="#activity">Activity pages</a>
+<a href="#start">Getting started</a><a href="#install">Install on your phone</a><a href="#import">Getting activities in</a><a href="#multisport">Multisport</a><a href="#swimming">Swimming</a><a href="#activity">Activity pages</a>
 <a href="#privacy">Privacy and sharing</a><a href="#people">People and following</a><a href="#clubs">Clubs</a><a href="#relays">Relays</a>
 <a href="#bests">Bests and trophies</a><a href="#log">Training log</a><a href="#gear">Gear</a><a href="#settings">Settings</a><a href="#faq">Questions</a></nav>
 <article class="doc">
@@ -76,6 +76,15 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <h3>Leg types</h3>
 <p>In <span class="k">Edit</span> you can set each leg's type: treadmill, track, trail or road runs; indoor, virtual, gravel, mountain-bike or road rides; pool or open-water swims. Treadmill legs can have their distance corrected, and track runs are snapped to a 400 m track.</p>
 
+<h2 id="swimming">Swimming</h2>
+<p>Pool swims get their own card on the activity page, built from every length your watch recorded:</p>
+<ul>
+<li><b>Pace on swimming time.</b> Rests between sets never slow your pace, even if your watch lumped several lengths into one lap. The page shows swim time and rest separately.</li>
+<li><b>Sets and lengths.</b> Each set between rests, with its stroke, time, pace per 100 m, SWOLF and strokes. Click a set to see each length.</li>
+<li><b>SWOLF</b> is a length's time in seconds plus its stroke count. Lower is more efficient. Compare it only within the same pool length.</li>
+<li><b>Stroke rate</b> is counted the way your watch counts it: one stroke each time the arm wearing it completes a cycle. On freestyle and backstroke that's half your total arm pulls, so double it to compare with counters that count both arms.</li>
+<li><b>Swim bests</b> at 100, 200, 400, 750, 800 and 1500 m, 1.9 km and 3.8 km. In the pool they count only continuous swimming, so a 400 m best is a real 400 m, not four 100s with breaks. Open-water swims use GPS distance. Drill lengths don't count.</li>
+</ul>
 <h2 id="activity">Activity pages</h2>
 <ul>
 <li><b>Sections bar:</b> click a leg, lap or flag to zoom the charts and map to it.</li>
@@ -133,7 +142,7 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <ul>
 <li><b>Running:</b> 400 m up to the marathon, then 50 km, 50 miles, 100 km and 100 miles.</li>
 <li><b>Cycling:</b> 10, 25, 50 and 100-mile time-trial distances, 100 km, longest ride, most elevation, and best power from 1 second to 1 hour.</li>
-<li><b>Swimming:</b> 100 m up to 3800 m.</li>
+<li><b>Swimming:</b> 100, 200, 400, 750, 800 and 1500 m, 1.9 km and 3.8 km (pool bests count continuous swimming only; see <a href="#swimming">Swimming</a>).</li>
 </ul>
 <p>An activity page shows a <b>gold, silver or bronze trophy</b> when an effort was your best, second-best or third-best ever at that run or swim distance or power duration, as things stood on that day. So a trophy stays on the activity even after you beat it. Treadmill and indoor legs don't count for distance bests. The full list is under <span class="k">Training log</span> → Bests.</p>
 

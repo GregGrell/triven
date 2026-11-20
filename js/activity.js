@@ -1,5 +1,5 @@
 // Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
-import { srcText } from './athlete.js?v=1795176261';
+import { srcText } from './athlete.js?v=1795178358';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -98,12 +98,22 @@ const selSport=()=>sel.kind==='seg'?S[sel.i].sport:sel.kind==='lap'?L[sel.i].spo
 const MULTI=S.length>1, WHOLE=MULTI?'race':({running:'run',cycling:'ride',swimming:'swim'}[S[0].sport]||'activity');
 const selLabel=()=>sel.kind==='all'?'the whole '+WHOLE:sel.kind==='seg'?NAMES[sel.i]:sel.kind==='lap'?'lap '+(sel.i+1):'this flagged stretch';
 
+// swim pace per 100 m, on time spent swimming when the watch recorded lengths (rest excluded)
+const p100=(secs,dist)=>{if(!(dist>0)||!(secs>0))return '–';const s=Math.round(secs/dist*100);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
+function swimItems(o,isAll){const t=o.swimTime||o.timer||o.elapsed;const it=[[fmtDur(t),o.swimTime?'Swim time':'Time'],[o.dist<10000?Math.round(o.dist).toLocaleString()+' m':km(o.dist)+' km','Distance'],[p100(t,o.dist)+' /100 m','Avg pace'+(o.swimTime?' (swimming)':'')]];
+  if(o.swimTime&&o.elapsed-o.swimTime>5) it.push([fmtDur(o.elapsed-o.swimTime),'Rest · total '+fmtDur(o.elapsed)]);
+  if(o.avgHr) it.push([o.avgHr+' bpm','Avg HR'+(o.maxHr?' · max '+o.maxHr:'')]);
+  if(o.swolf) it.push([Math.round(o.swolf),'Avg SWOLF']);
+  return it.slice(0,6)}
 function statItems(){
+  if(sel.kind==='all'&&!MULTI&&S[0].sport==='swimming') return swimItems({...S[0],avgHr:total.avgHr,maxHr:total.maxHr},true);
   if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[(total.dist/1000).toFixed(2)+' km','Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:[(total.dist/total.elapsed*3.6).toFixed(1)+' km/h','Avg speed']),
     ...(total.avgHr?[[total.avgHr+' bpm','Avg HR'+(total.maxHr?' · max '+total.maxHr:'')]]:[]),...(total.ascent||R.length?[[(total.ascent||0)+' m','Elevation gain'+(R.length?' (watch)':'')]]:[]),...(total.cal?[[total.cal+' kcal','Energy']]:[])];
   if(sel.kind==='span'){const [a,b]=range();const rs=R.filter(r=>r.t>=a&&r.t<=b);
     return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/(((d=>d.length>1?(d[d.length-1].dist-d[0].dist)/((d[d.length-1].t-d[0].t)||1):d3.mean(rs,r=>r.kmh)/3.6)(rs.filter(r=>r.dist!=null)))*3.6))+' /km','Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
   const o=sel.kind==='seg'?S[sel.i]:L[sel.i], sp=o.sport;
+  if(sp==='swimming'&&sel.kind==='seg') return swimItems(o);
+  if(sp==='swimming') return [[fmtDur(o.elapsed),'Time'],[Math.round(o.dist)+' m','Distance'],[p100(o.elapsed,o.dist)+' /100 m','Pace'],...(o.avgHr?[[o.avgHr+' bpm','Avg HR']]:[])];
   const it=[[fmtDur(o.elapsed),'Time'],[sp==='transition'?Math.round(o.dist)+' m':km(o.dist)+' km','Distance']];
   it.push(sp==='running'?[fmtPace(paceOf(o.avgSpeed))+' /km','Avg pace']:[(o.avgSpeed*3.6).toFixed(1)+' km/h','Avg speed']);
   it.push([o.avgHr+' bpm','Avg HR'+(o.maxHr?' · max '+o.maxHr:'')]);
