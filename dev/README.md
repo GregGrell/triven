@@ -30,3 +30,11 @@ Screenshots go to `dev/out/`.
 
 ## Running the real app locally
 From the repo root: `python3 -m http.server 8000`, then open http://localhost:8000. This uses the **real** Supabase project.
+
+## Database tests (no Supabase needed)
+`dev/sql/` runs the real migrations in PGlite (Postgres compiled to WebAssembly) with small stand-ins for Supabase's
+`auth` and `storage` schemas, then checks row-level security and the functions as different users:
+```bash
+cd dev && node sql/run.mjs test_010_social.mjs   # privacy, clubs, relays, trophies
+```
+Browser test for those features: `python3 dev/tests/run_test10.py` (after `./bump.sh && dev/build_site.sh`).

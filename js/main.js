@@ -1,21 +1,24 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795099558';
+import { decodeFit } from './fit.js?v=1795169468';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795099558';
-import { vo2FromActivity } from './vo2.js?v=1795099558';
-import { mountActivity } from './activity.js?v=1795099558';
-import { mountLog } from './log.js?v=1795099558';
-import { mountGear } from './gear.js?v=1795099558';
-import { mountClub } from './club.js?v=1795099558';
-import { mountFeed } from './feed.js?v=1795099558';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles, vo2Summary as vo2SummaryP } from './pipeline.js?v=1795099558';
-import { perfData } from './perf.js?v=1795099558';
-import { loadData } from './load.js?v=1795099558';
-import { processInbox, paintConnections } from './sync.js?v=1795099558';
-import { mountManual } from './manual.js?v=1795099558';
-import { mountCal } from './cal.js?v=1795099558';
-import { initSettings, DEFAULTS } from './settings.js?v=1795099558';
-import { offerCombine } from './edit.js?v=1795099558';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795169468';
+import { mountActivity } from './activity.js?v=1795169468';
+import { mountLog } from './log.js?v=1795169468';
+import { mountGear } from './gear.js?v=1795169468';
+import { mountClub } from './club.js?v=1795169468';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795169468';
+import { mountRelay } from './relay.js?v=1795169468';
+import { openPrivacySetup } from './privacy.js?v=1795169468';
+import './trophies.js?v=1795169468';
+import { mountFeed } from './feed.js?v=1795169468';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795169468';
+import { perfData } from './perf.js?v=1795169468';
+import { loadData } from './load.js?v=1795169468';
+import { processInbox, paintConnections } from './sync.js?v=1795169468';
+import { mountManual } from './manual.js?v=1795169468';
+import { mountCal } from './cal.js?v=1795169468';
+import { initSettings, DEFAULTS } from './settings.js?v=1795169468';
+import { offerCombine } from './edit.js?v=1795169468';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -23,7 +26,7 @@ const SUPABASE_KEY = 'sb_publishable_gBU60hkphcU9T97Cn1Bvmw_QMIFFy3i';
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
-const VIEWS = ['auth', 'loading', 'feed', 'log', 'activity', 'upload', 'gear', 'club'];
+const VIEWS = ['auth', 'loading', 'feed', 'log', 'activity', 'upload', 'gear', 'club', 'relay'];
 export const state = { user: null, profile: null, activities: [], gear: [], bests: [], loaded: false };
 
 export function toast(msg, ms = 3200) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
@@ -62,16 +65,20 @@ async function boot() {
   await loadAll();
   setTimeout(() => processInbox().catch(() => {}), 1500);   // activities the sync server fetched but didn't finish
   $('acctName').textContent = state.profile?.display_name || state.user.email; paintAvatar();
+  // an invite link opened before signing in (or before confirming the email address)
+  let pendingJoin = null; try { pendingJoin = localStorage.getItem('triven.join'); } catch { /* storage blocked */ }
+  if (pendingJoin && !location.hash.startsWith('#join/')) location.hash = '#join/' + pendingJoin;
   route();
+  if (state.profile && !state.profile.privacy_set) setTimeout(() => openPrivacySetup(), 600);
   backfill();
 }
 let backfilled = false;
 async function backfill() {
   if (backfilled) return; backfilled = true;
-  const todo = state.activities.filter(a => a.file_path && (!a.summary || !('track' in a.summary) || !('loadData' in a.summary) || a.summary.vo2?.v !== 2 || !('perf' in a.summary)));
+  const todo = state.activities.filter(a => a.file_path && (!a.summary || !('track' in a.summary) || !('loadData' in a.summary) || !('perf' in a.summary)));
   for (const a of todo) {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
-      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), vo2: vo2Summary(d.sections, d.streams, d.act.summary?.weight), perf: perfData(d.sections, d.streams) };
+      const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), perf: perfData(d.sections, d.streams) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
   }
 }
@@ -125,7 +132,7 @@ function logData() {
     const local = new Date(Date.parse(a.start_time) + a.utc_offset_min * 60000).toISOString().slice(0, 19);
     const secs = (a.activity_sections || []).slice().sort((x, y) => x.idx - y.idx);
     return { id: a.id, name: a.name, start: local, sport: a.sport === 'other' ? 'run' : a.sport, dist: +a.distance_m, moving: +(a.moving_s ?? a.elapsed_s), elapsed: +a.elapsed_s,
-      elev: +(a.ascent_m || 0), indoor: a.indoor, gear: a.gear_id, cal: a.calories, source: a.source === 'upload' ? 'Upload' : a.source, detail: true, profile: a.multisport_profile, vo2: a.summary?.vo2 || null,
+      elev: +(a.ascent_m || 0), indoor: a.indoor, gear: a.gear_id, cal: a.calories, source: a.source === 'upload' ? 'Upload' : a.source, detail: true, profile: a.multisport_profile,
       sections: secs.map(s => ({ sport: s.sport === 'transition' ? 'trans' : s.sport, dist: +s.distance_m || 0, elapsed: +s.elapsed_s, elev: +s.ascent_m || 0 })) };
   });
   return { activities: acts, gear: gearUsage(), bests: state.bests, mass: state.profile?.settings?.mass, age: state.profile?.settings?.age };
@@ -142,6 +149,9 @@ async function route() {
   if (h === '#upload') { show('upload'); mountManual($('manualBox')); return; }
   if (h === '#gear') { show('gear'); mountGear(); return; }
   if (h === '#club' || h === '#people') { show('club'); mountClub(); return; }
+  if (h.startsWith('#c/')) { show('club'); mountClubPage(h.slice(3).split('?')[0]); return; }
+  if (h.startsWith('#join/')) { show('club'); mountJoin(h.slice(6).split('?')[0]); return; }
+  if (h.startsWith('#r/')) { show('relay'); mountRelay(h.slice(3).split('?')[0]); return; }
   show('log');
   const bests = h === '#log/bests';
   $('logMain').hidden = bests; $('logBests').hidden = !bests; $('logGear').hidden = bests;
@@ -371,7 +381,6 @@ export function consecutiveGroups(list, maxGap) {
   return out;
 }
 
-const vo2Summary = (sections, streams, weight) => vo2SummaryP(sections, streams, weight, state.profile?.settings);
 export function enrich(out) { enrichOut(out, state.profile?.settings); }
 // write streams, sections, laps and bests for an activity (new, or replacing after a trim)
 export const writeProcessed = (id, out, share, gearBySport, replace) => saveProcessed(sb, state.user.id, id, out, share, gearBySport, replace);
@@ -390,6 +399,7 @@ export async function importFit(ent, row) {
 }
 
 // start
+if (location.hash.startsWith('#join/')) { try { localStorage.setItem('triven.join', location.hash.slice(6).split('?')[0]); } catch { /* storage blocked */ } }
 (async () => {
   const { data } = await sb.auth.getSession();
   if (!data.session) show('auth');

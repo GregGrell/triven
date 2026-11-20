@@ -8,5 +8,8 @@
     "d3": "^7.9.0",
     "jszip": "^3.10.2",
     "leaflet": "^1.9.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17"
   }
 }

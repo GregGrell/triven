@@ -14,8 +14,8 @@
 //    times with Daniels' formula. As training moves your best efforts, the predictions move.
 //  - Training status: from the trend in fitness (42-day load), how this week compares with what you're used to
 //    (acute:chronic workload ratio, 0.8 to 1.3 is the productive band), form, and whether performance is rising.
-import { vdot } from './vo2.js?v=1795099558';
-import { pmc } from './load.js?v=1795099558';
+import { vdot } from './vo2.js?v=1795169468';
+import { pmc } from './load.js?v=1795169468';
 
 const DAY = 864e5;
 const RUN_M = { '1 mile': 1609.34, '5 km': 5000, '10 km': 10000, '15 km': 15000, '10 mile': 16093.4, 'Half marathon': 21097.5, '30 km': 30000, 'Marathon': 42195 };
@@ -107,14 +107,6 @@ export function predictionHistory(bests, from, until) {
 }
 
 // ---------- training status ----------
-// perfTrend: % change in performance (VO2 estimates from threshold-or-harder stretches), last 3 weeks vs the 5 before
-export function perfTrend(acts, at = Date.now()) {
-  const v = (a, b) => acts.filter(x => { const t = dayOf(x); return t >= at - b * DAY && t < at - a * DAY; }).flatMap(x => [x.summary?.vo2?.run, x.summary?.vo2?.bike]).filter(Boolean);
-  const med = a => { const s = a.slice().sort((p, q) => p - q); return s[s.length >> 1]; };
-  const recent = v(0, 21), before = v(21, 56);
-  if (recent.length < 2 || before.length < 3) return null;
-  return (med(recent) - med(before)) / med(before) * 100;
-}
 export function trainingStatus(acts, cfg, today) {
   const S = pmc(acts, cfg, today);
   // the ratios need a few weeks of history to mean anything: a single race on a near-empty log reads as "overreaching"
@@ -125,16 +117,14 @@ export function trainingStatus(acts, cfg, today) {
   const ramp = last.ctl - wk.ctl, trend4 = m4.ctl > 1 ? (last.ctl - m4.ctl) / m4.ctl : 0;
   const peak90 = Math.max(...S.slice(-90).map(x => x.ctl));
   const lastAct = Math.max(...acts.map(dayOf)), idle = (Date.now() - lastAct) / DAY;
-  const perf = perfTrend(acts);
   const range = [Math.round(chronic * 0.8), Math.round(chronic * 1.3)];
-  const base = { acute: Math.round(acute), range, acwr: +acwr.toFixed(2), ramp: +ramp.toFixed(1), perf: perf == null ? null : +perf.toFixed(1), form: Math.round(last.form) };
+  const base = { acute: Math.round(acute), range, acwr: +acwr.toFixed(2), ramp: +ramp.toFixed(1), form: Math.round(last.form) };
   const st = (key, label, note) => ({ key, label, note, ...base });
   if (idle > 10 || (trend4 < -0.2 && acwr < 0.8)) return st('detraining', 'Detraining', 'Training has dropped off for long enough that fitness is fading. A few easy sessions will start turning it round.');
   if (acwr > 1.5 || last.form < -30) return st('overreaching', 'Overreaching', 'This week is far above what you’re used to. Short blocks like this can work, but plan recovery days soon to absorb it.');
   if (last.form > 5 && last.ctl >= peak90 * 0.85 && ramp <= 0.5) return st('peaking', 'Peaking', 'Fitness is near its recent high and fatigue has cleared. Ideal for a race.');
   if (acwr < 0.8 && last.form > 0) return st('recovery', 'Recovery', 'A lighter week. Good for absorbing training; keep it to a week or two so fitness doesn’t drift.');
-  if (perf != null && perf < -2 && acwr >= 0.8) return st('unproductive', 'Unproductive', 'You’re training normally but performance is slipping. Often fatigue, poor sleep, heat or illness: an easier few days usually helps.');
-  if (ramp > 1 && acwr <= 1.3) return st('productive', 'Productive', perf != null && perf > 1 ? 'Load is building steadily and performance is improving. Keep it going.' : 'Load is building steadily within a safe range. Fitness should follow.');
+  if (ramp > 1 && acwr <= 1.3) return st('productive', 'Productive', 'Load is building steadily within a safe range. Fitness should follow.');
   if (Math.abs(ramp) <= 1 && acwr >= 0.8 && acwr <= 1.3) return st('maintaining', 'Maintaining', 'Load is steady, enough to hold fitness. Add some volume or intensity to build further.');
   if (acwr > 1.3) return st('strained', 'High load', 'A big week compared with your usual. Fine for a block, but watch for fatigue.');
   return st('maintaining', 'Maintaining', ramp < -1 ? 'Fitness is dipping slightly. A normal week of training will hold it.' : 'Load is roughly steady.');

@@ -1,10 +1,9 @@
 // Turning a decoded FIT file into Triven rows and files. No browser or app state in here, so the same code runs in
 // the app (uploads, trims) and on the server (automatic sync from intervals.icu).
-import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795099558';
-import { loadData } from './load.js?v=1795099558';
-import { perfData } from './perf.js?v=1795099558';
-import { vo2FromActivity } from './vo2.js?v=1795099558';
-import { DEFAULTS } from './defaults.js?v=1795099558';
+import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795169468';
+import { loadData } from './load.js?v=1795169468';
+import { perfData } from './perf.js?v=1795169468';
+import { DEFAULTS } from './defaults.js?v=1795169468';
 
 // default gear: is_default_for holds roles like "run:road,run:race" (old single values 'run'/'bike' mean everyday)
 export const gearRoles = g => !g.is_default_for ? [] : g.is_default_for === 'run' ? ['run:road'] : g.is_default_for === 'bike' ? ['bike:road'] : g.is_default_for.split(',').filter(Boolean);
@@ -15,18 +14,8 @@ export function pickGearFrom(gear, sport, env, race) {
   return (race && has(`${sport}:race`)) || (e && e !== 'road' && has(`${sport}:${e}`)) || has(`${sport}:road`) || null;
 }
 
-// VO2 max per activity (threshold-and-above stretches only); v:2 marks the current method
-export function vo2Summary(sections, streams, weight, settings) {
-  const FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
-  const Sx = sections.map(s => ({ sport: FIT[s.sport], start: +s.start_offset_s, elapsed: +s.elapsed_s, env: s.summary?.env }));
-  const c = Object.assign({}, DEFAULTS, settings || {});
-  const v = vo2FromActivity(Sx, rows(streams), { maxHr: c.maxHr, restHr: c.restHr, lthrRun: c.lthrRun, lthrBike: c.lthrBike, mass: weight || c.mass }, 'power', false);
-  return { run: v.run ? +v.run.value.toFixed(1) : null, bike: v.bike ? +v.bike.value.toFixed(1) : null, v: 2 };
-}
-
-// extras worked out for every processed activity: VO2 max, route thumbnail, possible driving, load and threshold data
+// extras worked out for every processed activity: route thumbnail, possible driving, load and threshold data
 export function enrichOut(out, settings) {
-  try { out.activity.summary.vo2 = vo2Summary(out.sections, out.streams, out.activity.summary.weight, settings); } catch (e) { /* optional */ }
   out.activity.summary.track = makeTrack(out.streams, out.sections);
   out.activity.summary.driving = detectDriving(out.sections, out.streams);
   out.activity.summary.loadData = loadData(out.sections, out.streams);

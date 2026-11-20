@@ -1,5 +1,4 @@
 // Training log: period totals, fitness, volume chart, calendar, bests, gear.
-import { vdotFromBests, vo2Band } from './vo2.js?v=1795099558';
 const $=id=>document.getElementById(id), css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountLog(D){
@@ -124,37 +123,6 @@ function showPop(a,anchor){
 
 
 
-// ---------- fitness (VO2 max trend) ----------
-function renderFitness(){
-  const el=$('fitcard');el.replaceChildren();
-  const h=document.createElement('h2');h.textContent='VO₂ max';el.append(h);
-  const grid=document.createElement('div');grid.className='fit';el.append(grid);
-  const SIX=42*DAY, now=TODAY+DAY;
-  const block=(title,sport,col)=>{
-    const pts=A.filter(a=>a.vo2&&a.vo2[sport]).map(a=>({t:a.t,v:a.vo2[sport]}));
-    const d=document.createElement('div');const t=document.createElement('div');t.className='sec';t.textContent=title;d.append(t);
-    if(!pts.length){const n=document.createElement('div');n.className='note';n.textContent=sport==='bike'?'Needs rides with a power meter (estimates from speed are shown on each ride instead).':'Appears once you have runs with steady stretches and heart rate.';d.append(n);grid.append(d);return}
-    let recent=pts.filter(p=>p.t>now-SIX);const basis=recent.length?'last 6 weeks':'latest';if(!recent.length)recent=pts.slice(-5);
-    const vals=recent.map(p=>p.v).sort((a,b)=>a-b),med=vals[Math.floor((vals.length-1)/2)];
-    const big=document.createElement('div');big.className='big';big.textContent=med.toFixed(1);const u=document.createElement('small');u.textContent='ml/kg/min';big.append(u);
-    const s=document.createElement('div');s.className='muted';s.style.fontSize='12px';s.textContent=`median of ${recent.length} ${recent.length===1?'activity':'activities'} (${basis})${D.age?` · ${vo2Band(med,D.age)} for age ${D.age}`:''}`;
-    d.append(big,s);
-    if(pts.length>1){const W=300,H=46,x=d3.scaleLinear().domain(d3.extent(pts,p=>p.t)).range([4,W-4]),y=d3.scaleLinear().domain(d3.extent(pts,p=>p.v)).nice().range([H-4,4]);
-      const svg=d3.select(d).append('svg').attr('class','spark').attr('viewBox',`0 0 ${W} ${H}`).attr('preserveAspectRatio','none');
-      svg.append('path').attr('d',d3.line().x(p=>x(p.t)).y(p=>y(p.v))(pts)).attr('fill','none').attr('stroke',css(col)).attr('stroke-width',2);
-      svg.selectAll('circle').data(pts).join('circle').attr('cx',p=>x(p.t)).attr('cy',p=>y(p.v)).attr('r',2.5).attr('fill',css(col)).append('title').text(p=>`${fmtDate(p.t)}: ${p.v.toFixed(1)}`);}
-    grid.append(d);
-  };
-  block('Running, from heart rate and pace','run','--run');
-  block('Cycling, from heart rate and power','bike','--bike');
-  const d=document.createElement('div');const t=document.createElement('div');t.className='sec';t.textContent='Running, from race-pace bests';d.append(t);
-  const v=vdotFromBests(D.bests||[],TODAY-365*DAY)||vdotFromBests(D.bests||[]);
-  if(!v){d.append(Object.assign(document.createElement('div'),{className:'note',textContent:'Appears once you have a best effort of a mile or longer.'}))}
-  else{const big=document.createElement('div');big.className='big';big.textContent=v.value.toFixed(1);const u=document.createElement('small');u.textContent='VDOT';big.append(u);
-    const s=document.createElement('div');s.className='muted';s.style.fontSize='12px';s.textContent=`from your ${v.effort} in ${fmtDur(v.time)} on ${fmtDate(Date.parse(v.achieved_at))}. Only as high as your hardest effort, so it rises when you race.`;d.append(big,s)}
-  grid.append(d);
-}
-
 // ---------- bests ----------
 const RUN_PB=[['400 m',400],['1 km',1000],['1 mile',1609.34],['5 km',5000],['10 km',10000],['15 km',15000],['10 mile',16093.4],['Half marathon',21097.5],['30 km',30000],['Marathon',42195],['50 km',50000],['50 mile',80467.2],['100 km',100000],['100 mile',160934.4]];
 const BIKE_PB=[['10 mile TT',16093.4],['25 mile TT',40233.6],['50 mile TT',80467.2],['100 km ride',100000,'100 km'],['100 mile TT',160934.4]];
@@ -198,7 +166,7 @@ function renderGear(){
 }
 
 window.__log={renderTotals};
-renderTotals();renderFitness();renderBests();renderGear();
+renderTotals();renderBests();renderGear();
 if(!bound){bound=true;let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!$('view-log').hidden)window.__log.renderTotals()},150)});
  document.addEventListener('click',e=>{const p=$('actpop');if(!p.hidden&&!p.contains(e.target))p.hidden=true});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('actpop').hidden=true});}

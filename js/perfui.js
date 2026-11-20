@@ -1,6 +1,6 @@
 // Training log: training status, suggested thresholds (FTP, threshold heart rate), threshold pace and race predictions.
-import { sb, state, toast } from './main.js?v=1795099558';
-import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795099558';
+import { sb, state, toast } from './main.js?v=1795169468';
+import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795169468';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -50,12 +50,11 @@ function statusCard(acts, cfg) {
     const kv = el('div', { className: 'ytdkv', style: 'margin-top:10px' },
       el('span', { textContent: 'This week vs usual' }), el('b', { textContent: `${s.acwr.toFixed(2)}×` }),
       el('span', { textContent: 'Fitness change, 7 days' }), el('b', { textContent: `${s.ramp > 0 ? '+' : ''}${s.ramp}` }),
-      el('span', { textContent: 'Form' }), el('b', { textContent: `${s.form > 0 ? '+' : ''}${s.form}` }),
-      el('span', { textContent: 'Performance trend' }), el('b', { textContent: s.perf == null ? 'not enough hard efforts yet' : `${s.perf > 0 ? '+' : ''}${s.perf}%` }));
+      el('span', { textContent: 'Form' }), el('b', { textContent: `${s.form > 0 ? '+' : ''}${s.form}` }));
     c.append(kv);
   }
   c.append(el('details', { className: 'note', style: 'margin-top:10px' }, el('summary', { textContent: 'How the status is decided' }),
-    el('p', { textContent: 'Detraining: no training for 10 days, or fitness down 20% in 4 weeks with light load. Overreaching: this week more than 1.5× your usual, or form below −30. Peaking: fresh (form above +5) with fitness within 15% of its 90-day high. Recovery: a light week (under 0.8×) and fresh. Unproductive: normal training but VO₂ estimates from hard efforts down more than 2%. Productive: fitness rising more than 1 a week with load in range. Maintaining: fitness steady, load in range.' })));
+    el('p', { textContent: 'Detraining: no training for 10 days, or fitness down 20% in 4 weeks with light load. Overreaching: this week more than 1.5× your usual, or form below −30. Peaking: fresh (form above +5) with fitness within 15% of its 90-day high. Recovery: a light week (under 0.8×) and fresh. Productive: fitness rising more than 1 a week with load in range. Maintaining: fitness steady, load in range.' })));
   return c;
 }
 
@@ -65,7 +64,7 @@ function thresholdCard(th, cfg) {
   const r = th.run, b = th.bike;
   c.append(el('div', { className: 'sec wtitle', textContent: 'Running' }),
     row('Threshold HR', `${cfg.lthrRun} bpm set`, r.hr ? `Hardest 20 min, last 12 weeks: ${Math.round(r.hr.hr)} bpm at ${pace(r.hr.speed)}` : 'Needs a hard run of 25 minutes or more'),
-    row('Threshold pace', r.pace ? pace(r.pace.speed) : '—', r.pace ? `Daniels T pace from your ${r.pace.vdot.effort} on ${fmtD(Date.parse(r.pace.vdot.achieved_at))} (VDOT ${r.pace.vdot.value.toFixed(1)})` : 'Needs a hard run of a mile or more'),
+    row('Threshold pace', r.pace ? pace(r.pace.speed) : '—', r.pace ? `Daniels T pace from your ${r.pace.vdot.effort} on ${fmtD(Date.parse(r.pace.vdot.achieved_at))}` : 'Needs a hard run of a mile or more'),
     el('div', { className: 'sec wtitle', textContent: 'Cycling' }),
     row('FTP', cfg.ftp ? `${cfg.ftp} W set` : 'not set', b.ftp ? `Power meter, last 6 weeks: ${b.ftp.watts} W (${b.ftp.from})` : 'Suggestions need rides with a power meter'),
     row('Threshold HR', `${cfg.lthrBike} bpm set`, b.hr ? `Hardest 20 min, last 12 weeks: ${Math.round(b.hr.hr)} bpm${b.hr.power ? ` at ${Math.round(b.hr.power)} W` : ''}` : 'Needs a hard ride of 25 minutes or more'));
@@ -85,7 +84,7 @@ function predictorCard() {
   const tbl = el('div', { className: 'preds' });
   RACES.forEach(([n, d]) => { const t = cur.times[n]; const b = el('button', { type: 'button', className: 'pred' }, el('small', { textContent: n }), el('b', { textContent: fmtT(t) }), el('span', { className: 'muted', textContent: pace(d / t) }));
     b.setAttribute('aria-pressed', n === race); b.onclick = () => { race = n; c.replaceWith(predictorCard()); }; tbl.append(b); });
-  c.append(tbl, el('div', { className: 'muted', style: 'font-size:12px;margin:6px 0 2px', textContent: `Based on your ${cur.from.effort} in ${fmtT(cur.from.time)} on ${fmtD(Date.parse(cur.from.achieved_at))} (VDOT ${cur.vdot.toFixed(1)}). Marathon predictions assume marathon training: long runs and enough weekly volume.` }));
+  c.append(tbl, el('div', { className: 'muted', style: 'font-size:12px;margin:6px 0 2px', textContent: `Based on your ${cur.from.effort} in ${fmtT(cur.from.time)} on ${fmtD(Date.parse(cur.from.achieved_at))}. Marathon predictions assume marathon training: long runs and enough weekly volume.` }));
   c.append(chart(H));
   return c;
 }

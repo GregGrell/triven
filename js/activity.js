@@ -1,5 +1,4 @@
-// Activity view: charts, map, zones, FTP, running balance, VO2 max, laps. Mounted with one activity at a time.
-import { vo2FromActivity, vo2Band } from './vo2.js?v=1795099558';
+// Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -403,31 +402,12 @@ function renderLaps(){
 }
 
 
-// ---------- VO2 max card ----------
-function renderVo2(){
-  const el=document.getElementById('vo2card');el.replaceChildren();
-  const h=document.createElement('h2');h.textContent='VO₂ max estimate';el.append(h);
-  const est=vo2FromActivity(S,R,{maxHr:CFG.maxHr,restHr:CFG.restHr,lthrRun:CFG.lthrRun,lthrBike:CFG.lthrBike,mass:MASS()},BIKE&&BIKE.has?'power':'bpw',!(BIKE&&BIKE.has));
-  const row=document.createElement('div');row.className='vo2row';
-  const block=(label,e,note)=>{const d=document.createElement('div');d.className='vo2b';const t=document.createElement('div');t.className='sec';t.textContent=label;d.append(t);
-    if(!e){const n=document.createElement('div');n.className='note';n.style.marginTop='6px';n.textContent=note;d.append(n);return d}
-    const big=document.createElement('div');big.className='big';big.textContent=e.value.toFixed(1);const u=document.createElement('small');u.textContent='ml/kg/min';big.append(u);
-    const s=document.createElement('div');s.className='muted';s.style.fontSize='12px';s.textContent=`range ${e.low.toFixed(1)}–${e.high.toFixed(1)} · ${e.windows} steady stretches${CFG.age?` · ${vo2Band(e.value,CFG.age)} for age ${CFG.age}`:''}`;
-    const p=document.createElement('span');p.className='pill';p.style.marginTop='6px';p.textContent=e.estimated?'From estimated power · low confidence':'From heart rate and '+(label==='Running'?'pace':'power');
-    d.append(big,s,p);return d};
-  if(S.some(s=>s.sport==='running')) row.append(block('Running',est.run,S.every(s=>s.sport!=='running'||s.env==='treadmill')?'Treadmill speed isn’t reliable enough for a VO₂ max estimate.':`No steady running at threshold or harder here (heart rate ${Math.round(.95*CFG.lthrRun)}+ for a couple of minutes). Easy runs don’t give a reliable VO₂ max.`));
-  if(S.some(s=>s.sport==='cycling')) row.append(block('Cycling',est.bike,`No steady riding at threshold or harder here (heart rate ${Math.round(.95*CFG.lthrBike)}+ for a couple of minutes).`));
-  if(!row.children.length){el.append(Object.assign(document.createElement('div'),{className:'note',textContent:'VO₂ max is estimated from runs and rides.'}));return}
-  el.append(row);
-  el.append(Object.assign(document.createElement('div'),{className:'note',textContent:`How it works: only steady stretches at threshold or harder count (heart rate at least 95% of your threshold HR, settled for a minute). On those, the oxygen cost of your pace (or power) is divided by the share of your heart-rate reserve you were using, then the middle value is taken. It uses max HR ${CFG.maxHr} and resting HR ${CFG.restHr} from Settings, so getting those right matters most. The cycling figure is per kilo, so it also uses your weight: ${MASS()} kg${raw.meta.weight?' (recorded by your watch that day)':' (from Settings)'}. Running VO₂ max comes from pace and heart rate and doesn't depend on weight. Heat, fatigue and caffeine raise heart rate and pull the estimate down. Treat one activity as a data point; the trend on the Training log is more reliable.`}));
-}
-
 // settings are edited in settings.js; it calls this to re-render with new values
 window.__actApply=cfg=>{CFG=Object.assign({},DEFAULTS,cfg);recompute();renderAll();};
 
 function select(s){sel=s;renderAll()}
 function recompute(){computeFlags();computeBike()}
-function renderAll(){renderStats();renderSegbar();renderMap();renderZones();renderFtp();renderBal();renderVo2();renderCharts();renderLaps()}
+function renderAll(){renderStats();renderSegbar();renderMap();renderZones();renderFtp();renderBal();renderCharts();renderLaps()}
 recompute();
 window.__act={renderAll,renderCharts};
 sel={kind:'all'};renderAll();

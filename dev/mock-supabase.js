@@ -1,7 +1,8 @@
 // In-memory stand-in for supabase-js, enough for the app's calls.
 const db={profiles:[{id:'u1',display_name:'Carl',settings:{lthrRun:163,lthrBike:158,maxHr:175,restHr:50,zones:[85,90,95,100,103],balLo:48.5,balHi:51.5,balMin:10,ftp:null,mass:75,bikeMass:9,cda:0.27,crr:0.004},default_visibility:'club',default_share:{map:true,hr:true,power:true,pace:true,cadence:true,dynamics:true,description:true}}],
- activities:[],activity_media:[],activity_sections:[],activity_laps:[],best_efforts:[],gear:[],comments:[],kudos:[],clubs:[],club_members:[],follows:[],connections:[],sync_inbox:[]};
+ activities:[],activity_media:[],activity_sections:[],activity_laps:[],best_efforts:[],gear:[],comments:[],kudos:[],clubs:[],club_members:[],follows:[],connections:[],sync_inbox:[],club_posts:[],relay_legs:[]};
 const files={};
+if(window.__seedDb)Object.entries(window.__seedDb).forEach(([k,v])=>{if(k==='profile')Object.assign(db.profiles[0],v);else db[k].push(...v)});
 window.__db=db;window.__files=files;
 let n=0;const uuid=()=>'00000000-0000-4000-8000-'+String(++n).padStart(12,'0');
 function q(table){
@@ -42,8 +43,11 @@ export function createClient(){
   return {
     from:q,
     rpc:async(fn,args)=>{
+      window.__rpc=(window.__rpc||[]).concat([[fn,args]]);
+      const W=window.__rpcData||{};
+      if(fn in W){const v=W[fn];return typeof v==='function'?v(args):(v&&v.error?{data:null,error:v.error}:{data:v,error:null})}
       if(fn==='my_clubs')return{data:window.__clubs||[],error:null};
-      if(fn==='feed')return{data:db.activities.slice().sort((a,b)=>a.start_time<b.start_time?1:-1).map(a=>({...a,athlete:'Carl',sections:db.activity_sections.filter(s=>s.activity_id===a.id).sort((x,y)=>x.idx-y.idx),track:a.summary?.track||null,flags:a.summary?.driving||null,media:db.activity_media.filter(m=>m.activity_id===a.id),kudos:2,comments:1,you_kudoed:false})),error:null};
+      if(fn==='feed')return{data:(window.__feed||db.activities).slice().sort((a,b)=>a.start_time<b.start_time?1:-1).map(a=>({...a,athlete:'Carl',sections:db.activity_sections.filter(s=>s.activity_id===a.id).sort((x,y)=>x.idx-y.idx),track:a.summary?.track||null,flags:a.summary?.driving||null,media:db.activity_media.filter(m=>m.activity_id===a.id),kudos:2,comments:1,you_kudoed:false,relay:(window.__feedRelay||{})[a.id]||null})),error:null};
       if(fn==='connect_intervals'){db.connections.push({owner:'u1',provider:'intervals',athlete_id:args.p_athlete,status:'ok',created_at:new Date().toISOString()});return{data:null,error:null}}
       if(fn==='my_network')return{data:window.__net||[],error:null};
       if(fn==='search_athletes')return{data:(window.__search||[]).map(a=>({...a,you_follow:(db.follows.find(f=>f.followee===a.id)||{}).status||null})),error:null};
