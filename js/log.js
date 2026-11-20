@@ -66,7 +66,10 @@ function buckets(s,e){
   const out=[];
   if(P.type==='week'){for(let t=s;t<e;t+=DAY)out.push([t,t+DAY,WD[(new Date(t).getUTCDay()+6)%7]]);return ['Daily distance',out]}
   const days=(e-s)/DAY;
-  if(P.type==='year'||days>120){let d=new Date(s);let t=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1);while(t<e){const n=new Date(t);const t2=Date.UTC(n.getUTCFullYear(),n.getUTCMonth()+1,1);out.push([t,t2,MON[n.getUTCMonth()]]);t=t2}return ['Monthly distance',out]}
+  // custom periods: days up to a month, weeks up to four months, months up to three years, then years
+  if(P.type==='custom'&&days<=31){for(let t=s;t<e;t+=DAY){const d=new Date(t);out.push([t,t+DAY,`${d.getUTCDate()} ${MON[d.getUTCMonth()]}`])}return ['Daily distance',out]}
+  if(P.type==='custom'&&days>3*366){let y=new Date(s).getUTCFullYear();for(let t=Date.UTC(y,0,1);t<e;t=Date.UTC(++y,0,1))out.push([t,Date.UTC(y+1,0,1),String(y)]);return ['Yearly distance',out]}
+  if(P.type==='year'||days>120){let d=new Date(s);let t=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1);while(t<e){const n=new Date(t);const t2=Date.UTC(n.getUTCFullYear(),n.getUTCMonth()+1,1);out.push([t,t2,MON[n.getUTCMonth()]+(P.type==='custom'&&new Date(s).getUTCFullYear()!==new Date(e-DAY).getUTCFullYear()?` ${String(n.getUTCFullYear()).slice(2)}`:'')]);t=t2}return ['Monthly distance',out]}
   for(let t=mondayOf(s);t<e;t+=7*DAY){const d=new Date(t);out.push([t,t+7*DAY,`${d.getUTCDate()} ${MON[d.getUTCMonth()]}`])} return ['Weekly distance (weeks start Monday)',out];
 }
 function renderVolume(s,e){

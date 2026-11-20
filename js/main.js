@@ -1,26 +1,26 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795170896';
+import { decodeFit } from './fit.js?v=1795176261';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795170896';
-import { mountActivity } from './activity.js?v=1795170896';
-import { mountLog } from './log.js?v=1795170896';
-import { mountGear } from './gear.js?v=1795170896';
-import { mountClub } from './club.js?v=1795170896';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795170896';
-import { mountRelay } from './relay.js?v=1795170896';
-import { installHint } from './install.js?v=1795170896';
-import { openWelcome } from './settings.js?v=1795170896';
-import './trophies.js?v=1795170896';
-import { mountFeed } from './feed.js?v=1795170896';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795170896';
-import { perfData } from './perf.js?v=1795170896';
-import { loadData } from './load.js?v=1795170896';
-import { processInbox, paintConnections } from './sync.js?v=1795170896';
-import { mountManual } from './manual.js?v=1795170896';
-import { mountCal } from './cal.js?v=1795170896';
-import { settingsAt } from './athlete.js?v=1795170896';
-import { initSettings, DEFAULTS } from './settings.js?v=1795170896';
-import { offerCombine } from './edit.js?v=1795170896';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795176261';
+import { mountActivity } from './activity.js?v=1795176261';
+import { mountLog } from './log.js?v=1795176261';
+import { mountGear } from './gear.js?v=1795176261';
+import { mountClub } from './club.js?v=1795176261';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795176261';
+import { mountRelay } from './relay.js?v=1795176261';
+import { installHint } from './install.js?v=1795176261';
+import { openWelcome } from './settings.js?v=1795176261';
+import './trophies.js?v=1795176261';
+import { mountFeed } from './feed.js?v=1795176261';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795176261';
+import { perfData } from './perf.js?v=1795176261';
+import { loadData } from './load.js?v=1795176261';
+import { processInbox, paintConnections } from './sync.js?v=1795176261';
+import { mountManual } from './manual.js?v=1795176261';
+import { mountCal } from './cal.js?v=1795176261';
+import { settingsAt } from './athlete.js?v=1795176261';
+import { initSettings, DEFAULTS } from './settings.js?v=1795176261';
+import { offerCombine } from './edit.js?v=1795176261';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -46,15 +46,50 @@ $('authSwitch').onclick = e => { e.preventDefault(); signUp = !signUp; $('nameRo
 $('authForm').onsubmit = async e => {
   e.preventDefault(); $('authGo').disabled = true; $('authMsg').textContent = '';
   const email = $('authEmail').value.trim(), password = $('authPass').value;
-  const res = signUp ? await sb.auth.signUp({ email, password, options: { data: { display_name: $('authName').value.trim() || undefined } } })
+  const res = signUp ? await sb.auth.signUp({ email, password, options: { data: { display_name: $('authName').value.trim() || undefined }, emailRedirectTo: location.origin + location.pathname } })
                      : await sb.auth.signInWithPassword({ email, password });
   $('authGo').disabled = false;
-  if (res.error) { $('authMsg').textContent = res.error.message; return; }
+  if (res.error) {
+    // not confirmed yet: offer to send the link again
+    if (/not confirmed/i.test(res.error.message)) { authNote(`Confirm your email first: click the link we sent to ${email}. `, 'Send it again', async () => { const r = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname } }); authNote(r.error ? r.error.message : `Sent again to ${email}. Check your spam folder too.`); }); return; }
+    authNote(/invalid login/i.test(res.error.message) ? 'That email and password don’t match. Check them, or reset your password.' : res.error.message); return;
+  }
   $('authPass').value = '';
+  // with email confirmation on, sign-up returns no session until the link is clicked
+  if (signUp && !res.data.session) {
+    authNote(res.data.user && !res.data.user.identities?.length ? 'There may already be an account for that email. Sign in, or reset your password.'
+      : `Nearly there: we’ve sent a link to ${email}. Click it to confirm your email, then sign in here. Check your spam folder if it hasn’t arrived in a few minutes.`);
+  }
 };
+function authNote(text, linkText, onLink) {
+  const m = $('authMsg'); m.replaceChildren(text);
+  if (linkText) { const a = document.createElement('a'); a.href = '#'; a.textContent = linkText; a.onclick = e => { e.preventDefault(); onLink(); }; m.append(a); }
+}
+$('authForgot').onclick = async e => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim();
+  if (!email) { authNote('Enter your email above, then click “Forgot your password?” again.'); $('authEmail').focus(); return; }
+  const r = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname + '#reset' });
+  authNote(r.error ? r.error.message : `If there’s an account for ${email}, a link to set a new password is on its way. Check your spam folder too.`);
+};
+// arriving from a password-reset link: choose a new password
+function newPasswordSheet() {
+  const ov = $('modal'), body = $('modalBody'); body.replaceChildren(); body.className = 'sheet';
+  const h = document.createElement('h3'); h.textContent = 'Choose a new password';
+  const lab = document.createElement('label'); lab.className = 'f'; lab.textContent = 'New password (at least 8 characters)';
+  const inp = Object.assign(document.createElement('input'), { type: 'password', autocomplete: 'new-password', minLength: 8 }); lab.append(inp);
+  const msg = document.createElement('div'); msg.className = 'note';
+  const go = Object.assign(document.createElement('button'), { className: 'btn primary', textContent: 'Save password', type: 'button' });
+  go.onclick = async () => { if (inp.value.length < 8) { msg.textContent = 'Use at least 8 characters.'; return; } go.disabled = true;
+    const r = await sb.auth.updateUser({ password: inp.value }); go.disabled = false;
+    if (r.error) { msg.textContent = r.error.message; return; } ov.classList.remove('open'); toast('Password changed'); if (location.hash === '#reset') location.hash = '#feed'; };
+  const row = document.createElement('div'); row.className = 'actions'; row.append(document.createElement('span'), go);
+  body.append(h, lab, msg, row); ov.classList.add('open'); inp.focus();
+}
 $('signOut').onclick = async () => { await sb.auth.signOut(); };
 
-sb.auth.onAuthStateChange((_evt, session) => {
+sb.auth.onAuthStateChange((evt, session) => {
+  if (evt === 'PASSWORD_RECOVERY') setTimeout(newPasswordSheet, 300);
   const u = session?.user || null;
   if (u?.id === state.user?.id) return;
   state.user = u; state.loaded = false;
