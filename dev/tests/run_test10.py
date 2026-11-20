@@ -42,13 +42,14 @@ try:
     pg.on('console',lambda m:m.type=='error' and 'TUNNEL' not in m.text and errs.append('CONSOLE '+m.text[:200]))
     pg.add_init_script(init)
     pg.goto(U+'#feed');pg.wait_for_timeout(2500)
-    # first-time privacy choice
-    t=pg.inner_text('#modal');check('Your privacy' in t,'privacy setup opens for a new account')
-    pg.screenshot(path=os.path.join(OUT,'t10_privacy.png'))
-    pg.click('#modal input[value=no]');pg.wait_for_timeout(100)
-    check(pg.is_disabled('#modal input[value=everyone]'),'hidden profile cannot pick Everyone')
-    pg.click('#modal input[value=followers]');pg.click('#modal button:has-text("Save")');pg.wait_for_timeout(400)
+    # first sign-in: Settings opens with a welcome note
+    check(pg.evaluate("document.getElementById('settings').classList.contains('open')") and pg.is_visible('#setWelcome'),'first sign-in opens Settings with the welcome note')
+    pg.screenshot(path=os.path.join(OUT,'t10_welcome.png'))
+    pg.uncheck('#p_search');pg.wait_for_timeout(100)
+    check(pg.evaluate("document.querySelector('#p_audience option[value=everyone]').disabled") and pg.input_value('#p_audience')=='followers_clubs','hidden profile: Everyone unavailable, falls back to followers and clubs')
+    pg.select_option('#p_audience','followers');pg.click('#saveSettings');pg.wait_for_timeout(500)
     pr=pg.evaluate("__db.profiles[0]");check(pr['searchable']==False and pr['feed_audience']=='followers' and pr['privacy_set']==True,'privacy saved: '+json.dumps({k:pr.get(k) for k in ['searchable','feed_audience','privacy_set']}))
+    check(pg.is_visible('#acct a[href="help.html"]'),'Help link in the header')
     # feed: invitation + relay card once
     pg.wait_for_timeout(500)
     check('Bea invited you to a relay' in pg.inner_text('.invites'),'relay invitation on the feed')
@@ -97,7 +98,7 @@ try:
     cc=pg.evaluate("__rpc.filter(c=>c[0]==='create_club').pop()");check(cc and cc[1]['club_name']=='Lusail Brick Club' and cc[1]['p_listed']==True and cc[1]['p_policy']=='open','create club')
     # settings + log
     pg.goto(U+'#log');pg.wait_for_timeout(2000);check(not pg.locator('#fitcard').count() and 'VO₂ max' not in pg.inner_text('#view-log').replace('VO₂ max +',''),'no VO2 max in the training log')
-    pg.click('#openSettings');pg.wait_for_timeout(400);print('   audience',pg.input_value('#p_audience'),pg.evaluate("JSON.stringify(__db.profiles[0].feed_audience)"));check(pg.input_value('#p_audience')=='followers' and pg.evaluate("document.querySelector('#p_audience option[value=everyone]').disabled"),'settings show the audience; Everyone off while hidden')
+    pg.click('#openSettings');pg.wait_for_timeout(400);check(not pg.is_visible('#setWelcome'),'no welcome note on later visits');print('   audience',pg.input_value('#p_audience'),pg.evaluate("JSON.stringify(__db.profiles[0].feed_audience)"));check(pg.input_value('#p_audience')=='followers' and pg.evaluate("document.querySelector('#p_audience option[value=everyone]').disabled"),'settings show the audience; Everyone off while hidden')
     print('ERRORS',errs)
     if errs: fails.append('page errors')
 finally: srv.terminate()

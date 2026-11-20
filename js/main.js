@@ -1,24 +1,24 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795169468';
+import { decodeFit } from './fit.js?v=1795169942';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795169468';
-import { mountActivity } from './activity.js?v=1795169468';
-import { mountLog } from './log.js?v=1795169468';
-import { mountGear } from './gear.js?v=1795169468';
-import { mountClub } from './club.js?v=1795169468';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795169468';
-import { mountRelay } from './relay.js?v=1795169468';
-import { openPrivacySetup } from './privacy.js?v=1795169468';
-import './trophies.js?v=1795169468';
-import { mountFeed } from './feed.js?v=1795169468';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795169468';
-import { perfData } from './perf.js?v=1795169468';
-import { loadData } from './load.js?v=1795169468';
-import { processInbox, paintConnections } from './sync.js?v=1795169468';
-import { mountManual } from './manual.js?v=1795169468';
-import { mountCal } from './cal.js?v=1795169468';
-import { initSettings, DEFAULTS } from './settings.js?v=1795169468';
-import { offerCombine } from './edit.js?v=1795169468';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795169942';
+import { mountActivity } from './activity.js?v=1795169942';
+import { mountLog } from './log.js?v=1795169942';
+import { mountGear } from './gear.js?v=1795169942';
+import { mountClub } from './club.js?v=1795169942';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795169942';
+import { mountRelay } from './relay.js?v=1795169942';
+import { openWelcome } from './settings.js?v=1795169942';
+import './trophies.js?v=1795169942';
+import { mountFeed } from './feed.js?v=1795169942';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795169942';
+import { perfData } from './perf.js?v=1795169942';
+import { loadData } from './load.js?v=1795169942';
+import { processInbox, paintConnections } from './sync.js?v=1795169942';
+import { mountManual } from './manual.js?v=1795169942';
+import { mountCal } from './cal.js?v=1795169942';
+import { initSettings, DEFAULTS } from './settings.js?v=1795169942';
+import { offerCombine } from './edit.js?v=1795169942';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -69,7 +69,7 @@ async function boot() {
   let pendingJoin = null; try { pendingJoin = localStorage.getItem('triven.join'); } catch { /* storage blocked */ }
   if (pendingJoin && !location.hash.startsWith('#join/')) location.hash = '#join/' + pendingJoin;
   route();
-  if (state.profile && !state.profile.privacy_set) setTimeout(() => openPrivacySetup(), 600);
+  if (state.profile && !state.profile.privacy_set) setTimeout(() => { paintConnections(); openWelcome(); }, 600);
   backfill();
 }
 let backfilled = false;
@@ -410,6 +410,7 @@ if (location.hash.startsWith('#join/')) { try { localStorage.setItem('triven.joi
 // and load it (with a fresh URL so the cache is skipped) unless a dialog is open.
 const MY_BUILD = new URL(import.meta.url).searchParams.get('v');
 async function checkForUpdate() {
+  if (busy) return;   // never reload during an import: it would stop it part-way (checked again every few minutes)
   try {
     const html = await (await fetch('./index.html?nc=' + Date.now(), { cache: 'no-store' })).text();
     const live = html.match(/js\/main\.js\?v=(\d+)/)?.[1];

@@ -1,7 +1,7 @@
 // Athlete settings sheet: heart-rate zones, running-balance flags, cycling model.
 const $=id=>document.getElementById(id), ov=$('settings');
 const ZNAMES=['Recovery','Aerobic','Tempo','Sub-threshold','Threshold','VO₂ max +'];
-import { DEFAULTS } from './defaults.js?v=1795169468';
+import { DEFAULTS } from './defaults.js?v=1795169942';
 export { DEFAULTS };
 const FIELDS=['lthrRun','lthrBike','maxHr','restHr','balLo','balHi','balMin','ftp','mass','bikeMass','cda','crr'];
 let getCfg=()=>DEFAULTS, onApply=()=>{}, priv=null;
@@ -22,6 +22,7 @@ export function initSettings(get,apply,privacy){
   ['s_lthrRun','s_lthrBike'].forEach(id=>$(id).addEventListener('input',preview));
   $('openSettings').onclick=()=>openSheet(getCfg());
   $('closeSettings').onclick=()=>ov.classList.remove('open');
+  $('openSettings').addEventListener('click',()=>{$('setWelcome').hidden=true});
   ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')ov.classList.remove('open')});
   $('resetSettings').onclick=()=>openSheet(DEFAULTS);
@@ -33,3 +34,6 @@ export function initSettings(get,apply,privacy){
       if(Object.keys(upd).some(k=>upd[k]!==p[k]))priv.save(upd);}
     ov.classList.remove('open');onApply(cfg);};
 }
+
+// first sign-in: settings with a welcome note at the top (saving marks the privacy choice as made)
+export function openWelcome(){openSheet(getCfg());$('setWelcome').hidden=false;$('p_name').focus();ov.scrollTop=0}

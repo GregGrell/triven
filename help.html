@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Help · Triven</title><link rel="icon" href="logo.svg">
+<style>
+:root{--bg:#eef0ef;--card:#fbfcfb;--text:#1b1e20;--muted:#5d666b;--accent:#1f9d55;--line:rgba(27,30,32,.1);--chip:#eef1ef}
+@media (prefers-color-scheme:dark){:root{--bg:#141618;--card:#1b1e20;--text:#e8eaeb;--muted:#9aa2a6;--accent:#4fd081;--line:rgba(255,255,255,.1);--chip:#24282b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}header a.home{color:inherit;text-decoration:none;font-weight:700;font-size:20px;letter-spacing:.04em;display:flex;align-items:center;gap:10px}header img{height:30px}
+header .open{font-size:14px;font-weight:600;color:#fff;background:var(--accent);padding:7px 14px;border-radius:8px;text-decoration:none}
+.layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px;align-items:start}
+nav.toc{position:sticky;top:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:14px}
+nav.toc b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+nav.toc a{display:block;color:inherit;text-decoration:none;padding:3px 0}nav.toc a:hover{color:var(--accent)}
+.doc{background:var(--card);border-radius:16px;padding:28px 32px;border:1px solid var(--line)}
+h1{font-size:30px;line-height:1.2;margin:0 0 4px}h2{font-size:21px;margin:34px 0 6px;padding-top:14px;border-top:1px solid var(--line)}h2:first-of-type{border-top:0;padding-top:0}
+h3{font-size:16px;margin:18px 0 4px}
+.muted{color:var(--muted);font-size:14px}a{color:var(--accent)}ul,ol{padding-left:22px}li{margin:4px 0}
+.k{display:inline-block;font-size:13px;font-weight:600;background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:0 7px;white-space:nowrap}
+.tip{background:var(--chip);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin:12px 0;font-size:15px}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:8px 0}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color:var(--muted)}footer a{color:inherit}
+@media (max-width:820px){.layout{grid-template-columns:1fr}nav.toc{position:static}.doc{padding:22px 20px}}
+</style></head><body><main>
+<header><a class="home" href="./"><img src="logo.svg" alt="">TRIVEN</a><a class="open" href="./">Open Triven</a></header>
+<div class="layout">
+<nav class="toc" aria-label="Contents"><b>Help guide</b>
+<a href="#start">Getting started</a><a href="#import">Getting activities in</a><a href="#multisport">Multisport</a><a href="#activity">Activity pages</a>
+<a href="#privacy">Privacy and sharing</a><a href="#people">People and following</a><a href="#clubs">Clubs</a><a href="#relays">Relays</a>
+<a href="#bests">Bests and trophies</a><a href="#log">Training log</a><a href="#gear">Gear</a><a href="#settings">Settings</a><a href="#faq">Questions</a></nav>
+<article class="doc">
+<h1>Help guide</h1>
+<p class="muted">How to get the most out of Triven: a free training log for swimming, cycling, running and multisport.</p>
+
+<h2 id="start">Getting started</h2>
+<ol>
+<li><b>Create an account</b> on the <a href="./">sign-in page</a> and confirm your email address.</li>
+<li><b>Set up your profile.</b> The first time you sign in, Settings opens. Choose the name other athletes see, add a photo and pick your privacy (see <a href="#privacy">Privacy and sharing</a>). Enter your threshold heart rates if you know them; your zones and training load depend on them.</li>
+<li><b>Bring in your history.</b> Upload your Garmin export or individual files (see <a href="#import">Getting activities in</a>).</li>
+<li><b>Connect your watch</b> so new activities arrive by themselves.</li>
+<li><b>Find your people.</b> Follow team mates and join your club on the <span class="k">People</span> tab.</li>
+</ol>
+
+<h2 id="import">Getting activities in</h2>
+<h3>Upload files</h3>
+<p>On the <span class="k">Upload</span> tab, drop in <b>.fit</b> files or a <b>.zip</b> of them. Triven skips anything it already has, so it's safe to upload the same files twice.</p>
+<h3>Your whole Garmin history</h3>
+<ol>
+<li>Sign in at Garmin Connect on the web, open your account's <b>Data Management</b> section and choose <b>Export your data</b>.</li>
+<li>Garmin emails you a download link, usually within a few days.</li>
+<li>Drop the zip on the Upload tab and leave the tab open until it says <b>Done</b>.</li>
+</ol>
+<div class="tip">A Garmin export holds thousands of files that aren't workouts: daily steps, sleep, heart-rate monitoring and device settings. Triven lists these as <b>Not an activity (skipped)</b>. That's expected; the summary at the top counts how many activities were added.</div>
+<h3>Automatic sync</h3>
+<p>Triven collects new activities through <a href="https://intervals.icu" rel="noopener">intervals.icu</a>, a free service that connects to Garmin, COROS, Suunto, Wahoo and others.</p>
+<ol>
+<li>Create a free intervals.icu account and connect your watch there.</li>
+<li>In intervals.icu settings, copy your <b>athlete ID</b> and create an <b>API key</b>.</li>
+<li>In Triven, open <span class="k">Settings</span> → <b>Connected services</b> and paste both in.</li>
+</ol>
+<p>New activities then arrive within about 10 minutes. <b>Sync now</b> in Settings fetches them straight away. Apple Watch users can send workouts to intervals.icu with the HealthFit app.</p>
+<h3>Without a file</h3>
+<p><b>Log without a file</b> on the Upload tab records a session by hand: sport, time and distance, with legs for multisport.</p>
+
+<h2 id="multisport">Multisport</h2>
+<p>A triathlon, duathlon, aquathlon, aquabike, brick or swimrun recorded in multisport mode on your watch comes in as <b>one activity</b>, with each leg and the transitions in between. Triven names the race type and distance class, for example "Sprint triathlon".</p>
+<h3>Joining separate files into one race</h3>
+<p>If you stopped and started the watch between legs, you have separate files. Triven offers to combine files that follow on within 10 minutes of each other when you upload them. You can also do it any time: open one of the activities and click <span class="k">Link activities</span>, then pick the others (up to five, within 12 hours). The gaps between them become transitions. <span class="k">Unlink</span> splits them again.</p>
+<h3>Leg types</h3>
+<p>In <span class="k">Edit</span> you can set each leg's type: treadmill, track, trail or road runs; indoor, virtual, gravel, mountain-bike or road rides; pool or open-water swims. Treadmill legs can have their distance corrected, and track runs are snapped to a 400 m track.</p>
+
+<h2 id="activity">Activity pages</h2>
+<ul>
+<li><b>Sections bar:</b> click a leg, lap or flag to zoom the charts and map to it.</li>
+<li><b>Training focus:</b> time in each heart-rate zone, and what the session mostly trained.</li>
+<li><b>FTP and power:</b> best power for each duration, from a power meter or estimated from speed and gradient.</li>
+<li><b>Running balance:</b> ground contact time left/right, with stretches outside your chosen range flagged.</li>
+<li><b>Edit:</b> name, description, private notes (only you see them), race flag, leg types, gear, photos and videos, and what you share.</li>
+<li><b>Trim:</b> cut off the start or end, for example when you forgot to stop the watch and drove home. Triven warns you when an activity looks as if it includes driving.</li>
+<li><b>Instagram post:</b> makes a picture of the activity to share.</li>
+</ul>
+
+<h2 id="privacy">Privacy and sharing</h2>
+<p>You control sharing at three levels.</p>
+<table>
+<tr><th>Level</th><th>What it does</th><th>Where</th></tr>
+<tr><td><b>Your profile</b></td><td>Whether people can find you in search, whether you approve new followers, and who can see <b>any</b> of your activities: everyone, followers and club mates, or just followers. This is an upper limit, whatever each activity is set to. A hidden profile is never open to everyone.</td><td>Settings → Profile and privacy</td></tr>
+<tr><td><b>Each activity</b></td><td><b>Only me</b>, <b>Followers</b> (followers and club mates), <b>Club</b> (club mates) or <b>Everyone</b>. New uploads use your default.</td><td>One click under the title on the activity page</td></tr>
+<tr><td><b>Each kind of data</b></td><td>Hide the map, heart rate, power, pace, cadence, running dynamics or description from others, per activity.</td><td>Edit → Sharing</td></tr>
+</table>
+<p>Private notes are only ever visible to you. See the <a href="privacy.html">privacy policy</a> for the full details.</p>
+
+<h2 id="people">People and following</h2>
+<p>On the <span class="k">People</span> tab, search for athletes by name and follow them. If someone approves followers, your request waits until they accept. If you approve followers, people asking to follow you appear on the same tab. The feed has four views:</p>
+<ul><li><b>Me:</b> your activities.</li><li><b>Following:</b> people you follow.</li><li><b>Club:</b> you and your club mates.</li><li><b>Everyone:</b> public activities from all Triven athletes.</li></ul>
+<p>Give kudos and comment on anything you can see.</p>
+
+<h2 id="clubs">Clubs</h2>
+<h3>Joining</h3>
+<p>Search for a club on the People tab, or open an invite link from a member. Some clubs let you straight in; others send your request to the club's admins.</p>
+<h3>Starting a club</h3>
+<p>Click <span class="k">Start a club</span> on the People tab. You choose:</p>
+<ul><li><b>Listed</b> (anyone can find it in search) or <b>invite only</b> (only people with the link).</li><li><b>Free to join</b> or <b>admin approval</b>.</li></ul>
+<p>Either way, the club has an invite link: <span class="k">Copy invite link</span> on the club page. You can change these settings later.</p>
+<h3>Running a club</h3>
+<ul>
+<li><b>Club news:</b> admins post messages that every member sees on the club page.</li>
+<li><b>Photo and description:</b> click <b>Add photo</b> under the club badge; <span class="k">Settings</span> changes the rest.</li>
+<li><b>Requests:</b> approve or decline them in the panel beside the news.</li>
+<li><b>Members:</b> the owner can make members admins, hand the club over, or remove people. Admins can remove members.</li>
+<li><b>New invite link:</b> replaces the link, so the old one stops working.</li>
+</ul>
+<p>If the owner leaves, the longest-serving admin takes over. A club with no members left is deleted.</p>
+
+<h2 id="relays">Relays</h2>
+<p>In a relay, each person does one leg: one swims, another bikes, another runs. Triven joins your activities into one relay that appears on every member's feed, while each activity stays in its owner's own log for totals, bests and training load.</p>
+<ol>
+<li>Open your leg's activity and click <span class="k">Make a relay</span>.</li>
+<li>Pick a team mate's activity from within 12 hours of yours, or let them choose it. Relays are between people who follow each other.</li>
+<li>They see an invitation at the top of their feed and accept it with their activity, or decline.</li>
+</ol>
+<p>The relay page shows each leg, the hand-overs between them and the total time from the first start to the last finish. Any member can add another leg (up to six), rename the relay or leave it. Each leg's sport, time and distance are shown to anyone who can see the relay; everything else follows the owner's own sharing settings.</p>
+
+<h2 id="bests">Bests and trophies</h2>
+<p>Triven finds your best efforts inside every activity:</p>
+<ul>
+<li><b>Running:</b> 400 m up to the marathon, then 50 km, 50 miles, 100 km and 100 miles.</li>
+<li><b>Cycling:</b> 10, 25, 50 and 100-mile time-trial distances, 100 km, longest ride, most elevation, and best power from 1 second to 1 hour.</li>
+<li><b>Swimming:</b> 100 m up to 3800 m.</li>
+</ul>
+<p>An activity page shows a <b>gold, silver or bronze trophy</b> when an effort was your best, second-best or third-best ever at that run or swim distance or power duration, as things stood on that day. So a trophy stays on the activity even after you beat it. Treadmill and indoor legs don't count for distance bests. The full list is under <span class="k">Training log</span> → Bests.</p>
+
+<h2 id="log">Training log</h2>
+<ul>
+<li><b>Totals:</b> distance, time and elevation by sport for a week, month, year or dates you choose.</li>
+<li><b>Calendar:</b> every day's activities with their training load.</li>
+<li><b>Fitness and form:</b> load is scored on the familiar TSS scale. Fitness is your 42-day average load, fatigue your 7-day average, and form is fitness minus fatigue (negative when you're carrying fatigue, positive when fresh).</li>
+<li><b>Training status:</b> productive, maintaining, recovery, peaking, overreaching or detraining, from how your load is changing. It needs about six weeks of activities with heart rate.</li>
+<li><b>Thresholds:</b> suggestions for threshold heart rate, threshold pace and FTP from your hardest recent efforts. One click applies a suggestion, and your zones and loads update.</li>
+<li><b>Race predictor:</b> 5K, 10K, half marathon and marathon times from your best running efforts of the last 12 weeks.</li>
+</ul>
+<p>The feed sidebar shows this week's load against a suggested range, a 12-week chart and your weekly goals.</p>
+<div class="tip">Triven doesn't estimate VO₂ max: your watch already gives you one, and a second figure would only disagree with it.</div>
+
+<h2 id="gear">Gear</h2>
+<p>Add your shoes and bikes on the <span class="k">Gear</span> tab to track their distance, with a replacement reminder per item. Set defaults by role (everyday, trail, track, treadmill or races for shoes; everyday, indoor, gravel, mountain bike or races for bikes) and new activities pick the right one. Marking an activity as a race switches it to your race gear. In multisport activities, each leg has its own gear.</p>
+
+<h2 id="settings">Settings</h2>
+<ul>
+<li><b>Profile and privacy:</b> name, photo, default visibility for new uploads, search, follower approval and who can see your activities.</li>
+<li><b>Connected services:</b> intervals.icu for automatic sync.</li>
+<li><b>Heart rate:</b> run and bike threshold heart rate (enter lab or field-test results here), max and resting heart rate, and zone boundaries.</li>
+<li><b>Running form:</b> the left/right balance range that gets flagged.</li>
+<li><b>Cycling:</b> FTP, your weight, bike weight, riding position and tyres, used to estimate power on rides without a power meter.</li>
+</ul>
+
+<h2 id="faq">Questions</h2>
+<h3>An activity is missing.</h3>
+<p>If you use automatic sync, click <b>Sync now</b> in Settings and check the activity reached intervals.icu. Activities that reached intervals.icu from Strava aren't imported, under Strava's terms; upload the original file instead.</p>
+<h3>My zones or load look wrong.</h3>
+<p>Check your threshold and max heart rates in Settings. Every chart recalculates when you change them.</p>
+<h3>How do I delete my account?</h3>
+<p>Email <a href="mailto:hello@triven.fit">hello@triven.fit</a> from your account's address and everything will be deleted within 30 days.</p>
+<h3>Something else?</h3>
+<p>Email <a href="mailto:hello@triven.fit">hello@triven.fit</a>.</p>
+</article>
+</div>
+<footer><a href="./">Triven</a><a href="help.html">Help</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="mailto:hello@triven.fit">hello@triven.fit</a></footer>
+</main></body></html>
