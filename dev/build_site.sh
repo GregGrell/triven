@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")"
 rm -rf site && mkdir site
-cp -r ../index.html ../js ../img ../logo.svg ../privacy.html ../terms.html site/
+cp -r ../index.html ../js ../img ../logo.svg ../privacy.html ../terms.html ../help.html ../manifest.webmanifest ../sw.js ../offline.html site/
 cd site
 sed -i.bak "s#https://cdn.jsdelivr.net/npm/@supabase/supabase-js@[0-9.]*/+esm#../../mock-supabase.js#; s#https://cdn.jsdelivr.net/npm/jszip@[0-9.]*/+esm#../../jszip-shim.js#" js/main.js
 sed -i.bak 's#https://cdn.jsdelivr.net/npm/d3@[0-9.]*/dist/d3.min.js#../node_modules/d3/dist/d3.min.js#; /fonts.googleapis/d' index.html

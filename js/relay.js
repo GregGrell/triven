@@ -1,8 +1,8 @@
 // Relays: separate activities from people who follow each other, shown as one race.
 // Each person's activity stays theirs (totals, bests, load); the relay is a shared view on top.
-import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795170722';
-import { drawRouteMap } from './mapcanvas.js?v=1795170722';
-import { openModal } from './edit.js?v=1795170722';
+import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795170896';
+import { drawRouteMap } from './mapcanvas.js?v=1795170896';
+import { openModal } from './edit.js?v=1795170896';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -139,7 +139,7 @@ export async function mountRelay(id) {
   for (const pnd of tl.pending) { const r = tbl.insertRow(); r.className = 'rgap'; ['', '', '', '', '', '', '', ''].forEach(() => r.insertCell()); r.cells[1].textContent = pnd.athlete; r.cells[2].textContent = 'Invited, waiting for them to accept'; }
   const rt = relayTrack(L);
   const grid = el('div', { className: 'rgrid' });
-  grid.append(el('div', { className: 'card' }, el('h2', { textContent: 'Results', style: 'margin-bottom:8px' }), tbl,
+  grid.append(el('div', { className: 'card' }, el('h2', { textContent: 'Results', style: 'margin-bottom:8px' }), el('div', { className: 'rtable' }, tbl),
     el('div', { className: 'note', textContent: 'Each leg stays in its owner’s own log for totals, bests and training load. Leg details follow each owner’s sharing settings.' })));
   if (rt) {
     const cv = el('canvas', { className: 'fmap', width: 1000, height: 760, style: 'width:100%;height:auto;border-radius:8px' });
