@@ -574,6 +574,7 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
       <div class="frow">
         <label class="f">Name other athletes see<input type="text" id="p_name" maxlength="60"></label>
         <label class="f">Username<span class="hinput"><span>triven.fit/</span><input type="text" id="p_handle" maxlength="30" autocapitalize="off" autocomplete="off" spellcheck="false"></span><small class="hmsg" id="p_handleMsg"></small></label>
+        <label class="f">Units<select id="s_units"><option value="metric">Metric (km, m, kg)</option><option value="imperial">Imperial (miles, feet, lb)</option></select></label>
         <label class="f">New uploads are visible to<select id="p_defvis"><option value="private">Only me</option><option value="followers">Followers</option><option value="club">Club</option><option value="public">Everyone</option></select></label>
       </div>
       <label class="ck"><input type="checkbox" id="p_search"> Let other athletes find me in search</label>
@@ -608,8 +609,8 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
       <h2>Cycling</h2>
       <div class="frow">
         <label class="f">FTP override (W, blank = estimate)<input type="number" id="s_ftp" placeholder="estimate"></label>
-        <label class="f">Current weight (kg)<input type="number" step="0.1" id="s_mass"></label>
-        <label class="f">Bike + kit weight (kg)<input type="number" step="0.1" id="s_bikeMass"></label>
+        <label class="f">Current weight (<span class="wunit">kg</span>)<input type="number" step="0.1" id="s_mass"></label>
+        <label class="f">Bike + kit weight (<span class="wunit">kg</span>)<input type="number" step="0.1" id="s_bikeMass"></label>
         <label class="f">Riding position<select id="s_cda"><option value="0.24">TT bike, on aero bars</option><option value="0.27">Road bike, clip-on aero bars</option><option value="0.32">Road bike, on drops</option><option value="0.37">Road bike, on hoods</option></select></label>
         <label class="f">Tyres / surface<select id="s_crr"><option value="0.003">Race tyres, smooth tarmac</option><option value="0.004">Road tyres, good tarmac</option><option value="0.006">Training tyres / rough road</option></select></label>
       </div>
@@ -632,6 +633,6 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=1795184861"></script>
+<script type="module" src="js/main.js?v=1795207239"></script>
 </body>
 </html>

@@ -1,11 +1,12 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795184861';
-import { mountWeek } from './week.js?v=1795184861';
-import { envLabel } from './process.js?v=1795184861';
-import { drawRouteMap } from './mapcanvas.js?v=1795184861';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795184861';
-import { openTrim } from './trim.js?v=1795184861';
-import { relayCard, relayInvites } from './relay.js?v=1795184861';
+import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795207239';
+import { mountWeek } from './week.js?v=1795207239';
+import { envLabel } from './process.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
+import { drawRouteMap } from './mapcanvas.js?v=1795207239';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795207239';
+import { openTrim } from './trim.js?v=1795207239';
+import { relayCard, relayInvites } from './relay.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -78,11 +79,11 @@ function card(a, urls, refresh) {
   // stats
   const stats = el('div', { className: 'fstats' }), stat = (v, l) => stats.append(el('div', {}, el('b', { textContent: v }), el('small', { textContent: l })));
   const t = a.sport === 'multi' ? +a.elapsed_s : +(a.moving_s || a.elapsed_s);
-  stat((a.distance_m / 1000).toFixed(2) + ' km', 'Distance'); stat(fmtDur(t), 'Time');
-  if (a.sport === 'run' && (mine || a.share?.pace !== false)) { const p = t / (a.distance_m / 1000); stat(`${Math.floor(p / 60)}:${String(Math.round(p % 60)).padStart(2, '0')} /km`, 'Pace'); }
-  if (a.sport === 'bike' && (mine || a.share?.pace !== false)) stat((a.distance_m / t * 3.6).toFixed(1) + ' km/h', 'Speed');
-  if (a.sport === 'swim') { const p = t / (a.distance_m / 100); stat(`${Math.floor(p / 60)}:${String(Math.round(p % 60)).padStart(2, '0')} /100 m`, 'Pace'); }
-  if (a.ascent_m) stat(Math.round(a.ascent_m) + ' m', 'Elevation');
+  stat(U.dist(a.distance_m), 'Distance'); stat(fmtDur(t), 'Time');
+  if (a.sport === 'run' && (mine || a.share?.pace !== false)) stat(U.pace(t, a.distance_m), 'Pace');
+  if (a.sport === 'bike' && (mine || a.share?.pace !== false)) stat(U.speed(t, a.distance_m), 'Speed');
+  if (a.sport === 'swim') stat(U.swimPace(t, a.distance_m), 'Pace');
+  if (a.ascent_m) stat(U.elev(a.ascent_m), 'Elevation');
   if (a.avg_hr) stat(Math.round(a.avg_hr) + ' bpm', 'Avg HR');
   c.append(stats);
   if (a.sport === 'multi' && a.sections?.length) {
@@ -113,7 +114,7 @@ function card(a, urls, refresh) {
   // driving flag (owner only)
   if (mine && a.flags?.length) {
     const tb = el('button', { className: 'btn sm', textContent: 'Trim', onclick: async () => { tb.disabled = true; const dd = await fetchActivity(a.id); tb.disabled = false; openTrim(dd, refresh); } });
-    c.append(el('div', { className: 'warnbar' }, el('span', { className: 'ic', textContent: '!' }), el('span', { style: 'flex:1', textContent: `Looks like it includes driving (up to ${Math.max(...a.flags.map(f => f.maxKmh))} km/h).` }), tb));
+    c.append(el('div', { className: 'warnbar' }, el('span', { className: 'ic', textContent: '!' }), el('span', { style: 'flex:1', textContent: `Looks like it includes driving (up to ${Math.round(U.kmhTo(Math.max(...a.flags.map(f => f.maxKmh))))} ${U.sU()}).` }), tb));
   }
   // actions
   const acts = el('div', { className: 'factions' });

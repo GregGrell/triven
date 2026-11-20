@@ -1,8 +1,9 @@
 // Profile pages (triven.fit/<username>) and short links (triven.fit/<username>/<n>). Members only.
-import { sb, state, toast, avatarEl } from './main.js?v=1795184861';
-import { feedList } from './feed.js?v=1795184861';
-import { followBtn } from './club.js?v=1795184861';
-import { RUN_DISTANCES, SWIM_DISTANCES } from './process.js?v=1795184861';
+import { sb, state, toast, avatarEl } from './main.js?v=1795207239';
+import { feedList } from './feed.js?v=1795207239';
+import { followBtn } from './club.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
+import { RUN_DISTANCES, SWIM_DISTANCES } from './process.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -68,7 +69,7 @@ export async function mountProfile(uid) {
   const ys = Object.entries(p.year).sort((a, b) => b[1].s - a[1].s);
   if (!ys.length) year.append(el('div', { className: 'note', textContent: p.me ? 'Nothing this year yet.' : 'Nothing shared with you this year.' }));
   ys.forEach(([sp, t]) => year.append(el('div', { className: 'profyr' }, el('span', { className: 'dot', style: `background:${SPC[sp] || 'var(--trans)'}` }), el('b', { textContent: SPN[sp] || sp }),
-    el('span', { textContent: `${t.n} · ${(+t.km).toLocaleString()} km · ${fmtHM(+t.s)}${+t.up ? ` · ${(+t.up).toLocaleString()} m up` : ''}` }))));
+    el('span', { textContent: `${t.n} · ${U.distBig(t.km * 1000)} · ${fmtHM(+t.s)}${+t.up ? ` · ${U.elev(t.up)} up` : ''}` }))));
   year.append(el('div', { className: 'note', style: 'margin-top:8px', textContent: `${p.count.toLocaleString()} ${p.me ? 'activities in all' : 'activities you can see'}` }));
   grid.append(year);
   const best = el('div', { className: 'card' }, el('h3', { textContent: 'Best efforts' }));

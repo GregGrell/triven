@@ -1,9 +1,13 @@
 // Gear tab: shoes and bikes, distance, replacement guide, defaults, retire, bulk-assign.
-import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795184861';
-import { openModal } from './edit.js?v=1795184861';
+import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795207239';
+import { openModal } from './edit.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
-const km = m => (m / 1000).toFixed(m >= 100000 ? 0 : 1);
+const km = m => U.toD(m).toFixed(U.toD(m) >= 100 ? 0 : 1);   // km or miles
+// gear distances are stored in km; boxes show km or miles, and only a changed box is converted back
+const kmShow = k => k == null || k === '' ? '' : Math.round(U.toD(k * 1000));
+const kmRead = (input, orig) => input.value === '' ? null : String(kmShow(orig)) === input.value ? orig : +(U.fromD(input.value) / 1000).toFixed(1);
 
 export function mountGear() {
   const v = document.getElementById('view-gear'); v.replaceChildren();
@@ -24,7 +28,7 @@ export function mountGear() {
         const name = el('div', {}, el('b', { textContent: g.name }), el('div', { className: 'muted', textContent: [[g.brand, g.model].filter(Boolean).join(' '), `${g.uses} ${g.uses === 1 ? 'activity' : 'activities'}`, gearRoles(g).length ? 'default for ' + gearRoles(g).map(r => (GEAR_ROLES[g.kind].find(x => x[0] === r) || [, r])[1].toLowerCase()).join(', ') : ''].filter(Boolean).join(' · ') }));
         const bar = el('div', { className: 'bar' });
         if (limit) { const f = el('div'); f.style.width = Math.min(100, total / 1000 / limit * 100) + '%'; if (total / 1000 >= limit) f.style.background = 'var(--warn)'; else if (kind === 'bike') f.style.background = 'var(--bike)'; bar.append(f); }
-        const val = el('div', { className: 'val' }, el('div', { textContent: limit ? `${km(total)} of ${limit} km` : `${km(total)} km` }),
+        const val = el('div', { className: 'val' }, el('div', { textContent: limit ? `${km(total)} of ${kmShow(limit)} ${U.dU()}` : `${km(total)} ${U.dU()}` }),
           el('button', { className: 'linkbtn', textContent: 'Edit', onclick: () => editGear(g) }));
         if (limit && total / 1000 >= limit && !retired) name.append(el('div', { className: 'warnline', textContent: 'Past its replacement distance' }));
         row.append(name, bar, val); card.append(row);
@@ -59,8 +63,8 @@ function editGear(g) {
     const f = {
       name: el('input', { value: g.name || '', placeholder: kind === 'shoe' ? 'e.g. Race shoes' : 'e.g. TT bike', required: true }),
       brand: el('input', { value: g.brand || '' }), model: el('input', { value: g.model || '' }),
-      start_km: el('input', { type: 'number', min: 0, step: 1, value: g.start_km ?? 0 }),
-      replace_km: el('input', { type: 'number', min: 0, step: 50, value: g.replace_km ?? (kind === 'shoe' ? 700 : '') , placeholder: kind === 'bike' ? 'optional, e.g. chain at 3000' : '' }),
+      start_km: el('input', { type: 'number', min: 0, step: 1, value: kmShow(g.start_km ?? 0) }),
+      replace_km: el('input', { type: 'number', min: 0, step: 50, value: g.replace_km != null ? kmShow(g.replace_km) : kind === 'shoe' ? (U.imperial() ? 450 : 700) : '', placeholder: kind === 'bike' ? `optional, e.g. chain at ${U.imperial() ? 2000 : 3000}` : '' }),
     };
     // default for: everyday / trail / track / treadmill / races (bikes: everyday / indoor / gravel / MTB / races)
     const mine = new Set(gearRoles(g));
@@ -71,7 +75,7 @@ function editGear(g) {
       b.onclick = () => { mine.has(v) ? mine.delete(v) : mine.add(v); b.setAttribute('aria-pressed', mine.has(v)); }; roleRow.append(b); });
     const grid = el('div', { className: 'frow' },
       el('label', { className: 'f' }, 'Name', f.name), el('label', { className: 'f' }, 'Brand', f.brand), el('label', { className: 'f' }, 'Model', f.model),
-      el('label', { className: 'f' }, 'Distance already done (km)', f.start_km), el('label', { className: 'f' }, kind === 'shoe' ? 'Replace at (km)' : 'Service reminder at (km)', f.replace_km));
+      el('label', { className: 'f' }, `Distance already done (${U.dU()})`, f.start_km), el('label', { className: 'f' }, kind === 'shoe' ? `Replace at (${U.dU()})` : `Service reminder at (${U.dU()})`, f.replace_km));
     body.append(el('section', {}, grid, el('div', { className: 'f', style: 'margin-top:14px' }, `Use automatically for`, roleRow),
       el('div', { className: 'note', textContent: `New ${kind === 'shoe' ? 'runs' : 'rides'} get the gear set for their type, and races get your race ${kind === 'shoe' ? 'shoes' : 'bike'} when you flag them. Anything without its own default uses the everyday one. Each role belongs to one ${kind === 'shoe' ? 'pair' : 'bike'}, so picking it here moves it from the other.` })));
     const msg = el('div', { className: 'note' });
@@ -89,7 +93,7 @@ function editGear(g) {
     save.onclick = async () => {
       const name = f.name.value.trim(); if (!name) { msg.textContent = 'Give it a name.'; return; }
       save.disabled = true;
-      const row = { kind, name, brand: f.brand.value.trim() || null, model: f.model.value.trim() || null, start_km: +f.start_km.value || 0, replace_km: f.replace_km.value === '' ? null : +f.replace_km.value,
+      const row = { kind, name, brand: f.brand.value.trim() || null, model: f.model.value.trim() || null, start_km: kmRead(f.start_km, g.start_km ?? 0) || 0, replace_km: kmRead(f.replace_km, g.replace_km),
         is_default_for: mine.size ? [...mine].join(',') : null };
       // each role belongs to one item: take the chosen roles off the others
       for (const x of state.gear.filter(x => x.id !== g.id && x.kind === kind)) {

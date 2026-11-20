@@ -1,31 +1,32 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795184861';
+import { decodeFit } from './fit.js?v=1795207239';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795184861';
-import { mountActivity } from './activity.js?v=1795184861';
-import { mountLog } from './log.js?v=1795184861';
-import { mountGear } from './gear.js?v=1795184861';
-import { mountClub } from './club.js?v=1795184861';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795184861';
-import { mountRelay } from './relay.js?v=1795184861';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795184861';
-import { SWIM_DISTANCES } from './process.js?v=1795184861';
-import { openLink } from './profile.js?v=1795184861';
-import { mountActivities } from './actlist.js?v=1795184861';
-import { installHint } from './install.js?v=1795184861';
-import { openWelcome } from './settings.js?v=1795184861';
-import './swimview.js?v=1795184861';
-import './trophies.js?v=1795184861';
-import { mountFeed } from './feed.js?v=1795184861';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795184861';
-import { perfData } from './perf.js?v=1795184861';
-import { loadData } from './load.js?v=1795184861';
-import { processInbox, paintConnections } from './sync.js?v=1795184861';
-import { mountManual } from './manual.js?v=1795184861';
-import { mountCal } from './cal.js?v=1795184861';
-import { settingsAt } from './athlete.js?v=1795184861';
-import { initSettings, DEFAULTS } from './settings.js?v=1795184861';
-import { offerCombine } from './edit.js?v=1795184861';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795207239';
+import { mountActivity } from './activity.js?v=1795207239';
+import { mountLog } from './log.js?v=1795207239';
+import { mountGear } from './gear.js?v=1795207239';
+import { mountClub } from './club.js?v=1795207239';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795207239';
+import { mountRelay } from './relay.js?v=1795207239';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795207239';
+import { SWIM_DISTANCES } from './process.js?v=1795207239';
+import { setUnits, dist as uDist } from './units.js?v=1795207239';
+import { openLink } from './profile.js?v=1795207239';
+import { mountActivities } from './actlist.js?v=1795207239';
+import { installHint } from './install.js?v=1795207239';
+import { openWelcome } from './settings.js?v=1795207239';
+import './swimview.js?v=1795207239';
+import './trophies.js?v=1795207239';
+import { mountFeed } from './feed.js?v=1795207239';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795207239';
+import { perfData } from './perf.js?v=1795207239';
+import { loadData } from './load.js?v=1795207239';
+import { processInbox, paintConnections } from './sync.js?v=1795207239';
+import { mountManual } from './manual.js?v=1795207239';
+import { mountCal } from './cal.js?v=1795207239';
+import { settingsAt } from './athlete.js?v=1795207239';
+import { initSettings, DEFAULTS } from './settings.js?v=1795207239';
+import { offerCombine } from './edit.js?v=1795207239';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -183,11 +184,11 @@ export async function loadAll() {
     allRows(() => sb.from('best_efforts').select('*').eq('owner', uid).order('id')),
   ]);
   for (const r of [p, a, g, b]) if (r.error) { toast('Could not load your data: ' + r.error.message, 6000); }
-  state.profile = p.data; state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
+  state.profile = p.data; setUnits(state.profile?.settings?.units); state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
 }
 initAvatar();
 document.getElementById('openSettings').addEventListener('click', () => paintConnections());
-initSettings(() => state.profile?.settings, async cfg => { await saveSettings(cfg); if (!$('view-activity').hidden && window.__actApply && curAct) window.__actApply(cfgFor(curAct)); document.dispatchEvent(new Event('triven:settings')); },
+initSettings(() => state.profile?.settings, async cfg => { const was = state.profile?.settings?.units || 'metric'; await saveSettings(cfg); setUnits(cfg.units); if ((cfg.units || 'metric') !== was) { route(); return; } if (!$('view-activity').hidden && window.__actApply && curAct) window.__actApply(cfgFor(curAct)); document.dispatchEvent(new Event('triven:settings')); },
   { get: () => state.profile, save: async upd => { const { error } = await sb.from('profiles').update(upd).eq('id', state.user.id); if (error) { toast('Could not save privacy settings: ' + error.message); return; } Object.assign(state.profile, upd); } });
 export async function saveSettings(cfg) {
   state.profile.settings = cfg;
@@ -486,7 +487,7 @@ export async function importFit(ent, row) {
   if (r.status === 'notact') { row.set('Not an activity (skipped)'); return 'notact'; }
   if (r.status === 'skip') { row.set('Already in Triven', 'ok'); return 'skip'; }
   const a = r.activity, drv = a.summary.driving?.length ? ' · looks like it includes driving, check it' : '';
-  row.set(`Added: ${a.name}, ${(a.distance_m / 1000).toFixed(1)} km${drv}`, 'ok');
+  row.set(`Added: ${a.name}, ${uDist(a.distance_m, 1)}${drv}`, 'ok');
   const start = Date.parse(a.start_time);
   return { id: r.id, sport: a.sport, start, end: start + (+a.elapsed_s || 0) * 1000 };
 }

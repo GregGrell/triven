@@ -1,6 +1,7 @@
 // Log an activity without a file: treadmill, indoor bike, a gym session, or a multisport brick done on machines.
-import { sb, state, toast, loadAll, pickGear, raceFlag } from './main.js?v=1795184861';
-import { ENVS, INDOOR, envLabel, multisportProfile } from './process.js?v=1795184861';
+import { sb, state, toast, loadAll, pickGear, raceFlag } from './main.js?v=1795207239';
+import { ENVS, INDOOR, envLabel, multisportProfile } from './process.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const SPN = { run: 'Run', bike: 'Bike', swim: 'Swim', transition: 'Transition' };
@@ -31,13 +32,13 @@ export function mountManual(host) {
     const dist = el('input', { type: 'number', min: 0, step: 'any', style: 'width:100px' });
     const unit = el('span', { className: 'muted' });
     const hr = el('input', { type: 'number', min: 40, max: 230, placeholder: 'avg HR', style: 'width:84px' });
-    const asc = el('input', { type: 'number', min: 0, placeholder: 'climb m', style: 'width:84px' });
+    const asc = el('input', { type: 'number', min: 0, placeholder: 'climb ' + U.eU(), style: 'width:84px' });
     const rm = el('button', { className: 'linkbtn', type: 'button', textContent: 'Remove', style: 'color:var(--text-muted)' });
     const row = el('div', { className: 'mleg' });
     const refresh = () => {
       const s = sp.value; ty.replaceChildren(); ty.hidden = !ENVS[s];
       (ENVS[s] || []).forEach(([v, t]) => ty.append(el('option', { value: v, textContent: t, selected: v === (env || DEF_ENV[s]) })));
-      env = null; unit.textContent = s === 'swim' ? 'm' : 'km'; dist.placeholder = s === 'swim' ? 'metres' : 'km';
+      env = null; unit.textContent = s === 'swim' ? 'm' : U.dU(); dist.placeholder = s === 'swim' ? 'metres' : U.imperial() ? 'miles' : 'km';
       dist.hidden = unit.hidden = s === 'transition'; hr.hidden = s === 'transition'; asc.hidden = s !== 'run' && s !== 'bike';
     };
     sp.onchange = refresh; refresh();
@@ -67,7 +68,7 @@ export function mountManual(host) {
     msg.textContent = '';
     const L = legs.map(l => {
       const sport = l.sp.value, d = parseFloat(l.dist.value) || 0;
-      return { sport, env: ENVS[sport] ? l.ty.value : null, elapsed: parseDur(l.dur.value), dist: sport === 'swim' ? d : d * 1000, hr: +l.hr.value || null, asc: +l.asc.value || null };
+      return { sport, env: ENVS[sport] ? l.ty.value : null, elapsed: parseDur(l.dur.value), dist: sport === 'swim' ? d : U.fromD(d), hr: +l.hr.value || null, asc: +l.asc.value ? Math.round(U.imperial() ? +l.asc.value * U.FT : +l.asc.value) : null };
     });
     if (L.some(l => l.elapsed <= 0)) { msg.textContent = 'Give every leg a time, e.g. 45:00 or 1:05:30.'; return; }
     if (!date.value) { msg.textContent = 'Pick a date.'; return; }

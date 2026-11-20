@@ -1,15 +1,16 @@
 // Training log: training status, suggested thresholds (FTP, threshold heart rate), threshold pace and race predictions.
-import { sb, state, toast } from './main.js?v=1795184861';
-import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795184861';
-import { applyChange, dayKey, todayKey } from './athlete.js?v=1795184861';
-import { DEFAULTS } from './defaults.js?v=1795184861';
+import { sb, state, toast } from './main.js?v=1795207239';
+import { thresholds, suggestions, predictionHistory, trainingStatus, RACES } from './perf.js?v=1795207239';
+import { applyChange, dayKey, todayKey } from './athlete.js?v=1795207239';
+import { DEFAULTS } from './defaults.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const DAY = 864e5, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const now = new Date(), TODAY = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 const fmtT = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
-const pace = mps => { const s = 1000 / mps; return `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')} /km`; };
+const pace = mps => `${U.mmss(U.paceMs(mps))} ${U.pU()}`;
 const fmtD = t => { const d = new Date(t); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
 let race = 'Half marathon', span = 365;
 

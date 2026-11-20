@@ -1,7 +1,8 @@
 // Training log → Activities: search and filter every activity, with totals for what matches.
 // Words in the search box must all match (names, descriptions, private notes, type, race distance, gear, month and year).
-import { state, raceFlag } from './main.js?v=1795184861';
-import { envLabel } from './process.js?v=1795184861';
+import { state, raceFlag } from './main.js?v=1795207239';
+import { envLabel } from './process.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -33,7 +34,7 @@ function matches(list) {
   const now = Date.now(), y0 = Date.UTC(new Date().getFullYear(), 0, 1);
   const from = F.period === 'year' ? y0 : F.period === '12m' ? now - 365 * DAY : F.period === 'custom' && F.from ? Date.parse(F.from) : null;
   const to = F.period === 'custom' && F.to ? Date.parse(F.to) + DAY : null;
-  const min = F.min === '' ? null : +F.min * 1000, max = F.max === '' ? null : +F.max * 1000;
+  const min = F.min === '' ? null : U.fromD(F.min), max = F.max === '' ? null : U.fromD(F.max);
   return list.filter(a => {
     if (F.sport !== 'all' && a.sport !== F.sport) return false;
     if (F.race && !a.is_race) return false;
@@ -51,9 +52,9 @@ const SORTS = { date: a => Date.parse(a.start_time), name: a => (a.name || '').t
 
 function speedText(a) {
   const d = +a.distance_m, t = timeOf(a); if (!(d > 0 && t > 0) || a.sport === 'multi') return '–';
-  if (a.sport === 'run') { const p = t / (d / 1000); return `${Math.floor(p / 60)}:${String(Math.round(p % 60)).padStart(2, '0')} /km`; }
-  if (a.sport === 'swim') { const p = t / (d / 100); return `${Math.floor(p / 60)}:${String(Math.round(p % 60)).padStart(2, '0')} /100 m`; }
-  return (d / t * 3.6).toFixed(1) + ' km/h';
+  if (a.sport === 'run') return U.pace(t, d);
+  if (a.sport === 'swim') return U.swimPace(t, d);
+  return U.speed(t, d);
 }
 
 export function mountActivities(host) {
@@ -68,7 +69,7 @@ export function mountActivities(host) {
   const from = el('input', { type: 'date', value: F.from }), to = el('input', { type: 'date', value: F.to });
   const dates = el('span', { className: 'actdates' }, from, ' – ', to);
   const min = el('input', { type: 'number', min: 0, step: 'any', placeholder: 'min', value: F.min, className: 'actkm' }), max = el('input', { type: 'number', min: 0, step: 'any', placeholder: 'max', value: F.max, className: 'actkm' });
-  const filters = el('div', { className: 'actfilters' }, el('label', {}, 'When ', period), dates, el('label', {}, 'Distance ', min, ' – ', max, ' km'));
+  const filters = el('div', { className: 'actfilters' }, el('label', {}, 'When ', period), dates, el('label', {}, 'Distance ', min, ' – ', max, ' ' + U.dU()));
   const clear = el('button', { className: 'linkbtn', type: 'button', textContent: 'Clear filters', onclick: () => { Object.assign(F, { q: '', sport: 'all', race: false, period: 'any', from: '', to: '', min: '', max: '', shown: 50 }); mountActivities(host); } });
   const summary = el('div', { className: 'actsum' }), list = el('div', { className: 'actlist' });
   card.append(q, sportRow, filters, el('div', { className: 'actsumrow' }, summary, clear), list);
@@ -87,7 +88,7 @@ export function mountActivities(host) {
     const key = SORTS[F.sort]; res.sort((a, b) => { const x = key(a), y = key(b); return (x > y ? 1 : x < y ? -1 : 0) * F.dir; });
     const dist = res.reduce((p, a) => p + (+a.distance_m || 0), 0), time = res.reduce((p, a) => p + timeOf(a), 0), elev = res.reduce((p, a) => p + (+a.ascent_m || 0), 0);
     summary.replaceChildren(el('b', { textContent: `${res.length.toLocaleString()} ${res.length === 1 ? 'activity' : 'activities'}` }),
-      res.length ? ` · ${(dist / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} km · ${fmtHM(time)} · ${Math.round(elev).toLocaleString()} m` : '');
+      res.length ? ` · ${U.distBig(dist)} · ${fmtHM(time)} · ${U.elev(elev)}` : '');
     list.replaceChildren();
     if (!res.length) { list.append(el('div', { className: 'note', textContent: state.activities.length ? 'No activities match. Try fewer words or clear the filters.' : 'No activities yet. Upload some on the Upload tab.' })); return; }
     const tbl = el('table', { className: 'laps acttbl' }), hr = tbl.insertRow();
@@ -101,7 +102,7 @@ export function mountActivities(host) {
       r.insertCell().textContent = `${d.getUTCDate()} ${MON[d.getUTCMonth()].slice(0, 3)} ${d.getUTCFullYear()}`;
       const nm = r.insertCell(); nm.append(el('span', { className: 'dot', style: `background:${SPC[a.sport] || 'var(--trans)'}` }), el('a', { href: '#a/' + a.id, textContent: a.name }));
       if (a.is_race) nm.append(' ', raceFlag(13));
-      [typeOf(a), `${(+a.distance_m / 1000).toFixed(2)} km`, fmtDur(timeOf(a)), speedText(a), a.ascent_m ? `${Math.round(a.ascent_m)} m` : '–'].forEach(v => { r.insertCell().textContent = v; });
+      [typeOf(a), U.dist(a.distance_m), fmtDur(timeOf(a)), speedText(a), a.ascent_m ? U.elev(a.ascent_m) : '–'].forEach(v => { r.insertCell().textContent = v; });
     });
     list.append(el('div', { className: 'acttblwrap' }, tbl));
     if (res.length > F.shown) list.append(el('button', { className: 'btn more', textContent: `Show more (${(res.length - F.shown).toLocaleString()} left)`, onclick: () => { F.shown += 100; paint(); } }));

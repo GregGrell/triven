@@ -1,5 +1,6 @@
 // Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
-import { srcText } from './athlete.js?v=1795184861';
+import { srcText } from './athlete.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -21,7 +22,7 @@ R.forEach(r=>{const run=r.sport==='running';
   r.spm=run&&r.cad>20?r.cad*2:null; r.pw=run&&r.power>0?r.power:null; r.gct=run&&r.gct>0?r.gct:null;
   r.bal=run&&r.gctBal>0&&(r.t-S[r.seg].start)>=15?r.gctBal:null; r.vo=run&&r.vo>0?r.vo/10:null; r.kmh=r.speed!=null?r.speed*3.6:null;});
 R.forEach((r,i)=>{const w=R.slice(Math.max(0,i-2),i+3).filter(x=>x.seg===r.seg&&x.kmh!=null);r.kmhS=w.length?d3.mean(w,x=>x.kmh):null;
-  r.pace=r.sport==='running'&&r.kmhS>5?60/r.kmhS:null;
+  r.pace=r.sport==='running'&&r.kmhS>5?60/U.kmhTo(r.kmhS):null; r.spdU=U.kmhTo(r.kmhS); r.altU=r.alt!=null?U.toE(r.alt):null;
   r.brk=i>0&&(r.t-R[i-1].t>10||r.seg!==R[i-1].seg);});
 // balance smoothed over ~10 s (time-based)
 R.forEach((r,i)=>{ if(r.bal==null){r.balS=null;return} let s=0,n=0; for(let j=i;j>=0&&R[j].t>=r.t-5;j--){if(R[j].seg===r.seg&&R[j].bal!=null){s+=R[j].bal;n++}} for(let j=i+1;j<R.length&&R[j].t<=r.t+5;j++){if(R[j].seg===r.seg&&R[j].bal!=null){s+=R[j].bal;n++}} r.balS=s/n;});
@@ -29,7 +30,7 @@ R.forEach((r,i)=>{ if(r.bal==null){r.balS=null;return} let s=0,n=0; for(let j=i;
 // ---------- formatting ----------
 const fmtDur=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`};
 const fmtPace=v=>{if(v==null)return '–';const m=Math.floor(v),s=Math.round((v-m)*60);return s===60?`${m+1}:00`:`${m}:${String(s).padStart(2,'0')}`};
-const paceOf=ms=>ms>0?1000/ms/60:null, km=m=>(m/1000).toFixed(2);
+const paceOf=ms=>ms>0?U.perUnit()/ms/60:null, km=m=>U.toD(m).toFixed(2);   // pace in min per km or mile
 const colorOf=sp=>css(sp==='running'?'--run':sp==='cycling'?'--bike':sp==='swimming'?'--swim':'--trans');
 const balTxt=v=>`${v.toFixed(1)}% L / ${(100-v).toFixed(1)}% R`;
 const t0=new Date(raw.meta.start), local=new Date(t0.getTime()+raw.meta.utcOffsetH*3600e3);
@@ -94,33 +95,33 @@ function computeBike(){
 // ---------- selection ----------
 let sel={kind:'all'};
 const range=()=>sel.kind==='seg'?[S[sel.i].start,S[sel.i].start+S[sel.i].elapsed]:sel.kind==='lap'?[L[sel.i].start,L[sel.i].start+L[sel.i].elapsed]:sel.kind==='span'?[sel.t0,sel.t1]:[0,tEnd];
-const selSport=()=>sel.kind==='seg'?S[sel.i].sport:sel.kind==='lap'?L[sel.i].sport:sel.kind==='span'?S[sel.seg].sport:'multi';
+const selSport=()=>sel.kind==='seg'?S[sel.i].sport:sel.kind==='lap'?L[sel.i].sport:sel.kind==='span'?S[sel.seg].sport:S.every(s=>s.sport===S[0].sport)?S[0].sport:'multi';   // a single-sport activity charts as that sport
 const MULTI=S.length>1, WHOLE=MULTI?'race':({running:'run',cycling:'ride',swimming:'swim'}[S[0].sport]||'activity');
 const selLabel=()=>sel.kind==='all'?'the whole '+WHOLE:sel.kind==='seg'?NAMES[sel.i]:sel.kind==='lap'?'lap '+(sel.i+1):'this flagged stretch';
 
 // swim pace per 100 m, on time spent swimming when the watch recorded lengths (rest excluded)
 const p100=(secs,dist)=>{if(!(dist>0)||!(secs>0))return '–';const s=Math.round(secs/dist*100);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
-function swimItems(o,isAll){const t=o.swimTime||o.timer||o.elapsed;const it=[[fmtDur(t),o.swimTime?'Swim time':'Time'],[o.dist<10000?Math.round(o.dist).toLocaleString()+' m':km(o.dist)+' km','Distance'],[p100(t,o.dist)+' /100 m','Avg pace'+(o.swimTime?' (swimming)':'')]];
+function swimItems(o,isAll){const t=o.swimTime||o.timer||o.elapsed;const it=[[fmtDur(t),o.swimTime?'Swim time':'Time'],[o.dist<10000?Math.round(o.dist).toLocaleString()+' m':km(o.dist)+' '+U.dU(),'Distance'],[p100(t,o.dist)+' /100 m','Avg pace'+(o.swimTime?' (swimming)':'')]];
   if(o.swimTime&&o.elapsed-o.swimTime>5) it.push([fmtDur(o.elapsed-o.swimTime),'Rest · total '+fmtDur(o.elapsed)]);
   if(o.avgHr) it.push([o.avgHr+' bpm','Avg HR'+(o.maxHr?' · max '+o.maxHr:'')]);
   if(o.swolf) it.push([Math.round(o.swolf),'Avg SWOLF']);
   return it.slice(0,6)}
 function statItems(){
   if(sel.kind==='all'&&!MULTI&&S[0].sport==='swimming') return swimItems({...S[0],avgHr:total.avgHr,maxHr:total.maxHr},true);
-  if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[(total.dist/1000).toFixed(2)+' km','Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:[(total.dist/total.elapsed*3.6).toFixed(1)+' km/h','Avg speed']),
-    ...(total.avgHr?[[total.avgHr+' bpm','Avg HR'+(total.maxHr?' · max '+total.maxHr:'')]]:[]),...(total.ascent||R.length?[[(total.ascent||0)+' m','Elevation gain'+(R.length?' (watch)':'')]]:[]),...(total.cal?[[total.cal+' kcal','Energy']]:[])];
+  if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[U.dist(total.dist),'Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:(S.every(s=>s.sport==='running')?[fmtPace(paceOf(total.dist/total.elapsed))+' '+U.pU(),'Avg pace']:[U.speed(total.elapsed,total.dist),'Avg speed'])),
+    ...(total.avgHr?[[total.avgHr+' bpm','Avg HR'+(total.maxHr?' · max '+total.maxHr:'')]]:[]),...(total.ascent||R.length?[[U.elev(total.ascent||0),'Elevation gain'+(R.length?' (watch)':'')]]:[]),...(total.cal?[[total.cal+' kcal','Energy']]:[])];
   if(sel.kind==='span'){const [a,b]=range();const rs=R.filter(r=>r.t>=a&&r.t<=b);
-    return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/(((d=>d.length>1?(d[d.length-1].dist-d[0].dist)/((d[d.length-1].t-d[0].t)||1):d3.mean(rs,r=>r.kmh)/3.6)(rs.filter(r=>r.dist!=null)))*3.6))+' /km','Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
+    return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/U.kmhTo((((d=>d.length>1?(d[d.length-1].dist-d[0].dist)/((d[d.length-1].t-d[0].t)||1):d3.mean(rs,r=>r.kmh)/3.6)(rs.filter(r=>r.dist!=null)))*3.6)))+' '+U.pU(),'Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
   const o=sel.kind==='seg'?S[sel.i]:L[sel.i], sp=o.sport;
   if(sp==='swimming'&&sel.kind==='seg') return swimItems(o);
   if(sp==='swimming') return [[fmtDur(o.elapsed),'Time'],[Math.round(o.dist)+' m','Distance'],[p100(o.elapsed,o.dist)+' /100 m','Pace'],...(o.avgHr?[[o.avgHr+' bpm','Avg HR']]:[])];
-  const it=[[fmtDur(o.elapsed),'Time'],[sp==='transition'?Math.round(o.dist)+' m':km(o.dist)+' km','Distance']];
-  it.push(sp==='running'?[fmtPace(paceOf(o.avgSpeed))+' /km','Avg pace']:[(o.avgSpeed*3.6).toFixed(1)+' km/h','Avg speed']);
+  const it=[[fmtDur(o.elapsed),'Time'],[sp==='transition'?Math.round(o.dist)+' m':km(o.dist)+' '+U.dU(),'Distance']];
+  it.push(sp==='running'?[fmtPace(paceOf(o.avgSpeed))+' '+U.pU(),'Avg pace']:[U.speedMs(o.avgSpeed),'Avg speed']);
   it.push([o.avgHr+' bpm','Avg HR'+(o.maxHr?' · max '+o.maxHr:'')]);
   if(sp==='running'&&o.avgPower) it.push([o.avgPower+' W','Avg run power']);
   if(sp==='running'&&o.avgCad) it.push([o.avgCad*2+' spm','Cadence']);
   if(sp==='cycling'&&BIKE) it.push([Math.round(BIKE.avgP)+' W','Avg power'+(BIKE.estimated?' (est.)':'')]);
-  if(o.ascent!=null) it.push([o.ascent+' m','Elevation gain']);
+  if(o.ascent!=null) it.push([U.elev(o.ascent),'Elevation gain']);
   return it.slice(0,6);
 }
 function renderStats(){const el=document.getElementById('stats');el.replaceChildren();statItems().forEach(([v,l])=>{const d=document.createElement('div');d.className='stat';const b=document.createElement('b');b.textContent=v;const s=document.createElement('small');s.textContent=l;d.append(b,s);el.append(d)})}
@@ -133,7 +134,7 @@ function renderSegbar(){
   S.forEach((s,i)=>{const d=document.createElement('div');d.className='seg'+(s.sport==='transition'?' trans':'')+(sel.kind==='seg'&&sel.i===i?' sel':'');
     d.style.flex=s.sport==='transition'?'0 0 22px':String(s.elapsed);d.style.background=colorOf(s.sport);d.title=`${NAMES[i]} · ${fmtDur(s.elapsed)}`;
     if(s.sport!=='transition'){const n=document.createElement('div');n.className='n';n.textContent=`${NAMES[i]}  ${fmtDur(s.elapsed)}`;
-      const v=document.createElement('div');v.className='v';v.textContent=s.sport==='running'?`${km(s.dist)} km · ${fmtPace(paceOf(s.avgSpeed))}/km`:`${km(s.dist)} km · ${(s.avgSpeed*3.6).toFixed(1)} km/h`;d.append(n,v);}
+      const v=document.createElement('div');v.className='v';v.textContent=s.sport==='running'?`${km(s.dist)} ${U.dU()} · ${fmtPace(paceOf(s.avgSpeed))}${U.pU()}`:`${km(s.dist)} ${U.dU()} · ${U.speedMs(s.avgSpeed)}`;d.append(n,v);}
     d.onclick=()=>select(sel.kind==='seg'&&sel.i===i?{kind:'all'}:{kind:'seg',i});bar.append(d);});
   const row=document.getElementById('selrow');row.replaceChildren();
   const mk=(txt,on,fn)=>{const b=document.createElement('button');b.className='chip';b.textContent=txt;b.setAttribute('aria-pressed',on);b.onclick=fn;row.append(b)};
@@ -214,10 +215,10 @@ function renderSvgMap(){
   const st=mapProj(pts[0]);
   gm.append('circle').attr('cx',st[0]).attr('cy',st[1]).attr('r',6).attr('fill',css('--surface-1')).attr('stroke',css('--text-primary')).attr('stroke-width',2);
   gm.append('text').attr('x',st[0]+10).attr('y',st[1]-8).text('Start / finish').attr('font-size',11).attr('fill',css('--text-secondary'));
-  const kmPx=k*(1000/111320), sbm=kmPx>W/2?100:1000, sbPx=kmPx*sbm/1000;
+  const kmPx=k*(1000/111320), IMP=U.imperial(), big=IMP?U.MI:1000, small=IMP?152.4:100, sbm=kmPx*big/1000>W/2?small:big, sbPx=kmPx*sbm/1000;
   const sb=svg.append('g').attr('transform',`translate(${W-pad-sbPx},${H-pad})`);
   sb.append('line').attr('x2',sbPx).attr('stroke',css('--text-secondary')).attr('stroke-width',2);
-  sb.append('text').attr('x',sbPx/2).attr('y',-6).attr('text-anchor','middle').attr('font-size',11).attr('fill',css('--text-secondary')).text(sbm===1000?'1 km':'100 m');
+  sb.append('text').attr('x',sbPx/2).attr('y',-6).attr('text-anchor','middle').attr('font-size',11).attr('fill',css('--text-secondary')).text(sbm===big?(IMP?'1 mi':'1 km'):(IMP?'500 ft':'100 m'));
   svg.append('text').attr('x',pad).attr('y',pad+6).attr('font-size',12).attr('font-weight',600).attr('fill',css('--text-secondary')).text('N ↑');
   mapMarker=svg.append('circle').attr('r',7).attr('fill',css('--cursor')).attr('stroke',css('--surface-1')).attr('stroke-width',2.5).style('display','none');
   moveCursorMap=r=>{const [x,y]=mapProj(r);mapMarker.attr('cx',x).attr('cy',y).style('display',null)};hideCursorMap=()=>mapMarker&&mapMarker.style('display','none');
@@ -265,7 +266,7 @@ function renderFtp(){
     const unreliable=BIKE.estimated&&c.w<60; if(c.p==null||unreliable){td.className='na';td.textContent=c.p==null?'—':'n/a'} else td.textContent=Math.round(c.p);});
   const cap=document.createElement('div');cap.className='note';cap.style.marginTop='6px';
   cap.textContent=BIKE.has?'Best power for each duration (W). Method B is the headline FTP.':
-   `Best power for each duration (W, estimated). No power meter on this ride, so power is modelled from speed, gradient, weight (${MASS()} kg rider${raw.meta.weight?', from your watch that day':''} + ${CFG.bikeMass} kg bike) and riding position, assuming no wind. Under a minute is shown as n/a because speed data is too noisy at that length. Method A is the headline: this ride was steady and below threshold, so Method B gives only a lower bound. A ride with a power meter will replace the estimate.`;
+   `Best power for each duration (W, estimated). No power meter on this ride, so power is modelled from speed, gradient, weight (${U.toW(MASS())} ${U.wU()} rider${raw.meta.weight?', from your watch that day':''} + ${U.toW(CFG.bikeMass)} ${U.wU()} bike) and riding position, assuming no wind. Under a minute is shown as n/a because speed data is too noisy at that length. Method A is the headline: this ride was steady and below threshold, so Method B gives only a lower bound. A ride with a power meter will replace the estimate.`;
   el.append(t,cap);
 }
 
@@ -298,8 +299,8 @@ function renderBal(){
 // ---------- charts ----------
 const charts=[]; let xScale;
 function chartDefs(){
-  const sp=selSport(), d=[{key:'alt',title:'Elevation',unit:'m',fmt:v=>v.toFixed(0),area:true}];
-  d.push(sp==='running'?{key:'pace',title:'Pace',unit:'/km',fmt:fmtPace,invert:true,tick:fmtPace}:{key:'kmhS',title:'Speed',unit:'km/h',fmt:v=>v.toFixed(1)});
+  const sp=selSport(), d=[{key:'altU',title:'Elevation',unit:U.eU(),fmt:v=>v.toFixed(0),area:true}];
+  d.push(sp==='running'?{key:'pace',title:'Pace',unit:U.pU(),fmt:fmtPace,invert:true,tick:fmtPace}:{key:'spdU',title:'Speed',unit:U.sU(),fmt:v=>v.toFixed(1)});
   d.push({key:'hr',title:'Heart rate',unit:'bpm',fmt:v=>v.toFixed(0),hr:true});
   if(sp==='multi'||sp==='cycling') d.push({key:'bpw',title:'Bike power',note:BIKE&&BIKE.estimated?'estimated from speed · 30 s avg':'30 s avg',unit:'W',fmt:v=>v.toFixed(0),dashed:BIKE&&BIKE.estimated});
   if(sp==='multi'||sp==='running'){
@@ -314,8 +315,8 @@ function chartDefs(){
 function renderChartSel(){
   const bar=document.getElementById('chartsel');if(!bar)return;bar.replaceChildren();bar.hidden=sel.kind==='all';if(sel.kind==='all')return;
   const [a,b]=range();let txt;
-  if(sel.kind==='lap'){const l=L[sel.i];txt=`Lap ${sel.i+1} · ${NAMES[segOf(l.start+.5)]} · ${l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' km'} · ${fmtDur(l.elapsed)}`}
-  else if(sel.kind==='seg'){const s=S[sel.i];txt=`${NAMES[sel.i]} · ${s.dist<100?Math.round(s.dist||0)+' m':km(s.dist)+' km'} · ${fmtDur(s.elapsed)}`}
+  if(sel.kind==='lap'){const l=L[sel.i];txt=`Lap ${sel.i+1} · ${NAMES[segOf(l.start+.5)]} · ${l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' '+U.dU()} · ${fmtDur(l.elapsed)}`}
+  else if(sel.kind==='seg'){const s=S[sel.i];txt=`${NAMES[sel.i]} · ${s.dist<100?Math.round(s.dist||0)+' m':km(s.dist)+' '+U.dU()} · ${fmtDur(s.elapsed)}`}
   else txt=`Flagged stretch ${fmtDur(a)}–${fmtDur(b)}`;
   const dot=document.createElement('span');dot.className='dot';dot.style.background=colorOf(selSport()==='multi'?'transition':selSport());
   const lab=document.createElement('span');lab.append('Charts for ');const bb=document.createElement('b');bb.textContent=txt;lab.append(bb);
@@ -334,7 +335,7 @@ function renderCharts(){
   const spanSpeed=()=>{const d=inR.filter(r=>r.dist!=null);return d.length>1&&b>a?(d[d.length-1].dist-d[0].dist)/(d[d.length-1].t-d[0].t||b-a):null};
   const avgMs=selObj&&selObj.avgSpeed>0?+selObj.avgSpeed:selObj&&selObj.dist>0&&selObj.elapsed>0?selObj.dist/selObj.elapsed:spanSpeed();
   const avgOf=d=>{
-    if((d.key==='pace'||d.key==='kmhS')&&avgMs>0) return d.key==='pace'?fmtPace(60/(avgMs*3.6)):d.fmt(avgMs*3.6);
+    if((d.key==='pace'||d.key==='spdU')&&avgMs>0) return d.key==='pace'?fmtPace(60/U.kmhTo(avgMs*3.6)):d.fmt(U.kmhTo(avgMs*3.6));
     if(d.key==='hr'&&selObj&&selObj.avgHr) return d.fmt(+selObj.avgHr);
     if((d.key==='pw'||d.key==='bpw')&&selObj&&selObj.avgPower>0&&!(d.key==='bpw'&&!(BIKE&&BIKE.has))) return d.fmt(+selObj.avgPower);
     const v=inR.map(r=>r[d.key]).filter(v=>v!=null);return v.length?d.fmt(d3.mean(v)):'–'};
@@ -394,8 +395,8 @@ function setCursor(r){
   const [a,b]=range(),inR=r.t>=a&&r.t<=b;
   charts.forEach(c=>{const v=r[c.d.key];if(inR){c.hair.attr('x1',xScale(r.t)).attr('x2',xScale(r.t)).style('display',null);if(v!=null)c.dot.attr('cx',xScale(r.t)).attr('cy',c.y(v)).style('display',null);else c.dot.style('display','none')}
     c.cur.firstChild.textContent=v!=null?c.d.fmt(v)+' ':'– ';});
-  const items=[[NAMES[r.seg],''],['Time',fmtDur(r.t)],['Distance',km(r.dist)+' km'],['HR',r.hr!=null?`${r.hr} bpm · Z${zoneOf(r.hr,r.sport)+1}`:'–'],
-    r.sport==='running'?['Pace',fmtPace(r.pace)+' /km']:['Speed',r.kmhS!=null?r.kmhS.toFixed(1)+' km/h':'–']];
+  const items=[[NAMES[r.seg],''],['Time',fmtDur(r.t)],['Distance',km(r.dist)+' '+U.dU()],['HR',r.hr!=null?`${r.hr} bpm · Z${zoneOf(r.hr,r.sport)+1}`:'–'],
+    r.sport==='running'?['Pace',fmtPace(r.pace)+' '+U.pU()]:['Speed',r.spdU!=null?r.spdU.toFixed(1)+' '+U.sU():'–']];
   if(r.balS!=null) items.push(['GCT balance',balTxt(r.balS)]);
   ro.replaceChildren();items.forEach(([k,v])=>{const s=document.createElement('span');
     if(!v){const dt=document.createElement('span');dt.className='dot';dt.style.background=colorOf(r.sport);const b=document.createElement('b');b.textContent=k;s.append(dt,b)}
@@ -406,8 +407,8 @@ function renderLaps(){
   const t=document.getElementById('laps');t.replaceChildren();const hr=t.insertRow();
   ['#','Section','Time','Distance','Pace / speed','Avg HR','Power','Gain'].forEach(h=>{const th=document.createElement('th');th.textContent=h;hr.append(th)});
   L.forEach((l,i)=>{const tr=t.insertRow();tr.className='lap'+(sel.kind==='lap'&&sel.i===i?' sel':'');
-    [String(i+1),NAMES[segOf(l.start+.5)],fmtDur(l.elapsed),l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' km',
-     l.sport==='running'?fmtPace(paceOf(l.avgSpeed))+' /km':l.sport==='cycling'?(l.avgSpeed*3.6).toFixed(1)+' km/h':'–',l.avgHr??'–',l.avgPower?l.avgPower+' W':'–',l.ascent!=null?l.ascent+' m':'–']
+    [String(i+1),NAMES[segOf(l.start+.5)],fmtDur(l.elapsed),l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' '+U.dU(),
+     l.sport==='running'?fmtPace(paceOf(l.avgSpeed))+' '+U.pU():l.sport==='cycling'?U.speedMs(l.avgSpeed):'–',l.avgHr??'–',l.avgPower?l.avgPower+' W':'–',l.ascent!=null?U.elev(l.ascent):'–']
     .forEach((c,j)=>{const td=tr.insertCell();if(j===1){const d=document.createElement('span');d.className='dot';d.style.background=colorOf(l.sport);td.append(d)}td.append(document.createTextNode(c))});
     tr.onclick=()=>{const off=sel.kind==='lap'&&sel.i===i;select(off?{kind:'all'}:{kind:'lap',i});if(!off)document.getElementById('chartscard')?.scrollIntoView({behavior:'smooth',block:'start'})};});
 }

@@ -1,8 +1,9 @@
 // Trim an activity's start or end (e.g. forgot to stop the watch and drove home). Re-processes the original file, so totals, laps and bests are exact.
-import { sb, state, toast, loadAll, enrich, writeProcessed, reprocess } from './main.js?v=1795184861';
-import { decodeFit } from './fit.js?v=1795184861';
-import { processFit, trimMessages, rows } from './process.js?v=1795184861';
-import { openModal } from './edit.js?v=1795184861';
+import { sb, state, toast, loadAll, enrich, writeProcessed, reprocess } from './main.js?v=1795207239';
+import { decodeFit } from './fit.js?v=1795207239';
+import { processFit, trimMessages, rows } from './process.js?v=1795207239';
+import { openModal } from './edit.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const fmtDur = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -25,7 +26,7 @@ export function openTrim(data, onDone) {
     const sliders = el('div', { className: 'dual' }, a0, a1);
     const quick = el('div', { className: 'segrow' });
     driving.forEach(d => {
-      const txt = d.atStart ? `Cut the drive at the start (${d.maxKmh} km/h)` : `Cut from ${fmtDur(d.t0)} (${d.maxKmh} km/h${d.km ? `, ${d.km} km` : ''})`;
+      const txt = d.atStart ? `Cut the drive at the start (${Math.round(U.kmhTo(d.maxKmh))} ${U.sU()})` : `Cut from ${fmtDur(d.t0)} (${Math.round(U.kmhTo(d.maxKmh))} ${U.sU()}${d.km ? `, ${U.dist(d.km * 1000)}` : ''})`;
       quick.append(el('button', { className: 'chip', type: 'button', textContent: txt, onclick: () => { if (d.atStart) a0.value = Math.min(total, d.t1 + 5); else a1.value = Math.max(0, d.t0 - 5); upd(); } }));
     });
     quick.append(el('button', { className: 'chip', type: 'button', textContent: 'Reset', onclick: () => { a0.value = 0; a1.value = Math.round(total); upd(); } }));
@@ -37,7 +38,7 @@ export function openTrim(data, onDone) {
 
     // draw speed trace and route once; selection overlays update
     const x = t => m.l + (W - m.l - m.r) * t / total;
-    const sp = R.map(r => r.speed == null ? null : r.speed * 3.6), maxS = Math.max(10, ...sp.filter(v => v != null));
+    const sp = R.map(r => r.speed == null ? null : U.kmhTo(r.speed * 3.6)), maxS = Math.max(10, ...sp.filter(v => v != null));
     const y = v => H - m.b - (H - m.t - m.b) * v / maxS;
     const secOf = t => { for (let i = sections.length - 1; i >= 0; i--) if (t >= sections[i].start_offset_s - .5) return i; return 0; };
     const NS = 'http://www.w3.org/2000/svg', mk = (tag, at, parent) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); parent.append(e); return e; };
@@ -46,7 +47,7 @@ export function openTrim(data, onDone) {
     R.forEach((r, i) => { if (sp[i] == null) return; const s = secOf(r.t); if (s !== prevSec) { if (path) mk('path', { d: path, fill: 'none', stroke: css(COL[sections[prevSec].sport] || '--trans'), 'stroke-width': 1.5 }, svg); path = `M${x(r.t)},${y(sp[i])}`; prevSec = s; } else path += `L${x(r.t)},${y(sp[i])}`; });
     if (path) mk('path', { d: path, fill: 'none', stroke: css(COL[sections[prevSec].sport] || '--trans'), 'stroke-width': 1.5 }, svg);
     [0, Math.round(maxS / 2), Math.round(maxS)].forEach(v => mk('text', { x: m.l - 4, y: y(v) + 3, 'text-anchor': 'end', 'font-size': 10, fill: css('--text-muted') }, svg).textContent = v);
-    mk('text', { x: m.l, y: H - 4, 'font-size': 10, fill: css('--text-muted') }, svg).textContent = 'speed km/h over time';
+    mk('text', { x: m.l, y: H - 4, 'font-size': 10, fill: css('--text-muted') }, svg).textContent = `speed ${U.sU()} over time`;
     const shadeL = mk('rect', { x: m.l, y: m.t, height: H - m.t - m.b, fill: css('--bg'), opacity: .75 }, svg), shadeR = mk('rect', { y: m.t, height: H - m.t - m.b, fill: css('--bg'), opacity: .75 }, svg);
     const pts = R.filter(r => r.lat != null);
     let proj = null;
@@ -63,8 +64,8 @@ export function openTrim(data, onDone) {
       shadeL.setAttribute('width', Math.max(0, x(s) - m.l)); shadeR.setAttribute('x', x(e)); shadeR.setAttribute('width', Math.max(0, W - m.r - x(e)));
       const inR = R.filter(r => r.t >= s && r.t <= e && r.dist != null), dist = inR.length ? inR[inR.length - 1].dist - inR[0].dist : 0;
       const orig = R.filter(r => r.dist != null), od = orig.length ? orig[orig.length - 1].dist - orig[0].dist : 0;
-      lab.replaceChildren(el('span', {}, 'Keep ', el('b', { textContent: `${fmtDur(s)} → ${fmtDur(e)}` })), el('span', {}, ' · ', el('b', { textContent: `${(dist / 1000).toFixed(2)} km` }), ` in ${fmtDur(e - s)}`),
-        el('span', { className: 'muted', textContent: ` (cutting ${((od - dist) / 1000).toFixed(2)} km, ${fmtDur(total - (e - s))})` }));
+      lab.replaceChildren(el('span', {}, 'Keep ', el('b', { textContent: `${fmtDur(s)} → ${fmtDur(e)}` })), el('span', {}, ' · ', el('b', { textContent: U.dist(dist) }), ` in ${fmtDur(e - s)}`),
+        el('span', { className: 'muted', textContent: ` (cutting ${U.dist(od - dist)}, ${fmtDur(total - (e - s))})` }));
       if (proj) { const line = arr => arr.map((p, i) => (i ? 'L' : 'M') + proj(p).join(',')).join('');
         kept.setAttribute('d', line(pts.filter(p => p.t >= s && p.t <= e))); cut.setAttribute('d', line(pts.filter(p => p.t < s)) + line(pts.filter(p => p.t > e))); }
       save.disabled = s <= 0 && e >= Math.round(total);
@@ -76,7 +77,7 @@ export function openTrim(data, onDone) {
       save.disabled = true; msg.textContent = win ? 'Trimming…' : 'Restoring…';
       try {
         const n = await reprocess({ act, sections }, { trim: win ? [win[0] + (act.summary?.trim?.from || 0), win[1] + (act.summary?.trim?.from || 0)] : 'none' });
-        close(); toast(win ? `Trimmed to ${(n.distance_m / 1000).toFixed(2)} km` : 'Original restored'); onDone && onDone();
+        close(); toast(win ? `Trimmed to ${U.dist(n.distance_m)}` : 'Original restored'); onDone && onDone();
       } catch (e) { msg.textContent = 'Could not trim: ' + (e.message || e); save.disabled = false; }
     }
   });

@@ -1,8 +1,9 @@
 // Relays: separate activities from people who follow each other, shown as one race.
 // Each person's activity stays theirs (totals, bests, load); the relay is a shared view on top.
-import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795184861';
-import { drawRouteMap } from './mapcanvas.js?v=1795184861';
-import { openModal } from './edit.js?v=1795184861';
+import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795207239';
+import { drawRouteMap } from './mapcanvas.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
+import { openModal } from './edit.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -66,7 +67,7 @@ export function relayCard(relay, observe) {
   const race = L.some(l => l.is_race);
   const c = el('div', { className: 'card fcard relaycard' }, head, el('a', { href: '#r/' + relay.id, className: 'ftitle' }, relay.name, race ? ' ' : null, race ? raceFlag(18) : null));
   const stats = el('div', { className: 'fstats' }), stat = (v, l) => stats.append(el('div', {}, el('b', { textContent: v }), el('small', { textContent: l })));
-  stat((tl.distance / 1000).toFixed(2) + ' km', 'Distance'); stat(fmtDur(tl.total), 'Time'); stat(String(L.length), 'Legs');
+  stat(U.dist(tl.distance), 'Distance'); stat(fmtDur(tl.total), 'Time'); stat(String(L.length), 'Legs');
   c.append(stats, strip(tl, false));
   const legsBox = el('div', { className: 'rlegs' });
   L.forEach(l => legsBox.append(el(l.activity_id ? 'a' : 'div', { className: 'rleg', href: l.activity_id ? '#a/' + l.activity_id : undefined },
@@ -114,7 +115,7 @@ export async function mountRelay(id) {
   card.append(el('div', { className: 'acthead' }, tags, tools), title,
     el('div', { className: 'sub', textContent: L.length ? `${names(L)} · started ${localTime(L[0].start_time, L[0].utc_offset_min)}` : 'Waiting for the other legs' }));
   const stats = el('div', { className: 'stats' }), stat = (val, l) => stats.append(el('div', { className: 'stat' }, el('b', { textContent: val }), el('small', { textContent: l })));
-  stat(fmtDur(tl.total), 'Total time'); stat((tl.distance / 1000).toFixed(2) + ' km', 'Distance'); stat(String(L.length), 'Legs');
+  stat(fmtDur(tl.total), 'Total time'); stat(U.dist(tl.distance), 'Distance'); stat(String(L.length), 'Legs');
   const gaps = tl.parts.filter(p => p.kind === 'gap'); if (gaps.length) stat(fmtDur(gaps.reduce((a, p) => a + p.s, 0)), 'Hand-overs');
   card.append(stats);
   if (L.length) card.append(el('div', { className: 'segbar-head' }, el('h2', { textContent: 'Legs' })), strip(tl, true));
@@ -128,12 +129,11 @@ export async function mountRelay(id) {
     const r = tbl.insertRow();
     if (p.kind === 'gap') { r.className = 'rgap'; ['', '', 'Hand-over', '', fmtDur(p.s), '', '', ''].forEach(t => r.insertCell().textContent = t); continue; }
     const l = p.leg, d = +l.distance_m || 0, t = +l.elapsed_s || 0;
-    const pace = !d || !t ? '' : l.sport === 'run' ? (() => { const s = t / (d / 1000); return `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')} /km`; })()
-      : l.sport === 'swim' ? (() => { const s = t / (d / 100); return `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')} /100 m`; })() : (d / t * 3.6).toFixed(1) + ' km/h';
+    const pace = !d || !t ? '' : l.sport === 'run' ? U.pace(t, d) : l.sport === 'swim' ? U.swimPace(t, d) : U.speed(t, d);
     r.insertCell().textContent = String(++n);
     r.insertCell().append(el('span', { style: 'display:inline-flex;gap:8px;align-items:center' }, avatarEl(l.athlete, l.owner === state.user.id ? state.profile?.avatar_path : l.avatar, 22), l.owner === state.user.id ? 'You' : l.athlete));
     r.insertCell().append(el('span', { className: 'dot', style: `background:${SPC[l.sport] || 'var(--trans)'}` }), legSport(l));
-    [localTime(l.start_time, l.utc_offset_min), fmtDur(t), (d / 1000).toFixed(2) + ' km', pace].forEach(x => r.insertCell().textContent = x);
+    [localTime(l.start_time, l.utc_offset_min), fmtDur(t), U.dist(d), pace].forEach(x => r.insertCell().textContent = x);
     r.insertCell().append(l.activity_id ? el('a', { href: '#a/' + l.activity_id, textContent: 'Open' }) : el('span', { className: 'muted', textContent: 'Not shared with you', style: 'font-size:12px' }));
   }
   for (const pnd of tl.pending) { const r = tbl.insertRow(); r.className = 'rgap'; ['', '', '', '', '', '', '', ''].forEach(() => r.insertCell()); r.cells[1].textContent = pnd.athlete; r.cells[2].textContent = 'Invited, waiting for them to accept'; }
@@ -170,7 +170,7 @@ export function openRelayMaker(act, onDone, existing) {
       const acts = (cand.data || []).filter(c => c.owner === p.other);
       const grp = el('div', { className: 'rgroup' }, el('div', { className: 'rwho' }, avatarEl(p.athlete, p.avatar, 26), el('b', { textContent: p.athlete })));
       acts.forEach(c => { const row = el('button', { type: 'button', className: 'ropt' }, el('span', { className: 'dot', style: `background:${SPC[c.sport] || 'var(--trans)'}` }),
-        el('span', { style: 'flex:1;text-align:left', textContent: c.name }), el('span', { className: 'muted', textContent: `${localTime(c.start_time, c.utc_offset_min)} · ${fmtDur(+c.elapsed_s)} · ${(c.distance_m / 1000).toFixed(1)} km` }));
+        el('span', { style: 'flex:1;text-align:left', textContent: c.name }), el('span', { className: 'muted', textContent: `${localTime(c.start_time, c.utc_offset_min)} · ${fmtDur(+c.elapsed_s)} · ${U.dist(c.distance_m, 1)}` }));
         row.onclick = () => choose(row, { other: p.other, other_aid: c.activity_id, who: p.athlete }); grp.append(row); });
       const ask = el('button', { type: 'button', className: 'ropt ask' }, el('span', { style: 'flex:1;text-align:left', textContent: acts.length ? 'Let them choose their activity' : 'Ask them to pick their activity for the leg' }));
       ask.onclick = () => choose(ask, { other: p.other, other_aid: null, who: p.athlete }); grp.append(ask);
@@ -198,7 +198,7 @@ export async function relayInvites(host, onChange) {
     const mine = state.activities.filter(a => Math.abs(Date.parse(a.start_time) - anchor) <= 12 * 3600e3).sort((a, b) => Math.abs(Date.parse(a.start_time) - anchor) - Math.abs(Date.parse(b.start_time) - anchor));
     const sel = el('select');
     if (!mine.length) sel.append(el('option', { value: '', textContent: 'No activities of yours within 12 hours' }));
-    mine.forEach(a => sel.append(el('option', { value: a.id, textContent: `${a.name} · ${localTime(a.start_time, a.utc_offset_min)} · ${(a.distance_m / 1000).toFixed(1)} km`, selected: a.id === inv.activity_id })));
+    mine.forEach(a => sel.append(el('option', { value: a.id, textContent: `${a.name} · ${localTime(a.start_time, a.utc_offset_min)} · ${U.dist(a.distance_m, 1)}`, selected: a.id === inv.activity_id })));
     const ok = el('button', { className: 'btn sm primary', textContent: 'Accept', disabled: !mine.length }), no = el('button', { className: 'btn sm', textContent: 'Decline' });
     ok.onclick = async () => { ok.disabled = true; const r = await sb.rpc('respond_relay', { rid: inv.relay_id, accept: true, p_activity: sel.value }); ok.disabled = false; if (r.error) { toast(r.error.message); return; } toast('Relay joined'); onChange?.(); };
     no.onclick = async () => { const r = await sb.rpc('respond_relay', { rid: inv.relay_id, accept: false }); if (r.error) { toast(r.error.message); return; } toast('Invitation declined'); onChange?.(); };

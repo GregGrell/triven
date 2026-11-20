@@ -1,8 +1,9 @@
 // One-tap Instagram image: route over a map (or your photo, or transparent sticker), activity type, title and stats.
-import { drawRouteMap } from './mapcanvas.js?v=1795184861';
-import { envLabel } from './process.js?v=1795184861';
-import { openModal } from './edit.js?v=1795184861';
-import { toast } from './main.js?v=1795184861';
+import { drawRouteMap } from './mapcanvas.js?v=1795207239';
+import { envLabel } from './process.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
+import { openModal } from './edit.js?v=1795207239';
+import { toast } from './main.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -21,11 +22,11 @@ function labelFor(a) {
 }
 function stats(a) {
   const t = a.sport === 'multi' ? +a.elapsed_s : +(a.moving_s || a.elapsed_s), d = +a.distance_m;
-  const out = [[(d / 1000).toFixed(d >= 100000 ? 0 : 2), 'km'], [fmtDur(t), 'time']];
-  if (a.sport === 'run') out.push([pace(t, d), '/km']);
-  else if (a.sport === 'bike') out.push([(d / t * 3.6).toFixed(1), 'km/h']);
+  const out = [[U.toD(d).toFixed(U.toD(d) >= 100 ? 0 : 2), U.dU()], [fmtDur(t), 'time']];
+  if (a.sport === 'run') out.push([U.mmss(U.paceS(t, d)), U.pU()]);
+  else if (a.sport === 'bike') out.push([U.kmhTo(d / t * 3.6).toFixed(1), U.sU()]);
   else if (a.sport === 'swim') out.push([pace(t, d * 10), '/100 m']);
-  else if (a.ascent_m) out.push([Math.round(a.ascent_m), 'm up']);
+  else if (a.ascent_m) out.push([Math.round(U.toE(a.ascent_m)), U.eU() + ' up']);
   if (a.sport !== 'multi' && a.ascent_m && out.length < 4 && a.sport !== 'swim') out.push([Math.round(a.ascent_m), 'm up']);
   return out;
 }

@@ -1,4 +1,5 @@
 // Training log: period totals, fitness, volume chart, calendar, bests, gear.
+import * as U from './units.js?v=1795207239';
 const $=id=>document.getElementById(id), css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountLog(D){
@@ -7,8 +8,8 @@ const DAY=864e5, _n=new Date(), TODAY=Date.UTC(_n.getFullYear(),_n.getMonth(),_n
 const SP={run:{name:'Run',v:'--run'},bike:{name:'Bike',v:'--bike'},swim:{name:'Swim',v:'--swim'}};
 const fmtDur=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`};
 const fmtHM=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m`};
-const km=m=>(m/1000).toFixed(m>=100000?0:1);
-const pace=(sec,m)=>{const p=sec/(m/1000);return `${Math.floor(p/60)}:${String(Math.round(p%60)).padStart(2,'0')} /km`};
+const km=m=>U.toD(m).toFixed(U.toD(m)>=100?0:1);   // km or miles
+const pace=(sec,m)=>U.pace(sec,m);
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],WD=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const d0=t=>{const d=new Date(t);return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())};
 const mondayOf=t=>{const d=new Date(d0(t));return d0(t)-((d.getUTCDay()+6)%7)*DAY};
@@ -53,10 +54,10 @@ function renderTotals(){
   const el=$('totals');el.replaceChildren();
   const card=(title,col,t,sub)=>{const c=document.createElement('div');c.className='tot';
     const h=document.createElement('div');h.className='h';if(col){const i=document.createElement('i');i.style.background=`var(${col})`;h.append(i)}h.append(document.createTextNode(title));
-    const d=document.createElement('div');d.className='d';d.textContent=t.dist?km(t.dist):'0';const u=document.createElement('small');u.textContent='km';d.append(u);
+    const d=document.createElement('div');d.className='d';d.textContent=t.dist?km(t.dist):'0';const u=document.createElement('small');u.textContent=U.dU();d.append(u);
     const s2=document.createElement('div');s2.className='s';s2.textContent=sub;c.append(h,d,s2);el.append(c)};
-  card('All sports',null,T.all,`${T.all.n} ${T.all.n===1?'activity':'activities'}${T.all.multi?` (${T.all.multi} multisport)`:''} · ${fmtHM(T.all.time)} · ${Math.round(T.all.elev)} m`);
-  Object.entries(SP).forEach(([k,v])=>{const t=T[k];card(v.name,v.v,t,t.n?`${t.n} · ${fmtHM(t.time)} · ${Math.round(t.elev)} m${k==='run'&&t.dist?` · ${pace(t.time,t.dist)}`:''}${k==='bike'&&t.dist?` · ${(t.dist/t.time*3.6).toFixed(1)} km/h`:''}`:'No activities')});
+  card('All sports',null,T.all,`${T.all.n} ${T.all.n===1?'activity':'activities'}${T.all.multi?` (${T.all.multi} multisport)`:''} · ${fmtHM(T.all.time)} · ${U.elev(T.all.elev)}`);
+  Object.entries(SP).forEach(([k,v])=>{const t=T[k];card(v.name,v.v,t,t.n?`${t.n} · ${fmtHM(t.time)} · ${U.elev(t.elev)}${k==='run'&&t.dist?` · ${pace(t.time,t.dist)}`:''}${k==='bike'&&t.dist?` · ${U.speed(t.time,t.dist)}`:''}`:'No activities')});
   $('totNote').textContent=(P.type==='month'||P.type==='custom'?'Weeks that run into the previous or next month only count the days inside this period. ':'')+(T.all.multi?'Multisport races count once as an activity, and each section is added to its own sport: the run legs go into Run and the ride into Bike. Transition time counts towards All sports only.':'Multisport races count once as an activity, and each section is added to its own sport.');
   renderVolume(s,e);
 }
@@ -75,7 +76,7 @@ function buckets(s,e){
 function renderVolume(s,e){
   const [title,B]=buckets(s,e);$('volTitle').textContent=title;
   const keys=Object.keys(SP);
-  const data=B.map(([a,b,l])=>{const o={l,a,b};keys.forEach(k=>o[k]=0);A.filter(x=>x.t>=Math.max(a,s)&&x.t<Math.min(b,e)).forEach(x=>parts(x).forEach(p=>o[p.sport]+=p.dist/1000));return o});
+  const data=B.map(([a,b,l])=>{const o={l,a,b};keys.forEach(k=>o[k]=0);A.filter(x=>x.t>=Math.max(a,s)&&x.t<Math.min(b,e)).forEach(x=>parts(x).forEach(p=>o[p.sport]+=U.toD(p.dist)));return o});
   const used=keys.filter(k=>data.some(d=>d[k]>0));
   const lg=$('volLegend');lg.replaceChildren();used.forEach(k=>{const s2=document.createElement('span');const i=document.createElement('i');i.style.background=`var(${SP[k].v})`;i.style.height='10px';i.style.width='10px';s2.append(i,document.createTextNode(SP[k].name));lg.append(s2)});
   const host=$('volchart');host.replaceChildren();host.style.position='relative';
@@ -85,7 +86,7 @@ function renderVolume(s,e){
   const y=d3.scaleLinear().domain([0,max]).nice(4).range([H-m.b,m.t]);
   const svg=d3.select(host).append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('height',H);
   svg.append('g').attr('class','gridl').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W-m.l-m.r)).tickFormat(''));
-  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l-4},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0).tickFormat(v=>v+' km'));
+  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l-4},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0).tickFormat(v=>v+' '+U.dU()));
   const every=Math.ceil(data.length/14);
   svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.b+12})`).selectAll('text').data(data).join('text').attr('x',(d,i)=>x(i)+x.bandwidth()/2).attr('text-anchor','middle').text((d,i)=>i%every===0?d.l:'');
   const tip=document.createElement('div');tip.className='vtip';tip.hidden=true;host.append(tip);
@@ -94,7 +95,7 @@ function renderVolume(s,e){
       g.append('rect').attr('x',x(i)).attr('width',x.bandwidth()).attr('y',y1+(acc>d[k]?1:0)).attr('height',Math.max(1,y0-y1-(acc>d[k]?2:0))).attr('rx',3).attr('fill',css(SP[k].v));});
     g.append('rect').attr('x',x(i)-x.step()*x.paddingInner()/2).attr('width',x.step()).attr('y',m.t).attr('height',H-m.t-m.b).attr('fill','transparent')
      .on('pointerenter',e=>{tip.replaceChildren();const b=document.createElement('b');b.textContent=d.l;tip.append(b);
-        used.forEach(k=>{const r=document.createElement('div');r.textContent=`${SP[k].name}: ${d[k].toFixed(1)} km`;tip.append(r)});
+        used.forEach(k=>{const r=document.createElement('div');r.textContent=`${SP[k].name}: ${d[k].toFixed(1)} ${U.dU()}`;tip.append(r)});
         if(!used.length||!used.some(k=>d[k])){const r=document.createElement('div');r.textContent='No activities';tip.append(r)}
         tip.hidden=false;const bx=host.getBoundingClientRect();tip.style.left=Math.min(bx.width-140,(x(i)/W)*bx.width)+'px';tip.style.top='0px';})
      .on('pointerleave',()=>tip.hidden=true);
@@ -110,10 +111,10 @@ function showPop(a,anchor){
   const dt=new Date(a.t);sub.textContent=`${fmtDate(a.t)} · ${String(dt.getUTCHours()).padStart(2,'0')}:${String(dt.getUTCMinutes()).padStart(2,'0')}${a.indoor?' · treadmill':''}`;
   const kv=document.createElement('div');kv.className='kv';
   const add=(k,v)=>{const x=document.createElement('span');x.className='sec';x.textContent=k;const y=document.createElement('b');y.textContent=v;kv.append(x,y)};
-  add('Distance',km(a.dist)+' km');add(a.sport==='multi'?'Total time':'Moving time',fmtDur(actTime(a)));
+  add('Distance',km(a.dist)+' '+U.dU());add(a.sport==='multi'?'Total time':'Moving time',fmtDur(actTime(a)));
   if(a.sport==='run') add('Pace',pace(a.moving,a.dist));
-  if(a.sport==='multi') a.sections.forEach((s,i)=>add(s.sport==='trans'?'Transition':SP[s.sport].name,`${s.sport==='trans'?'':km(s.dist)+' km · '}${fmtDur(s.elapsed)}`));
-  add('Elevation',(a.elev||0)+' m');if(a.gear) add('Shoes',gearName(a.gear)||'—');add('Source',a.source);
+  if(a.sport==='multi') a.sections.forEach((s,i)=>add(s.sport==='trans'?'Transition':SP[s.sport].name,`${s.sport==='trans'?'':km(s.dist)+' '+U.dU()+' · '}${fmtDur(s.elapsed)}`));
+  add('Elevation',U.elev(a.elev||0));if(a.gear) add('Shoes',gearName(a.gear)||'—');add('Source',a.source);
   p.append(h,sub,kv);
   const act=document.createElement('div');act.style.marginTop='12px';act.style.display='flex';act.style.gap='8px';
   if(a.detail){const l=document.createElement('a');l.href='#a/'+a.id;l.className='btn primary';l.textContent='Open activity';l.style.textDecoration='none';act.append(l)}
@@ -145,8 +146,8 @@ function renderBests(){
   RUN_PB.forEach(([n,m])=>{const b=bestOf('run',n);const x=pbRow(r,n,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=pace(b.value,m);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
   $('pbRunNote').textContent='Worked out by Triven from every imported run, using the fastest stretch of any run, including the run legs of multisport races.';
   const bk=$('pbBike');bk.replaceChildren();hdr(bk,['Distance','Time','Speed','Date','Activity']);
-  BIKE_PB.forEach(([n,m,label])=>{const b=bestOf('bike',n);const x=pbRow(bk,label||n,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=`${(m/b.value*3.6).toFixed(1)} km/h`;x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
-  [['longest ride','Longest ride',v=>(v/1000).toFixed(1)+' km'],['most elevation','Most elevation gain',v=>Math.round(v)+' m']].forEach(([e,label,f])=>{const b=bestOf('bike',e,true);const x=pbRow(bk,label,b);if(!x)return;x[1].textContent=f(b.value);x[0].insertCell();x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
+  BIKE_PB.forEach(([n,m,label])=>{const b=bestOf('bike',n);const x=pbRow(bk,label||n,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=U.speed(b.value,m);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
+  [['longest ride','Longest ride',v=>U.dist(v,1)],['most elevation','Most elevation gain',v=>U.elev(v)]].forEach(([e,label,f])=>{const b=bestOf('bike',e,true);const x=pbRow(bk,label,b);if(!x)return;x[1].textContent=f(b.value);x[0].insertCell();x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
   const sw=$('pbSwim');sw.replaceChildren();hdr(sw,['Distance','Time','Pace /100 m','Date','Activity']);
   SWIM_PB.forEach(([n,m,label])=>{const b=bestOf('swim',n);const x=pbRow(sw,label,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=fmtDur(b.value/m*100);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
   const p=$('pbPower');p.replaceChildren();hdr(p,['Duration','Power','W/kg','Date','Activity']);
@@ -165,7 +166,7 @@ function renderGear(){
     const n=document.createElement('div');const b=document.createElement('b');b.textContent=g.name;const s=document.createElement('div');s.className='muted';s.textContent=[g.kind==='bike'?'Bike':'Shoes',[g.brand,g.model].filter(Boolean).join(' '),`${g.uses} ${g.uses===1?'activity':'activities'}`].filter(Boolean).join(' · ');n.append(b,s);
     const bar=document.createElement('div');bar.className='bar';
     if(LIMIT){const f=document.createElement('div');f.style.width=Math.min(100,m/1000/LIMIT*100)+'%';if(m/1000>=LIMIT)f.style.background='var(--warn)';bar.append(f)}
-    const v=document.createElement('div');v.className='val';v.textContent=LIMIT?`${km(m)} km of ${LIMIT}`:`${km(m)} km`;
+    const v=document.createElement('div');v.className='val';v.textContent=LIMIT?`${km(m)} of ${Math.round(U.toD(LIMIT*1000))} ${U.dU()}`:`${km(m)} ${U.dU()}`;
     row.append(n,bar,v);el.append(row);
   });
   $('gearNote').textContent='Distance includes any starting distance you entered plus every activity or multisport section the item is assigned to.';

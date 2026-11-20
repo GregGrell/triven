@@ -1,8 +1,9 @@
 // Training log: fitness / fatigue / form chart and the month calendar with training load per day and week.
-import { state } from './main.js?v=1795184861';
-import { DEFAULTS } from './settings.js?v=1795184861';
-import { mountPerf } from './perfui.js?v=1795184861';
-import { loadOf, pmc, formBand } from './load.js?v=1795184861';
+import { state } from './main.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
+import { DEFAULTS } from './settings.js?v=1795207239';
+import { mountPerf } from './perfui.js?v=1795207239';
+import { loadOf, pmc, formBand } from './load.js?v=1795207239';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -10,7 +11,7 @@ const DAY = 864e5, MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'
 const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const SPV = { run: '--run', bike: '--bike', swim: '--swim' };
 const fmtHM = s => { const h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`; };
-const km = m => (m / 1000).toFixed(m >= 100000 ? 0 : 1);
+const km = m => U.toD(m).toFixed(U.toD(m) >= 100 ? 0 : 1);   // in km or miles; label with U.dU()
 const fmtD = t => { const d = new Date(t); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
 const localDay = a => { const d = new Date(Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); };
 const mondayOf = t => t - ((new Date(t).getUTCDay() + 6) % 7) * DAY;
@@ -154,8 +155,8 @@ function calendarCard(acts, loads) {
         wd += +a.distance_m || 0; wt += time || 0; wl += loads.get(a.id).value;
         if (a.sport === 'multi' && a.activity_sections?.length) a.activity_sections.forEach(s => { if (s.sport !== 'transition') addSp(s.sport, +s.distance_m, +s.elapsed_s); });
         else addSp(SPV[a.sport] ? a.sport : 'other', +a.distance_m, time);
-        const b = el('a', { className: 'chipact', href: '#a/' + a.id, title: `${a.name} · ${km(a.distance_m)} km · ${fmtHM(time)} · load ${loads.get(a.id).value}` },
-          el('b', { textContent: (a.is_race ? '🏁 ' : '') + (+a.distance_m > 0 ? `${km(a.distance_m)} km` : fmtHM(time)) }), el('span', { textContent: a.name }));
+        const b = el('a', { className: 'chipact', href: '#a/' + a.id, title: `${a.name} · ${km(a.distance_m)} ${U.dU()} · ${fmtHM(time)} · load ${loads.get(a.id).value}` },
+          el('b', { textContent: (a.is_race ? '🏁 ' : '') + (+a.distance_m > 0 ? `${km(a.distance_m)} ${U.dU()}` : fmtHM(time)) }), el('span', { textContent: a.name }));
         b.style.borderLeftColor = a.sport === 'multi' ? 'var(--text-secondary)' : `var(${SPV[a.sport] || '--trans'})`;
         if (a.sport === 'multi' && a.activity_sections?.length) { const mb = el('div', { className: 'mbar' }); a.activity_sections.slice().sort((p, q) => p.idx - q.idx).forEach(s => { const i = el('i'); i.style.flex = String(s.elapsed_s); i.style.background = s.sport === 'transition' ? 'var(--trans)' : `var(${SPV[s.sport] || '--trans'})`; mb.append(i); }); b.append(mb); }
         cell.append(b);
@@ -165,9 +166,9 @@ function calendarCard(acts, loads) {
     // one total if the week was a single sport, otherwise swim / bike / run lines
     const sps = ['swim', 'bike', 'run', 'other'].filter(k => bySp[k] && bySp[k].t > 0);
     const wk = el('div', { className: 'wk' });
-    if (wt && sps.length <= 1) wk.append(el('b', { textContent: km(wd) + ' km' }), el('div', { textContent: fmtHM(wt) }));
+    if (wt && sps.length <= 1) wk.append(el('b', { textContent: km(wd) + ' ' + U.dU() }), el('div', { textContent: fmtHM(wt) }));
     else if (wt) sps.forEach(k => wk.append(el('div', { className: 'wsp' }, el('i', { className: 'sw', style: `background:var(${SPV[k] || '--trans'})` }),
-      el('span', {}, el('b', { textContent: { swim: 'Swim', bike: 'Bike', run: 'Run', other: 'Other' }[k] + ' ' }), `${bySp[k].d ? km(bySp[k].d) + ' km · ' : ''}${fmtHM(bySp[k].t)}`))));
+      el('span', {}, el('b', { textContent: { swim: 'Swim', bike: 'Bike', run: 'Run', other: 'Other' }[k] + ' ' }), `${bySp[k].d ? km(bySp[k].d) + ' ' + U.dU() + ' · ' : ''}${fmtHM(bySp[k].t)}`))));
     if (wt) wk.append(el('div', { className: 'wload', textContent: `Load ${Math.round(wl)}` }));
     g.append(wk);
   }
@@ -196,11 +197,11 @@ function ytdPanel(acts) {
     const kv = el('div', { className: 'ytdkv' },
       el('span', { textContent: 'Activities' }), el('b', { textContent: o.n.size }),
       el('span', { textContent: 'Time' }), el('b', { textContent: fmtHM(o.t) }));
-    if (k !== 'swim') kv.append(el('span', { textContent: 'Elevation' }), el('b', { textContent: `${Math.round(o.e).toLocaleString()} m` }));
+    if (k !== 'swim') kv.append(el('span', { textContent: 'Elevation' }), el('b', { textContent: U.elev(o.e) }));
     if (o.long) kv.append(el('span', { textContent: k === 'swim' ? 'Longest swim' : k === 'bike' ? 'Longest ride' : 'Longest run' }),
-      el('b', {}, el('a', { href: '#a/' + o.long.a.id, title: o.long.a.name, textContent: k === 'swim' && o.long.d < 10000 ? `${Math.round(o.long.d).toLocaleString()} m` : `${km(o.long.d)} km` })));
+      el('b', {}, el('a', { href: '#a/' + o.long.a.id, title: o.long.a.name, textContent: k === 'swim' && o.long.d < 10000 ? `${Math.round(o.long.d).toLocaleString()} m` : `${km(o.long.d)} ${U.dU()}` })));
     c.append(el('div', { className: 'ytdsp' }, el('h3', {}, el('i', { className: 'sw', style: `background:var(${SPV[k]})` }), name[k]),
-      el('div', { className: 'ytdbig' }, k === 'swim' && o.d < 10000 ? Math.round(o.d).toLocaleString() : km(o.d), el('small', { textContent: k === 'swim' && o.d < 10000 ? 'm' : 'km' })), kv));
+      el('div', { className: 'ytdbig' }, k === 'swim' && o.d < 10000 ? Math.round(o.d).toLocaleString() : km(o.d), el('small', { textContent: k === 'swim' && o.d < 10000 ? 'm' : U.dU() })), kv));
   });
   if (multi) c.append(el('div', { className: 'note', style: 'margin-top:4px', textContent: `Includes ${multi} multisport ${multi === 1 ? 'race' : 'races'}, each leg counted in its own sport.` }));
   return c;

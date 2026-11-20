@@ -1,11 +1,12 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795184861';
-import { linkActivities, importDecoded } from './pipeline.js?v=1795184861';
-import { decodeFit } from './fit.js?v=1795184861';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795184861';
-import { openTrim } from './trim.js?v=1795184861';
-import { openIg } from './ig.js?v=1795184861';
-import { shareButton, linkUrl } from './profile.js?v=1795184861';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795207239';
+import { linkActivities, importDecoded } from './pipeline.js?v=1795207239';
+import { decodeFit } from './fit.js?v=1795207239';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795207239';
+import { openTrim } from './trim.js?v=1795207239';
+import { openIg } from './ig.js?v=1795207239';
+import * as U from './units.js?v=1795207239';
+import { shareButton, linkUrl } from './profile.js?v=1795207239';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
@@ -86,7 +87,7 @@ document.addEventListener('triven:activity', e => {
     warn.hidden = false;
     const d = drv[drv.length - 1];
     warn.append(el('span', { className: 'ic', textContent: '!' }), el('div', {}, el('b', { textContent: 'This looks like it includes driving. ' }),
-      document.createTextNode(`${drv.length === 1 ? 'One stretch' : drv.length + ' stretches'} at car speed, up to ${Math.max(...drv.map(x => x.maxKmh))} km/h${d.atEnd ? ', at the end' : d.atStart ? ', at the start' : ''}. Forgot to stop the watch?`)),
+      document.createTextNode(`${drv.length === 1 ? 'One stretch' : drv.length + ' stretches'} at car speed, up to ${Math.round(U.kmhTo(Math.max(...drv.map(x => x.maxKmh))))} ${U.sU()}${d.atEnd ? ', at the end' : d.atStart ? ', at the start' : ''}. Forgot to stop the watch?`)),
       el('button', { className: 'btn sm', textContent: 'Trim it', onclick: () => openTrim(cur, reopen) }),
       el('button', { className: 'linkbtn', textContent: 'It was fine', onclick: async () => { const sm = { ...cur.act.summary, driving: [] }; await sb.from('activities').update({ summary: sm }).eq('id', cur.act.id); cur.act.summary = sm; warn.hidden = true; } }));
   }
@@ -139,7 +140,7 @@ export function openEditor(data, onSaved) {
     Object.entries(VIS).forEach(([v, t]) => vis.append(el('option', { value: v, textContent: t, selected: act.visibility === v })));
     const notes = el('textarea', { rows: 3, value: act.notes || '', placeholder: 'How it felt, niggles, fuelling, conditions…' });
     const raceCk = el('input', { type: 'checkbox', checked: !!act.is_race });
-    const sec1 = el('section', {}, el('label', { className: 'f' }, 'Name', name), el('label', { className: 'f', style: 'margin-top:10px' }, 'Description (shown to people who can see it)', desc),
+    const sec1 = el('section', {}, el('label', { className: 'f' }, 'Name', name), el('label', { className: 'f', style: 'margin-top:10px' }, 'Description', desc),
       el('label', { className: 'f', style: 'margin-top:10px' }, 'Private notes (only you)', notes),
       el('label', { className: 'ck' }, raceCk, ' This was a race ', raceFlag(14)));
     // photos and videos
@@ -167,12 +168,12 @@ export function openEditor(data, onSaved) {
       real.forEach(s => { cnt[s.sport] = (cnt[s.sport] || 0) + 1;
         const sel = el('select'); ENVS[s.sport].forEach(([v, t]) => sel.append(el('option', { value: v, textContent: t, selected: (s.summary?.env || ENVS[s.sport][0][0]) === v })));
         // treadmill: what the machine said, so the watch's distance (and every pace and lap) can be corrected
-        const dist = el('input', { type: 'number', min: 0.1, step: 0.01, value: s.distance_m ? (+s.distance_m / 1000).toFixed(2) : '', style: 'width:110px' });
+        const dist = el('input', { type: 'number', min: 0.1, step: 0.01, value: s.distance_m ? U.toD(s.distance_m).toFixed(2) : '', style: 'width:110px' });
         const watch = s.summary?.watchDistance;
-        const fixRow = el('label', { className: 'mf', style: 'margin-top:6px' }, 'Treadmill distance', dist, 'km', watch ? el('span', { className: 'muted', textContent: ` (watch said ${(watch / 1000).toFixed(2)} km)` }) : null);
+        const fixRow = el('label', { className: 'mf', style: 'margin-top:6px' }, 'Treadmill distance', dist, U.dU(), watch ? el('span', { className: 'muted', textContent: ` (watch said ${U.dist(watch)})` }) : null);
         const showFix = () => { fixRow.hidden = sel.value !== 'treadmill'; }; sel.addEventListener('change', showFix); showFix();
         typeInputs.push({ sec: s, sel, dist });
-        typeSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${tot[s.sport] > 1 ? ' ' + cnt[s.sport] : ''}${s.distance_m ? ` · ${(s.distance_m / 1000).toFixed(2)} km` : ''}`, sel), fixRow); });
+        typeSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${tot[s.sport] > 1 ? ' ' + cnt[s.sport] : ''}${s.distance_m ? ` · ${U.dist(s.distance_m)}` : ''}`, sel), fixRow); });
       if (!real.length) typeSec.hidden = true;
       typeSec.append(el('div', { className: 'note', textContent: 'Track snaps your GPS onto the 400 m track and measures the distance round lane 1. For a treadmill run, enter the distance the treadmill showed: the leg’s pace, laps and stride are rescaled to match. Treadmill and indoor rides don’t count towards distance bests (power bests still count).' })); }
     // gear
@@ -183,7 +184,7 @@ export function openEditor(data, onSaved) {
       let n = { run: 0, bike: 0 };
       const total = { run: real.filter(s => s.sport === 'run').length, bike: real.filter(s => s.sport === 'bike').length };
       real.forEach(s => { n[s.sport]++; const sel = gearSelect(s.sport === 'run' ? 'shoe' : 'bike', s.gear_id);
-        gearInputs.push({ sec: s, sel }); gearSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${total[s.sport] > 1 ? ' ' + n[s.sport] : ''} · ${(s.distance_m / 1000).toFixed(2)} km`, sel)); });
+        gearInputs.push({ sec: s, sel }); gearSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, `${SPORTNAME[s.sport]}${total[s.sport] > 1 ? ' ' + n[s.sport] : ''} · ${U.dist(s.distance_m)}`, sel)); });
     } else if (act.sport === 'run' || act.sport === 'bike') {
       const sel = gearSelect(act.sport === 'run' ? 'shoe' : 'bike', act.gear_id); gearInputs.push({ sec: null, sel });
       gearSec.append(el('label', { className: 'f', style: 'margin-top:8px' }, act.sport === 'run' ? 'Shoes' : 'Bike', sel));
@@ -218,18 +219,18 @@ export function openEditor(data, onSaved) {
       // type changes: uploaded files are re-processed (track snapping, bests); manual entries just store it
       const changed = typeInputs.filter(t => t.sel.value !== (t.sec.summary?.env || ENVS[t.sec.sport][0][0]));
       // treadmill distances that differ from what's stored (10 m tolerance)
-      const fixes = typeInputs.filter(t => t.sel.value === 'treadmill' && +t.dist.value > 0 && Math.abs(+t.dist.value * 1000 - (+t.sec.distance_m || 0)) > 10);
+      const fixes = typeInputs.filter(t => t.sel.value === 'treadmill' && +t.dist.value > 0 && Math.abs(U.fromD(t.dist.value) - (+t.sec.distance_m || 0)) > 10);
       if (changed.length || fixes.length) {
         if (act.file_path) {
           msg.textContent = fixes.length ? 'Correcting the treadmill distance…' : 'Re-processing with the new type…';
           const env = sections.map(s => { const t = typeInputs.find(x => x.sec === s); return t ? t.sel.value : (s.summary?.env || null); });
           const distFix = { ...(act.summary?.distFix || {}) };
           // stored as a factor of the watch's distance, so it still holds if the run is trimmed later
-          fixes.forEach(t => { distFix[t.sec.idx] = +(+t.dist.value * 1000 / (+t.sec.summary?.watchDistance || +t.sec.distance_m)).toFixed(5); });
+          fixes.forEach(t => { distFix[t.sec.idx] = +(U.fromD(t.dist.value) / (+t.sec.summary?.watchDistance || +t.sec.distance_m)).toFixed(5); });
           try { await reprocess({ act: { ...act, ...upd }, sections }, { env, distFix }); }
           catch (e) { msg.textContent = 'Saved, but the type could not be applied: ' + (e.message || e); save.disabled = false; return; }
         } else {
-          for (const t of new Set([...changed, ...fixes])) { const d = fixes.includes(t) ? Math.round(+t.dist.value * 1000) : null;
+          for (const t of new Set([...changed, ...fixes])) { const d = fixes.includes(t) ? Math.round(U.fromD(t.dist.value)) : null;
             const q = await sb.from('activity_sections').update({ summary: { ...(t.sec.summary || {}), env: t.sel.value },
               ...(d ? { distance_m: d, avg_speed: +(d / (+t.sec.elapsed_s || 1)).toFixed(3) } : {}) }).eq('activity_id', act.id).eq('idx', t.sec.idx);
             if (q.error) { msg.textContent = q.error.message; save.disabled = false; return; }
@@ -348,7 +349,7 @@ function openLinker(data) {
         ck.onchange = () => { ck.checked ? chosen.add(a.id) : chosen.delete(a.id); draw(); };
         list.append(el('label', { className: 'linkrow' + (chosen.has(a.id) ? ' on' : '') }, ck,
           el('span', { className: 'lt', textContent: `${hm(local(a))}–${hm(local(a) + (+a.elapsed_s || 0) * 1000)}` }),
-          el('b', { textContent: a.name }), el('span', { className: 'muted', textContent: `${LEG[a.sport] || a.sport} · ${(+a.distance_m / 1000).toFixed(2)} km` })));
+          el('b', { textContent: a.name }), el('span', { className: 'muted', textContent: `${LEG[a.sport] || a.sport} · ${U.dist(a.distance_m)}` })));
       });
       if (cands.length < 2) list.append(el('div', { className: 'note', textContent: 'No other activities within 12 hours of this one. Upload the other legs first.' }));
       // preview of the joined activity
@@ -357,7 +358,7 @@ function openLinker(data) {
         if (k) { const gap = (Date.parse(a.start_time) - endOf(sel[k - 1])) / 1000;
           if (gap < -5) bad = `${sel[k - 1].name} and ${a.name} overlap in time.`;
           prev.append(el('span', { className: 'lgap' + (gap > 1800 ? ' long' : ''), textContent: gap > 1 ? `T ${fmtGap(gap)}` : 'no gap' })); }
-        prev.append(el('span', { className: 'lleg', style: `border-color:var(--${a.sport === 'bike' ? 'bike' : a.sport === 'swim' ? 'swim' : 'run'})`, textContent: `${LEG[a.sport] || a.sport} ${(+a.distance_m / 1000).toFixed(1)} km` }));
+        prev.append(el('span', { className: 'lleg', style: `border-color:var(--${a.sport === 'bike' ? 'bike' : a.sport === 'swim' ? 'swim' : 'run'})`, textContent: `${LEG[a.sport] || a.sport} ${U.dist(a.distance_m, 1)}` }));
       });
       const longGap = sel.some((a, k) => k && (Date.parse(a.start_time) - endOf(sel[k - 1])) > 1800e3);
       msg.textContent = bad || (longGap ? 'One gap is over 30 minutes: it will still count as transition time.' : '');
@@ -396,7 +397,7 @@ export function offerCombine(groups) {
     acts.forEach((a, k) => {
       if (k) { const gap = (Date.parse(a.start_time) - Date.parse(acts[k - 1].start_time) - (+acts[k - 1].elapsed_s || 0) * 1000) / 1000;
         prev.append(el('span', { className: 'lgap', textContent: gap > 1 ? `T ${fmtGap(gap)}` : 'no gap' })); }
-      prev.append(el('span', { className: 'lleg', style: `border-color:var(--${a.sport === 'bike' ? 'bike' : a.sport === 'swim' ? 'swim' : 'run'})`, textContent: `${LEG[a.sport] || a.sport} ${(+a.distance_m / 1000).toFixed(1)} km` }));
+      prev.append(el('span', { className: 'lleg', style: `border-color:var(--${a.sport === 'bike' ? 'bike' : a.sport === 'swim' ? 'swim' : 'run'})`, textContent: `${LEG[a.sport] || a.sport} ${U.dist(a.distance_m, 1)}` }));
     });
     const msg = el('div', { className: 'note' });
     const yes = el('button', { className: 'btn primary', type: 'button', textContent: 'Combine into one' });
