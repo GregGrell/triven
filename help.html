@@ -28,7 +28,7 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <nav class="toc" aria-label="Contents"><b>Help guide</b>
 <a href="#start">Getting started</a><a href="#install">Install on your phone</a><a href="#import">Getting activities in</a><a href="#multisport">Multisport</a><a href="#swimming">Swimming</a><a href="#activity">Activity pages</a>
 <a href="#privacy">Privacy and sharing</a><a href="#people">People and following</a><a href="#clubs">Clubs</a><a href="#relays">Relays</a>
-<a href="#bests">Bests and trophies</a><a href="#log">Training log</a><a href="#gear">Gear</a><a href="#settings">Settings</a><a href="#faq">Questions</a></nav>
+<a href="#bests">Bests and trophies</a><a href="#log">Training log</a><a href="#races">Races</a><a href="#goals">Goals</a><a href="#gear">Gear</a><a href="#settings">Settings</a><a href="#faq">Questions</a></nav>
 <article class="doc">
 <h1>Help guide</h1>
 <p class="muted">How to get the most out of Triven: a free training log for swimming, cycling, running and multisport.</p>
@@ -36,7 +36,7 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <h2 id="start">Getting started</h2>
 <ol>
 <li><b>Create an account</b> on the <a href="./">sign-in page</a> and confirm your email address.</li>
-<li><b>Set up your profile.</b> The first time you sign in, Settings opens. Choose the name other athletes see, add a photo and pick your privacy (see <a href="#privacy">Privacy and sharing</a>). Enter your threshold heart rates if you know them; your zones and training load depend on them.</li>
+<li><b>Set up your profile.</b> The first time you sign in, Settings opens. Choose the name other athletes see and your username (your profile's address, triven.fit/<i>username</i>), add a photo and pick your privacy (see <a href="#privacy">Privacy and sharing</a>). Choose metric or imperial units, and enter your date of birth, weight and threshold heart rates if you know them; your zones and training load depend on them. Triathletes: add your swim threshold (CSS) too.</li>
 <li><b>Bring in your history.</b> Upload your Garmin export or individual files (see <a href="#import">Getting activities in</a>).</li>
 <li><b>Connect your watch</b> so new activities arrive by themselves.</li>
 <li><b>Find your people.</b> Follow team mates and join your club on the <span class="k">People</span> tab.</li>
@@ -83,16 +83,22 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <li><b>Sets and lengths.</b> Each set between rests, with its stroke, time, pace per 100 m, SWOLF and strokes. Click a set to see each length.</li>
 <li><b>SWOLF</b> is a length's time in seconds plus its stroke count. Lower is more efficient. Compare it only within the same pool length.</li>
 <li><b>Stroke rate</b> is counted the way your watch counts it: one stroke each time the arm wearing it completes a cycle. On freestyle and backstroke that's half your total arm pulls, so double it to compare with counters that count both arms.</li>
+<li><b>Swim zones:</b> time in five zones around your swim threshold (CSS), for pool swims (length by length) and open water. Set your CSS in Settings → Swimming.</li>
 <li><b>Swim bests</b> at 100, 200, 400, 750, 800 and 1500 m, 1.9 km and 3.8 km. In the pool they count only continuous swimming, so a 400 m best is a real 400 m, not four 100s with breaks. Open-water swims use GPS distance. Drill lengths don't count.</li>
 </ul>
+<h3 id="css">Swim threshold (CSS)</h3>
+<p>CSS, critical swim speed, is the pace per 100 m you could hold for about 30 minutes: your swimming threshold. To find it, swim a hard 400 m, rest, then a hard 200 m. In Settings → Swimming, enter both times and Triven works it out: CSS = (400 m time − 200 m time) ÷ 2. CSS sets your swim zones and your swim training load, which comes from your pace against CSS (heart rate in the water is unreliable). Like other thresholds, it's kept by date.</p>
 <h2 id="activity">Activity pages</h2>
 <ul>
 <li><b>Sections bar:</b> click a leg, lap or flag to zoom the charts and map to it.</li>
+<li><b>Charts:</b> elevation, pace or speed, heart rate, power, cadence and more. Runs also get <b>grade-adjusted pace</b> (the pace on the flat that would cost the same effort, worked out from the gradient) and <b>stride length</b> (from your watch's running dynamics, or estimated from speed and cadence).</li>
+<li><b>Weather:</b> outdoor activities show the temperature, feels-like temperature, humidity and wind at the time. Runs add a <b>heat cost</b>: how much the heat and humidity slow you down, and your heat-adjusted pace.</li>
+<li><b>Race history:</b> on a race, your other races at the same event (same start area and distance) side by side, with every leg and transition.</li>
 <li><b>Training focus:</b> time in each heart-rate zone, and what the session mostly trained.</li>
-<li><b>FTP and power:</b> best power for each duration, from a power meter or estimated from speed and gradient.</li>
-<li><b>Running balance:</b> ground contact time left/right, with stretches outside your chosen range flagged.</li>
-<li><b>Edit:</b> name, description, private notes (only you see them), race flag, leg types, gear, photos and videos, and what you share.</li>
-<li><b>Trim:</b> cut off the start or end, for example when you forgot to stop the watch and drove home. Triven warns you when an activity looks as if it includes driving.</li>
+<li><b>FTP and power:</b> best power for each duration, from a power meter or estimated from speed and gradient. The FTP used is the one in your Settings for that day, or the ride's own estimate; the FTP stored on your watch isn't used, because it's often a default nobody set.</li>
+<li><b>Running balance:</b> left/right ground contact time is on its own chart, with your balanced range shaded and stretches outside it flagged on the chart and map.</li>
+<li><b>Edit menu:</b> <i>Edit details</i> (name, description, private notes, leg types, gear, photos and videos, and what you share), <i>Mark as race</i>, <i>Trim</i> (cut off the start or end, for example when you forgot to stop the watch and drove home; Triven warns you when an activity looks as if it includes driving), <i>Link activities</i> and <i>Make a relay</i>.</li>
+<li><b>Share:</b> copies a short link to the activity, like triven.fit/carlg/412, or opens your phone's share sheet. It opens for Triven members who are allowed to see the activity.</li>
 <li><b>Instagram post:</b> makes a picture of the activity to share.</li>
 </ul>
 
@@ -110,6 +116,8 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <p>On the <span class="k">People</span> tab, search for athletes by name and follow them. If someone approves followers, your request waits until they accept. If you approve followers, people asking to follow you appear on the same tab. The feed has four views:</p>
 <ul><li><b>Me:</b> your activities.</li><li><b>Following:</b> people you follow.</li><li><b>Club:</b> you and your club mates.</li><li><b>Everyone:</b> public activities from all Triven athletes.</li></ul>
 <p>Give kudos and comment on anything you can see.</p>
+<h3>Profiles and links</h3>
+<p>Everyone has a profile at <b>triven.fit/<i>username</i></b>: name, clubs, this year's totals, best efforts and activities, showing only what you're allowed to see. Click a name in the feed to open it, or your own name at the top. Change your username in Settings; old links keep working. Links to profiles and activities open only for signed-in Triven members.</p>
 
 <h2 id="clubs">Clubs</h2>
 <h3>Joining</h3>
@@ -127,6 +135,8 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <li><b>New invite link:</b> replaces the link, so the old one stops working.</li>
 </ul>
 <p>If the owner leaves, the longest-serving admin takes over. A club with no members left is deleted.</p>
+<h3>Leaderboard</h3>
+<p>Each club page ranks its members for this week, month or year, by distance, time or elevation, for all sports or one. Multisport races count each leg towards its sport. Only activities shared with the club count: private ones never do.</p>
 
 <h2 id="relays">Relays</h2>
 <p>In a relay, each person does one leg: one swims, another bikes, another runs. Triven joins your activities into one relay that appears on every member's feed, while each activity stays in its owner's own log for totals, bests and training load.</p>
@@ -141,36 +151,50 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <p>Triven finds your best efforts inside every activity:</p>
 <ul>
 <li><b>Running:</b> 400 m up to the marathon, then 50 km, 50 miles, 100 km and 100 miles.</li>
-<li><b>Cycling:</b> 10, 25, 50 and 100-mile time-trial distances, 100 km, longest ride, most elevation, and best power from 1 second to 1 hour.</li>
+<li><b>Cycling:</b> 10, 25 and 50-mile time trials, 90 km (70.3 bike), 100 km, 100 miles and 180 km (Ironman bike), longest ride, most elevation, and best power from 1 second to 1 hour.</li>
 <li><b>Swimming:</b> 100, 200, 400, 750, 800 and 1500 m, 1.9 km and 3.8 km (pool bests count continuous swimming only; see <a href="#swimming">Swimming</a>).</li>
 </ul>
-<p>An activity page shows a <b>gold, silver or bronze trophy</b> when an effort was your best, second-best or third-best ever at that run or swim distance or power duration, as things stood on that day. So a trophy stays on the activity even after you beat it. Treadmill and indoor legs don't count for distance bests. The full list is under <span class="k">Training log</span> → Bests.</p>
+<p><span class="k">Training log</span> → <b>Best efforts</b> lists every category in distance or duration order, for all time or one year. Click one to see your <b>top 10</b>, each from a different activity. Open an activity from the list and a link at the top takes you back to it.</p>
+<p><b>Spurious numbers</b> (a power spike, a GPS jump): click <b>Ignore</b> next to the effort. It then stops counting everywhere: bests, trophies, your profile and FTP suggestions. The activity itself isn't changed, and <b>Restore</b> brings the effort back.</p>
+<p>An activity page shows a <b>gold, silver or bronze trophy</b> when an effort was your best, second-best or third-best ever at that distance or power duration, as things stood on that day. A trophy stays on the activity even after you beat it. Trophies are also given <b>per year</b>: a cup marked '25 means 1st, 2nd or 3rd of 2025. Treadmill and indoor legs don't count for distance bests.</p>
 
 <h2 id="log">Training log</h2>
 <ul>
-<li><b>Totals:</b> distance, time and elevation by sport for a week, month, year or dates you choose.</li>
+<li><b>Totals:</b> distance, time and elevation by sport for a week, month, year or dates you choose, with a chart grouped to suit the period (daily, weekly, monthly or yearly). Walks, hikes, gym sessions and anything that isn't a swim, ride or run count under <b>Other</b>.</li>
 <li><b>Calendar:</b> every day's activities with their training load.</li>
 <li><b>Fitness and form:</b> load is scored on the familiar TSS scale. Fitness is your 42-day average load, fatigue your 7-day average, and form is fitness minus fatigue (negative when you're carrying fatigue, positive when fresh).</li>
 <li><b>Training status:</b> productive, maintaining, recovery, peaking, overreaching or detraining, from how your load is changing. It needs about six weeks of activities with heart rate.</li>
 <li><b>Thresholds:</b> suggestions for threshold heart rate, threshold pace and FTP from your hardest recent efforts. One click applies a suggestion from the day of the activity that showed it; earlier activities keep their old values.</li>
 <li><b>Race predictor:</b> 5K, 10K, half marathon and marathon times from your best running efforts of the last 12 weeks.</li>
+<li><b>Activities:</b> search everything by name, notes, gear, type ("treadmill", "race", "sprint triathlon") or month, filter by sport, date and distance, sort, and see totals for what matches. Press <b>/</b> from anywhere, or the magnifier at the top.</li>
 </ul>
-<p>The feed sidebar shows this week's load against a suggested range, a 12-week chart and your weekly goals.</p>
+<h3 id="races">Races</h3>
+<p><span class="k">Training log</span> → <b>Races</b> holds your season. Add each race with its date, type, distance, a goal time and a priority: <b>A</b> (the one that matters), <b>B</b> (important, short taper) or <b>C</b> (a training race). For each one you get:</p>
+<ul>
+<li>A countdown, also shown for your next race on the feed sidebar.</li>
+<li>Your race-day form if you keep training as you are.</li>
+<li>For A and B races, how much to cut training in the final days (10 for A, 5 for B) to arrive fresh, with form at +5 or more.</li>
+</ul>
+<p>After the race, link the activity as your result to see it against your goal.</p>
+<h3 id="goals">Goals</h3>
+<p>Set <b>weekly, monthly and annual</b> goals for each sport or all sports together, by distance, time or elevation, from <b>Set goals</b> on the feed sidebar. Monthly and annual goals show a marker for where you'd be by today at an even rate, and how far ahead or behind you are.</p>
 <div class="tip">Triven doesn't estimate VO₂ max: your watch already gives you one, and a second figure would only disagree with it.</div>
 
 <h2 id="gear">Gear</h2>
 <p>Add your shoes and bikes on the <span class="k">Gear</span> tab to track their distance, with a replacement reminder per item. Set defaults by role (everyday, trail, track, treadmill or races for shoes; everyday, indoor, gravel, mountain bike or races for bikes) and new activities pick the right one. Marking an activity as a race switches it to your race gear. In multisport activities, each leg has its own gear.</p>
+<p>Each item has an <b>In use from</b> date. Default gear only goes on activities from that date, so importing years of history doesn't put today's shoes on old runs. When you set or change the date, Triven offers to remove the item from activities before it.</p>
 
 <h2 id="settings">Settings</h2>
 <ul>
-<li><b>Profile and privacy:</b> name, photo, default visibility for new uploads, search, follower approval and who can see your activities.</li>
+<li><b>Profile and privacy:</b> name, username, photo, date of birth (only you see it), weight (typed in, no smart scale needed), units (metric or imperial), default visibility for new uploads, search, follower approval and who can see your activities.</li>
 <li><b>Connected services:</b> intervals.icu for automatic sync.</li>
 <li><b>Heart rate:</b> run and bike threshold heart rate (enter lab or field-test results here), max and resting heart rate, and zone boundaries.</li>
 <li><b>Running form:</b> the left/right balance range that gets flagged.</li>
-<li><b>Cycling:</b> FTP, your weight, bike weight, riding position and tyres, used to estimate power on rides without a power meter.</li>
+<li><b>Cycling:</b> FTP, bike weight, riding position and tyres, used to estimate power on rides without a power meter.</li>
+<li><b>Swimming:</b> your swim threshold (CSS), or a 400 m and 200 m time trial to work it out.</li>
 </ul>
 <h3>Thresholds over time</h3>
-<p>Triven keeps a dated history of your threshold heart rates, max and resting heart rate, FTP and weight. Every activity is worked out with the values in effect on its day: if your FTP was 240 a year ago and is 270 now, last year's rides still use 240. When you change a value, choose <b>From</b> a date (today, or the day of a lab test) or <b>For past activities too</b>. For days before your first change, Triven uses what your watch recorded in that activity's file, if anything. The activity page says which values it used and where they came from.</p>
+<p>Triven keeps a dated history of your threshold heart rates, max and resting heart rate, FTP, swim threshold and weight. Every activity is worked out with the values in effect on its day: if your FTP was 240 a year ago and is 270 now, last year's rides still use 240. When you change a value, choose <b>From</b> a date (today, or the day of a lab test) or <b>For past activities too</b>. For days before your first change, Triven uses the heart rate thresholds and weight your watch recorded in that activity's file, if any (never the watch's FTP). The activity page says which values it used and where they came from.</p>
 
 <h2 id="faq">Questions</h2>
 <h3>An activity is missing.</h3>
