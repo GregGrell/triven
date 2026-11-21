@@ -1,5 +1,5 @@
-import { snapToTrack, pathLength } from './track.js?v=1795225348';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795225348';
+import { snapToTrack, pathLength } from './track.js?v=1795226615';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795226615';
 // Triven: turn a decoded FIT file into activity rows, streams and best efforts.
 // Pure functions only (no network), so the same code runs in the browser and in tests.
 

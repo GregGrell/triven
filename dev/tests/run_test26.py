@@ -29,7 +29,11 @@ try:
     check({'files/activity-files/a1.fit','files/activity-streams/a1.json','files/activity-media/a1/p.jpg','files/avatars/avatar-1.jpg'}<=names and z.read('files/activity-files/a1.fit')==b'FITDATA','with files: originals, streams, photos, avatar')
     check(not any('x.fit' in n for n in names),"someone else's files not included")
     pg.fill('#delConfirm','delete');check(not pg.is_disabled('#delAccount'),'typing delete enables the button')
-    pg.click('#delAccount');pg.wait_for_timeout(1500)
+    pg.click('#delAccount');pg.wait_for_timeout(300)
+    check(pg.is_visible('#delSure') and 'cannot be undone' in pg.inner_text('#delSure') and '3 activities' in pg.inner_text('#delSure') and pg.evaluate("Object.keys(__files).length")>0,'warning shown, nothing deleted yet')
+    pg.click('#delNo');pg.wait_for_timeout(200)
+    check(not pg.is_visible('#delSure') and pg.is_disabled('#delAccount') and pg.input_value('#delConfirm')=='' and 'delete_my_account' not in pg.evaluate("(window.__rpc||[]).map(x=>x[0])"),'Cancel backs out and clears the confirmation')
+    pg.fill('#delConfirm','delete');pg.click('#delAccount');pg.wait_for_timeout(200);pg.click('#delYes');pg.wait_for_timeout(1500)
     left=pg.evaluate("Object.keys(__files).filter(k=>!k.endsWith('#blob'))") if pg.evaluate("typeof __files")!='undefined' else []
     print('   files after:',left)
     rpc=pg.evaluate("(window.__rpc||[]).map(x=>x[0])") if pg.evaluate("typeof __rpc")!='undefined' else []

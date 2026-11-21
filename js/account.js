@@ -1,5 +1,5 @@
 // Your data: download everything as a zip, or delete the account and all of it.
-import { sb, state, toast, JSZip } from './main.js?v=1795225348';
+import { sb, state, toast, JSZip } from './main.js?v=1795226615';
 
 const $ = id => document.getElementById(id);
 const BUCKETS = ['activity-files', 'activity-streams', 'activity-media', 'avatars'];
@@ -93,5 +93,15 @@ export function initAccountData() {
   const ex = $('dataExport'), del = $('delAccount'); if (!ex || ex.dataset.ready) return; ex.dataset.ready = 1;
   ex.onclick = () => exportData(ex, $('dataFiles').checked).catch(e => { $('dataMsg').textContent = 'Export failed: ' + (e.message || e); });
   $('delConfirm').oninput = () => { del.disabled = $('delConfirm').value.trim().toLowerCase() !== 'delete'; };
-  del.onclick = () => deleteAccount().catch(e => { $('delMsg').textContent = "Couldn't finish: " + (e.message || e) + '. Try again; anything already removed stays removed.'; });
+  // second step: an explicit warning before anything is touched
+  del.onclick = () => {
+    const n = state.activities.length;
+    $('delSureBody').textContent = `This cannot be undone. Your account, ${n.toLocaleString()} activit${n === 1 ? 'y' : 'ies'} with their original files, photos, gear, bests, comments and follows will be permanently deleted, and you'll be signed out.`;
+    $('delSure').hidden = false; del.hidden = true; $('delNo').focus();
+  };
+  const reset = () => { $('delSure').hidden = true; del.hidden = false; };
+  $('delNo').onclick = () => { reset(); $('delConfirm').value = ''; del.disabled = true; };
+  $('delConfirm').addEventListener('input', () => { if ($('delConfirm').value.trim().toLowerCase() !== 'delete') reset(); });
+  $('delYes').onclick = () => { $('delNo').disabled = true;
+    return deleteAccount().catch(e => { $('delNo').disabled = false; $('delMsg').textContent = "Couldn't finish: " + (e.message || e) + '. Try again; anything already removed stays removed.'; }); };
 }

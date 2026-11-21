@@ -428,6 +428,7 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
 .bellpanel[hidden]{display:none}.bellhead{padding:8px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}.bellitem{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;text-decoration:none;color:var(--text-primary);font-size:13px}
 .bellitem:hover{background:var(--surface-2)}.bellitem.new{background:color-mix(in srgb,var(--accent) 10%,transparent)}.belltext{min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.bellitem small{font-size:11px;white-space:nowrap}
 .btn.danger{background:var(--warn,#e0533d);color:#fff;border-color:transparent}.btn.danger:disabled{opacity:.45;cursor:not-allowed}
+.delsure{margin-top:10px;padding:12px 14px;border:1.5px solid var(--warn,#e0533d);border-radius:10px;background:color-mix(in srgb,var(--warn,#e0533d) 8%,transparent)}.delsure[hidden]{display:none}.delsure p{margin:6px 0 10px;font-size:13px}
 </style>
 </head>
 <body>
@@ -671,10 +672,15 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
       <div class="note">Deletes your account and everything in it straight away: activities, files, photos, gear, comments, kudos, follows. Clubs you run pass to the next admin or member. This can't be undone, so download your data first if you want a copy.</div>
       <label class="f" style="margin-top:8px">Type <b>delete</b> to confirm<input type="text" id="delConfirm" autocomplete="off" placeholder="delete"></label>
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn danger" id="delAccount" type="button" disabled>Delete my account</button><small class="muted" id="delMsg"></small></div>
+      <div class="delsure" id="delSure" hidden role="alertdialog" aria-labelledby="delSureT">
+        <b id="delSureT">Are you sure?</b>
+        <p id="delSureBody">This cannot be undone.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="delNo" type="button">Cancel</button><button class="btn danger" id="delYes" type="button">Yes, delete everything</button></div>
+      </div>
     </section>
   </div>
 </div>
 
-<script type="module" src="/js/main.js?v=1795225348"></script>
+<script type="module" src="/js/main.js?v=1795226615"></script>
 </body>
 </html>
