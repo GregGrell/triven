@@ -22,7 +22,7 @@ function watchValues(sm, sport) {
   if (!sm) return w;
   if (sm.lthr && OK.lthr(+sm.lthr)) { if (sport === 'run') w.lthrRun = +sm.lthr; else if (sport === 'bike') w.lthrBike = +sm.lthr; }
   if (sm.maxHr && OK.maxHr(+sm.maxHr)) w.maxHr = +sm.maxHr;
-  if (sm.ftp && OK.ftp(+sm.ftp)) w.ftp = +sm.ftp;
+  // FTP from the watch is not used: watches often carry a default or stale figure (Carl's said 400 W), which skewed the FTP card and power-based load
   if (sm.weight && OK.mass(+sm.weight)) w.mass = +sm.weight;
   return w;
 }

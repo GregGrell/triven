@@ -4,6 +4,11 @@ import os, subprocess, time, json
 DEV=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT=os.path.join(DEV,'out');os.makedirs(OUT,exist_ok=True)
 from playwright.sync_api import sync_playwright
+def nav(pg, url, **k):   # in-page navigation keeps the fake database; a full load (goto) would reset it
+  if '#' in url and pg.url.startswith('http://localhost') and pg.evaluate('!!window.__db'): pg.evaluate("h=>location.hash=h", '#'+url.split('#',1)[1])
+  else: pg.goto(url, **k)
+ROUTE="import('/site/js/urls.js').then(m=>m.curRoute())"   # the app's route, whether the address shows #… or a clean path
+
 srv=subprocess.Popen(['python3','-m','http.server','8795'],cwd=DEV,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
 acts=[];secs=[];bests=[]
 def act(i,sp,day,name):
@@ -24,7 +29,7 @@ try:
     b=p.chromium.launch();pg=b.new_page(viewport={'width':1240,'height':950});errs=[];pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
     pg.add_init_script('window.__seedDb='+json.dumps(seed)+';')
     base='http://localhost:8795/site/index.html'
-    pg.goto(base+'#log/bests');pg.wait_for_timeout(2500)
+    nav(pg,base+'#log/bests');pg.wait_for_timeout(2500)
     run=pg.inner_text('#logBests .card:has-text("Running")')
     check(run.find('400 m')<run.find('1 km')<run.find('5 km')<run.find('Marathon'),'running bests in distance order')
     pw=pg.inner_text('#logBests .card:has-text("Cycling power")')
@@ -51,14 +56,14 @@ try:
     tr=pg.inner_text('#actTrophies')
     check("'26" in tr and '290 W' in tr,'trophy: 290 W best of 2026 (spike ignored), shown with a 2026 cup: '+tr.replace('\n',' '))
     pg.click('#actBack');pg.wait_for_timeout(800)
-    check(pg.evaluate('location.hash').startswith('#log/bests/bike/') and pg.is_visible('#logBests .ranklist'),'back returns to the 20 min list')
+    check(pg.evaluate(ROUTE).startswith('#log/bests/bike/') and pg.is_visible('#logBests .ranklist'),'back returns to the 20 min list')
     pg.click('#logBests .ranklist.ignored button:has-text("Restore")');pg.wait_for_timeout(800)
     check(pg.locator('#logBests .ranklist:not(.ignored) tr').count()==5 and pg.evaluate("__db.best_ignores.length")==0,'restore puts it back')
-    pg.goto(base+'#log/bests/run/5%20km?y=2026');pg.wait_for_timeout(1500)
+    nav(pg,base+'#log/bests/run/5%20km?y=2026');pg.wait_for_timeout(1500)
     t=pg.inner_text('#logBests');check('in 2026' in t and t.find('20:30')<t.find('20:45') and '21:00' not in t,'5 km list for 2026 only')
     pg.screenshot(path=os.path.join(OUT,'t17_list.png'))
-    pg.goto(base+'#log/bests');pg.wait_for_timeout(1200);pg.screenshot(path=os.path.join(OUT,'t17_overview.png'),full_page=True)
-    pg.goto(base+'#a/k3');pg.wait_for_timeout(2000);check(not pg.is_visible('#actBack'),'no back link when not opened from a list')
+    nav(pg,base+'#log/bests');pg.wait_for_timeout(1200);pg.screenshot(path=os.path.join(OUT,'t17_overview.png'),full_page=True)
+    nav(pg,base+'#a/k3');pg.wait_for_timeout(2000);check(not pg.is_visible('#actBack'),'no back link when not opened from a list')
     print('ERRORS',errs)
     if errs: fails.append('errors')
 finally: srv.terminate()

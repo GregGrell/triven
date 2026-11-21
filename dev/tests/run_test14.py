@@ -3,6 +3,11 @@ import os, subprocess, time, json
 DEV=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT=os.path.join(DEV,'out');os.makedirs(OUT,exist_ok=True)
 from playwright.sync_api import sync_playwright
+def nav(pg, url, **k):   # in-page navigation keeps the fake database; a full load (goto) would reset it
+  if '#' in url and pg.url.startswith('http://localhost') and pg.evaluate('!!window.__db'): pg.evaluate("h=>location.hash=h", '#'+url.split('#',1)[1])
+  else: pg.goto(url, **k)
+ROUTE="import('/site/js/urls.js').then(m=>m.curRoute())"   # the app's route, whether the address shows #… or a clean path
+
 srv=subprocess.Popen(['python3','-m','http.server','8791'],cwd=DEV,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
 def act(i,n,name,sp,day,dist,secs,asc):
   return {'id':i,'num':n,'owner':'u1','name':name,'sport':sp,'start_time':day+'T05:00:00Z','utc_offset_min':180,'distance_m':dist,'elapsed_s':secs,'moving_s':secs,'ascent_m':asc,
@@ -21,19 +26,19 @@ try:
     errs=[];pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
     pg.add_init_script('window.__seedDb='+json.dumps(seed)+';')
     base='http://localhost:8791/site/index.html'
-    pg.goto(base+'#feed');pg.wait_for_timeout(2500)
+    nav(pg,base+'#feed');pg.wait_for_timeout(2500)
     t=pg.inner_text('#view-feed')
     check('10.00 mi' in t and '8:00 /mi' in t,'feed: run in miles and min/mile')
     check('100.00 mi' in t and '20.0 mph' in t and '1,000 ft' in t,'feed: ride in miles, mph, feet')
     check('25.0 mi' in t,'weekly goal shown in miles (stored 40.2 km)')
-    pg.goto(base+'#a/a1');pg.wait_for_timeout(3000)
+    nav(pg,base+'#a/a1');pg.wait_for_timeout(3000)
     t=pg.inner_text('#view-activity');check('10.00 mi' in t and '8:00 /mi' in t and '100 ft' in t and 'km' not in t,'activity page in miles, pace per mile, feet')
-    pg.goto(base+'#log/activities');pg.wait_for_timeout(1500)
+    nav(pg,base+'#log/activities');pg.wait_for_timeout(1500)
     t=pg.inner_text('#logActs');check('110.0 mi' in t or '110 mi' in t,'search totals in miles: '+pg.inner_text('.actsum'))
     pg.fill('.actkm >> nth=0','50');pg.wait_for_timeout(300);check(pg.locator('.acttbl tr').count()==2,'distance filter in miles (≥50 mi → the ride)')
-    pg.goto(base+'#log');pg.wait_for_timeout(2000)
+    nav(pg,base+'#log');pg.wait_for_timeout(2000)
     t=pg.inner_text('#view-log');check(' mi' in t and '100 mi' in t,'training log: miles, ride best')
-    pg.goto(base+'#gear');pg.wait_for_timeout(1500)
+    nav(pg,base+'#gear');pg.wait_for_timeout(1500)
     t=pg.inner_text('#view-gear');check('of 500 mi' in t,'shoe replacement shown as 500 mi: '+t[:200].replace('\n',' '))
     # settings: weights in lb, switch to metric converts boxes and saves kg
     pg.click('#openSettings');pg.wait_for_timeout(500)
@@ -43,17 +48,17 @@ try:
     pg.click('#saveSettings');pg.wait_for_timeout(1500)
     st=pg.evaluate("window.__db.profiles[0].settings")
     check(st['units']=='metric' and abs(st['mass']-75)<0.01 and st['goals']['run']['target']==40.2336,'saved metric; weight 75 kg; goal untouched')
-    pg.goto(base+'#feed');pg.wait_for_timeout(2000)
+    nav(pg,base+'#feed');pg.wait_for_timeout(2000)
     t=pg.inner_text('#view-feed');check('16.09 km' in t and '/km' in t and '305 m' in t,'back to metric everywhere')
     # imperial again: type a weight in lb, stored as kg
     pg.click('#openSettings');pg.wait_for_timeout(400);pg.select_option('#s_units','imperial');pg.fill('#s_mass','170');pg.click('#saveSettings');pg.wait_for_timeout(1500)
     st=pg.evaluate("window.__db.profiles[0].settings");check(abs(st['mass']-77.11)<0.01,'170 lb saved as 77.11 kg: '+str(st['mass']))
     # gear edit: unchanged box keeps the stored km exactly; a new value converts
-    pg.goto(base+'#gear');pg.wait_for_timeout(1200);pg.click('#view-gear .linkbtn:has-text("Edit")');pg.wait_for_timeout(500)
+    nav(pg,base+'#gear');pg.wait_for_timeout(1200);pg.click('#view-gear .linkbtn:has-text("Edit")');pg.wait_for_timeout(500)
     check(pg.input_value('#modalBody input[type=number] >> nth=1')=='500','edit box shows 500 mi')
     pg.fill('#modalBody input[type=number] >> nth=1','400');pg.click('#modalBody button:has-text("Save")');pg.wait_for_timeout(1200)
     g=pg.evaluate("window.__db.gear[0]");check(abs(g['replace_km']-643.7)<0.1 and abs(g['start_km']-160.9344)<1e-6,'400 mi saved as 643.7 km; untouched start distance kept exactly')
-    pg.goto(base+'#feed');pg.wait_for_timeout(1500);pg.screenshot(path=os.path.join(OUT,'t14_feed.png'))
+    nav(pg,base+'#feed');pg.wait_for_timeout(1500);pg.screenshot(path=os.path.join(OUT,'t14_feed.png'))
     print('ERRORS',errs)
     if errs: fails.append('errors')
 finally: srv.terminate()

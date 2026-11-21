@@ -1,12 +1,13 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795220279';
-import { mountWeek } from './week.js?v=1795220279';
-import { envLabel } from './process.js?v=1795220279';
-import * as U from './units.js?v=1795220279';
-import { drawRouteMap } from './mapcanvas.js?v=1795220279';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795220279';
-import { openTrim } from './trim.js?v=1795220279';
-import { relayCard, relayInvites } from './relay.js?v=1795220279';
+import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795222969';
+import { mountWeek } from './week.js?v=1795222969';
+import { envLabel } from './process.js?v=1795222969';
+import { rememberLink } from './urls.js?v=1795222969';
+import * as U from './units.js?v=1795222969';
+import { drawRouteMap } from './mapcanvas.js?v=1795222969';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795222969';
+import { openTrim } from './trim.js?v=1795222969';
+import { relayCard, relayInvites } from './relay.js?v=1795222969';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -72,6 +73,7 @@ function card(a, urls, refresh) {
   const s0 = (a.sections || []).find(x => x.sport !== 'transition');
   const type = a.sport === 'multi' ? (a.multisport_profile === 'other' ? 'Multisport' : a.multisport_profile[0].toUpperCase() + a.multisport_profile.slice(1)) : envLabel(a.sport, s0?.env);
   const prof = a.handle ? '#u/' + a.handle : null;
+  if (a.handle && a.num) rememberLink(a.id, a.handle + '/' + a.num);   // so the address bar can show /handle/num
   const head = el('div', { className: 'fhead' }, prof ? el('a', { href: prof, className: 'favlink' }, avatarEl(a.athlete, mine ? state.profile?.avatar_path : a.avatar, 38)) : avatarEl(a.athlete, mine ? state.profile?.avatar_path : a.avatar, 38),
     el('div', { style: 'flex:1' }, prof ? el('a', { href: prof, className: 'fwho' }, el('b', { textContent: mine ? 'You' : a.athlete })) : el('b', { textContent: mine ? 'You' : a.athlete }), el('div', { className: 'muted', style: 'font-size:12px', textContent: `${when} · ${type}${mine ? ' · ' + VIS[a.visibility] : ''}` })));
   const c = el('div', { className: 'card fcard' }, head, el('a', { href: '#a/' + a.id, className: 'ftitle' }, a.name, a.is_race ? ' ' : null, a.is_race ? raceFlag(18) : null));

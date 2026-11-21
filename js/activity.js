@@ -1,6 +1,6 @@
 // Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
-import { srcText } from './athlete.js?v=1795220279';
-import * as U from './units.js?v=1795220279';
+import { srcText } from './athlete.js?v=1795222969';
+import * as U from './units.js?v=1795222969';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -274,32 +274,6 @@ function renderFtp(){
   el.append(t,cap);
 }
 
-// ---------- balance card ----------
-function renderBal(){
-  const el=document.getElementById('balcard');el.replaceChildren();
-  const h=document.createElement('h2');h.textContent='Running balance (ground contact)';el.append(h);
-  const runs=S.map((s,i)=>({s,i})).filter(o=>o.s.sport==='running'&&R.some(r=>r.seg===o.i&&r.bal!=null));
-  if(!runs.length){el.append(Object.assign(document.createElement('div'),{className:'note',textContent:'No ground contact balance in this activity. It needs a run recorded with a running-dynamics sensor such as an HRM-Pro or Running Dynamics Pod.'}));return}
-  const kv=document.createElement('div');kv.className='kv';
-  let totRun=0,totOut=0;
-  runs.forEach(({i})=>{const rs=R.filter(r=>r.seg===i&&r.bal!=null);const avg=d3.mean(rs,r=>r.bal);
-    let tr=0,to=0;for(let k=1;k<rs.length;k++){const dt=Math.min(rs[k].t-rs[k-1].t,10);tr+=dt;if(rs[k].balS<CFG.balLo||rs[k].balS>CFG.balHi)to+=dt}
-    totRun+=tr;totOut+=to;
-    const a=document.createElement('span');a.className='sec';a.textContent=`${NAMES[i]} average`;const b=document.createElement('b');b.textContent=`${balTxt(avg)} · ${tr?Math.round(to/tr*100):0}% outside`;kv.append(a,b);});
-  const big=document.createElement('div');big.className='big';big.style.marginTop='10px';big.textContent=Math.round(totOut/totRun*100)+'%';
-  const u=document.createElement('small');u.textContent=`of running time outside ${CFG.balLo}–${CFG.balHi}% L`;big.append(u);el.append(big,kv);
-  const list=document.createElement('div');list.style.marginTop='12px';
-  const [a,b]=range(); const vis=FLAGS.filter(f=>f.t1>=a&&f.t0<=b);
-  if(!vis.length){list.append(Object.assign(document.createElement('div'),{className:'note',textContent:'No flagged stretches in this selection.'}))}
-  vis.slice(0,6).forEach(f=>{const d=document.createElement('div');d.className='flag';const ic=document.createElement('span');ic.className='ic';ic.textContent='!';
-    const tx=document.createElement('div');const b1=document.createElement('b');b1.textContent=`${NAMES[f.seg]} ${fmtDur(f.t0-S[f.seg].start)}–${fmtDur(f.t1-S[f.seg].start)}`;
-    tx.append(b1,document.createTextNode(` · ${f.side==='R'?'right':'left'}-heavy, ${balTxt(f.avg)} · ${fmtDur(f.t1-f.t0)}`));
-    d.append(ic,tx);d.onclick=()=>select({kind:'span',t0:Math.max(S[f.seg].start,f.t0-15),t1:Math.min(S[f.seg].start+S[f.seg].elapsed,f.t1+15),seg:f.seg});list.append(d)});
-  if(vis.length>6) list.append(Object.assign(document.createElement('div'),{className:'note',textContent:`+ ${vis.length-6} more`}));
-  el.append(list);
-  el.append(Object.assign(document.createElement('div'),{className:'note',textContent:`Flagged when the 10-second average stays outside ${CFG.balLo}–${CFG.balHi}% left for at least ${CFG.balMin} s. The first 15 s of each run is skipped while the sensor settles. Times are from the start of each run. Thresholds can be changed in Settings.`}));
-}
-
 // ---------- charts ----------
 const charts=[]; let xScale;
 function chartDefs(){
@@ -424,7 +398,8 @@ window.__actApply=cfg=>{CFG=Object.assign({},DEFAULTS,cfg);recompute();renderAll
 
 function select(s){sel=s;renderAll()}
 function recompute(){computeFlags();computeBike()}
-function renderAll(){renderStats();renderSegbar();renderMap();renderZones();renderFtp();renderBal();renderCharts();renderLaps()}
+function renderAll(){renderStats();renderSegbar();renderMap();renderZones();renderFtp();renderCharts();   // ground contact balance: shown on its chart (band and flags) and the map, no card of its own
+renderLaps()}
 recompute();
 window.__act={renderAll,renderCharts};
 sel={kind:'all'};renderAll();

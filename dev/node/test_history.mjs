@@ -11,7 +11,7 @@ cfg = applyChange(cfg, { ftp: 270, lthrRun: 170 }, '2026-11-20');
 ok(loadOf(old, cfg).value === before, `year-old ride keeps its load (${before}) after FTP 240 → 270`);
 ok(loadOf(oldRun, cfg).value === beforeRun, `year-old run keeps its load (${beforeRun}) after run threshold 163 → 170`);
 ok(loadOf(ride('2026-11-21'), cfg).value < before, `new ride at the same power scores lower with FTP 270 (${loadOf(ride('2026-11-21'), cfg).value})`);
-ok(loadOf(ride('2025-11-20', { ftp: 220 }), cfg).value > before, 'an old ride with FTP 220 on the watch uses 220');
+ok(loadOf(ride('2025-11-20', { ftp: 400 }), cfg).value === before && settingsAt(cfg, ride('2025-11-20', { ftp: 400 })).ftp === 240, 'the watch\'s FTP is ignored (often a default); the FTP from Settings for that date is used');
 ok(settingsAt(cfg, run('2025-06-01', { lthr: 158 })).lthrRun === 158 && settingsAt(cfg, ride('2025-06-01', { lthr: 158 })).lthrRun === 163, 'watch threshold HR applies to its own sport only');
 cfg = applyChange(cfg, { ftp: 250 }, '2026-03-01');
 ok(settingsAt(cfg, ride('2026-05-01', { ftp: 220 })).ftp === 250 && cfg.ftp === 270, 'a backdated change beats the watch from its date; today stays 270');

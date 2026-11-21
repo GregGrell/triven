@@ -1,8 +1,8 @@
 // Automatic sync. The server (Edge Function "sync", every 10 minutes) fetches new activities from connected services
 // into an inbox and processes them; anything it couldn't finish is processed here the next time the app opens.
-import { sb, state, toast, loadAll } from './main.js?v=1795220279';
-import { decodeFit } from './fit.js?v=1795220279';
-import { importDecoded } from './pipeline.js?v=1795220279';
+import { sb, state, toast, loadAll } from './main.js?v=1795222969';
+import { decodeFit } from './fit.js?v=1795222969';
+import { importDecoded } from './pipeline.js?v=1795222969';
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
@@ -26,7 +26,7 @@ export async function processInbox(now = false) {
         if (r.status === 'ok') n++;
       } catch (e) { await sb.from('sync_inbox').update({ status: 'failed', error: String(e.message || e) }).eq('id', it.id); }
     }
-    if (n) { await loadAll(); toast(`${n} new ${n === 1 ? 'activity' : 'activities'} synced`); if (!location.hash.startsWith('#a/')) window.dispatchEvent(new HashChangeEvent('hashchange')); }
+    if (n) { await loadAll(); toast(`${n} new ${n === 1 ? 'activity' : 'activities'} synced`); if (!state.route?.startsWith('#a/')) window.dispatchEvent(new HashChangeEvent('hashchange')); }
   } finally { busy = false; }
   return n;
 }

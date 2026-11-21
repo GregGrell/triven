@@ -1,9 +1,10 @@
 // Profile pages (triven.fit/<username>) and short links (triven.fit/<username>/<n>). Members only.
-import { sb, state, toast, avatarEl } from './main.js?v=1795220279';
-import { feedList } from './feed.js?v=1795220279';
-import { followBtn } from './club.js?v=1795220279';
-import * as U from './units.js?v=1795220279';
-import { RUN_DISTANCES, SWIM_DISTANCES } from './process.js?v=1795220279';
+import { sb, state, toast, avatarEl } from './main.js?v=1795222969';
+import { feedList } from './feed.js?v=1795222969';
+import { followBtn } from './club.js?v=1795222969';
+import * as U from './units.js?v=1795222969';
+import { rememberLink } from './urls.js?v=1795222969';
+import { RUN_DISTANCES, SWIM_DISTANCES } from './process.js?v=1795222969';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -30,14 +31,14 @@ export async function openLink(path, show) {
   const { data, error } = await sb.rpc('resolve_link', { p_handle: handle, p_num: n ? +n : null });
   if (error) { v.replaceChildren(msg('Could not open that link', error.message)); return; }
   if (n) {
-    if (data?.activity) { location.replace('#a/' + data.activity); return; }
+    if (data?.activity) { rememberLink(data.activity, data.handle + '/' + n); location.replace('#a/' + data.activity); return; }
     v.replaceChildren(msg(data?.found ? 'This activity isn’t shared with you' : 'No activity at that link',
       data?.found ? `@${data.handle} hasn’t shared it with you. Following them or joining their club may help.` : 'It may have been deleted, or the link is mistyped.', data?.handle ? '#u/' + data.handle : null));
     return;
   }
   if (!data?.found) { v.replaceChildren(msg('Nobody has that username', 'Check the link, or find people on the People tab.', '#club')); return; }
   if (!data.person) { v.replaceChildren(msg('This profile is private', `@${data.handle} only shows their profile to followers and club mates.`, '#club')); return; }
-  if (data.handle !== handle) history.replaceState(null, '', '#u/' + data.handle);   // an old username: show the current one
+  if (data.handle !== handle) history.replaceState(null, '', '/' + data.handle);   // an old username: show the current one
   mountProfile(data.person);
 }
 function msg(title, text, href) {

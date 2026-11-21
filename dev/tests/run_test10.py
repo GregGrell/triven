@@ -3,6 +3,11 @@ import os, json, subprocess, time
 DEV=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT=os.path.join(DEV,'out');os.makedirs(OUT,exist_ok=True)
 from playwright.sync_api import sync_playwright
+def nav(pg, url, **k):   # in-page navigation keeps the fake database; a full load (goto) would reset it
+  if '#' in url and pg.url.startswith('http://localhost') and pg.evaluate('!!window.__db'): pg.evaluate("h=>location.hash=h", '#'+url.split('#',1)[1])
+  else: pg.goto(url, **k)
+ROUTE="import('/site/js/urls.js').then(m=>m.curRoute())"   # the app's route, whether the address shows #… or a clean path
+
 srv=subprocess.Popen(['python3','-m','http.server','8784'],cwd=DEV,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
 U='http://localhost:8784/site/index.html'
 TR=[[25.30+i*0.001,51.50+i*0.0012,0] for i in range(40)]
@@ -41,7 +46,7 @@ try:
     errs=[];pg.on('pageerror',lambda e:errs.append('PAGEERR '+str(e)+' '+(e.stack or '')[:300]))
     pg.on('console',lambda m:m.type=='error' and 'TUNNEL' not in m.text and errs.append('CONSOLE '+m.text[:200]))
     pg.add_init_script(init)
-    pg.goto(U+'#feed');pg.wait_for_timeout(2500)
+    nav(pg,U+'#feed');pg.wait_for_timeout(2500)
     # first sign-in: Settings opens with a welcome note
     check(pg.evaluate("document.getElementById('settings').classList.contains('open')") and pg.is_visible('#setWelcome'),'first sign-in opens Settings with the welcome note')
     pg.screenshot(path=os.path.join(OUT,'t10_welcome.png'))
@@ -58,12 +63,12 @@ try:
     pg.select_option('.invite select',index=0);pg.click('.invite button:has-text("Accept")');pg.wait_for_timeout(400)
     calls=pg.evaluate("__rpc.filter(c=>c[0]==='respond_relay')");check(calls and calls[-1][1]['accept']==True and calls[-1][1]['p_activity']=='a1','accept sends my nearest activity: '+json.dumps(calls[-1:] if calls else None))
     # relay page
-    pg.goto(U+'#r/r1');pg.wait_for_timeout(1500)
+    nav(pg,U+'#r/r1');pg.wait_for_timeout(1500)
     t=pg.inner_text('#view-relay');check('Doha Sprint relay' in t and 'Hand-over' in t and 'Not shared with you' in t,'relay page: legs, hand-overs, unshared leg')
     check('1:19:30' in t,'total time first start to last finish (1:19:30)')
     pg.screenshot(path=os.path.join(OUT,'t10_relay.png'),full_page=True)
     # activity page: trophies + make a relay
-    pg.goto(U+'#a/a1');pg.wait_for_timeout(2500)
+    nav(pg,U+'#a/a1');pg.wait_for_timeout(2500)
     tt=pg.inner_text('#actTrophies') if pg.is_visible('#actTrophies') else '';check('5 km' in tt and '20:50' in tt and '1 km' in tt,'trophies: '+tt.replace('\n',' '))
     check(pg.locator('#actTrophies .trophy.r1').count()==1 and pg.locator('#actTrophies .trophy.r2').count()==1,'gold for the 5 km PB, silver for the 2nd-best 1 km')
     check(not pg.locator('#vo2card').count(),'no VO2 max card on the activity page')
@@ -73,10 +78,10 @@ try:
     pg.locator('#modal .ropt:has-text("Bea bike leg")').click();pg.click('#modal button:has-text("Send invitation")');pg.wait_for_timeout(400)
     sc=pg.evaluate("__rpc.filter(c=>c[0]==='start_relay').pop()");check(sc and sc[1]['other']=='u2' and sc[1]['other_aid']=='b8' and sc[1]['p_name']=='Parkrun relay','start_relay called: '+json.dumps(sc))
     # clubs
-    pg.goto(U+'#club');pg.wait_for_timeout(1200)
+    nav(pg,U+'#club');pg.wait_for_timeout(1200)
     t=pg.inner_text('#view-club');check('Doha Tri Club' in t and '1 request' in t and 'Request sent, waiting' in t,'People tab lists clubs with request count and pending status')
     pg.fill('input[placeholder="Find a club by name"]','swim');pg.wait_for_timeout(600);check('Doha Masters Swim' in pg.inner_text('#view-club'),'club search')
-    pg.goto(U+'#c/c1');pg.wait_for_timeout(1500)
+    nav(pg,U+'#c/c1');pg.wait_for_timeout(1500)
     t=pg.inner_text('#view-club');check('Club TT on Friday' in t and 'REQUESTS TO JOIN · 1' in t.upper() and 'MEMBERS · 3' in t.upper(),'club page: news, requests, members')
     pg.screenshot(path=os.path.join(OUT,'t10_club.png'),full_page=True)
     pg.fill('.composer textarea','Kit order closes Sunday');pg.click('.composer button');pg.wait_for_timeout(400)
@@ -88,20 +93,20 @@ try:
     pg.click('#modal input[value=open]');pg.click('#modal button:has-text("Save")');pg.wait_for_timeout(400)
     uc=pg.evaluate("__rpc.filter(c=>c[0]==='update_club').pop()");check(uc and uc[1]['p_policy']=='open' and uc[1]['p_listed']==True,'settings saved')
     # invite link
-    pg.goto(U+'#join/abcdef654321');pg.wait_for_timeout(1200)
+    nav(pg,U+'#join/abcdef654321');pg.wait_for_timeout(1200)
     check('Al Wakra Wheelers' in pg.inner_text('#view-club'),'invite link preview')
     pg.screenshot(path=os.path.join(OUT,'t10_join.png'))
-    pg.click('#view-club button:has-text("Join club")');pg.wait_for_timeout(600);check(pg.evaluate("location.hash")=='#c/c7','joined → club page')
+    pg.click('#view-club button:has-text("Join club")');pg.wait_for_timeout(600);check(pg.evaluate(ROUTE)=='#c/c7','joined → club page')
     # start a club form
-    pg.goto(U+'#club');pg.wait_for_timeout(1000);pg.click('button:has-text("Start a club")');pg.wait_for_timeout(300)
+    nav(pg,U+'#club');pg.wait_for_timeout(1000);pg.click('button:has-text("Start a club")');pg.wait_for_timeout(300)
     pg.fill('#modal input[placeholder^="e.g."]','Lusail Brick Club');pg.click('#modal button:has-text("Create club")');pg.wait_for_timeout(400)
     cc=pg.evaluate("__rpc.filter(c=>c[0]==='create_club').pop()");check(cc and cc[1]['club_name']=='Lusail Brick Club' and cc[1]['p_listed']==True and cc[1]['p_policy']=='open','create club')
     # settings + log
-    pg.goto(U+'#log');pg.wait_for_timeout(2000);check(not pg.locator('#fitcard').count() and 'VO₂ max' not in pg.inner_text('#view-log').replace('VO₂ max +',''),'no VO2 max in the training log')
+    nav(pg,U+'#log');pg.wait_for_timeout(2000);check(not pg.locator('#fitcard').count() and 'VO₂ max' not in pg.inner_text('#view-log').replace('VO₂ max +',''),'no VO2 max in the training log')
     pg.click('#openSettings');pg.wait_for_timeout(400);check(not pg.is_visible('#setWelcome'),'no welcome note on later visits');print('   audience',pg.input_value('#p_audience'),pg.evaluate("JSON.stringify(__db.profiles[0].feed_audience)"));check(pg.input_value('#p_audience')=='followers' and pg.evaluate("document.querySelector('#p_audience option[value=everyone]').disabled"),'settings show the audience; Everyone off while hidden')
     pg.click('#closeSettings')
     # thresholds on the day: change run threshold HR from today; a 14 Nov activity keeps 163
-    pg.goto(U+'#a/a1');pg.wait_for_timeout(2500)
+    nav(pg,U+'#a/a1');pg.wait_for_timeout(2500)
     z=pg.inner_text('#znote');check('163 bpm' in z,'activity uses 163 before the change: '+z[:90])
     pg.click('#openSettings');pg.wait_for_timeout(300);pg.fill('#s_lthrRun','170');pg.click('#saveSettings');pg.wait_for_timeout(800)
     st=pg.evaluate("__db.profiles[0].settings");check(st['lthrRun']==170 and any(e.get('from') is None and e.get('lthrRun')==163 for e in st.get('history',[])),'history saved: '+json.dumps(st.get('history')))

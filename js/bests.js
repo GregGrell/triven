@@ -1,10 +1,10 @@
 // Training log → Best efforts. Overview: every category in distance or duration order, for all time or one year.
 // Pick one to see your top 10 (one per activity); open an activity with a way back to the list; ignore spurious efforts.
 // Ignored efforts (table best_ignores) drop out of bests, trophies, profile bests, FTP and race predictions.
-import { sb, state, toast } from './main.js?v=1795220279';
-import { RUN_DISTANCES, BIKE_DISTANCES, POWER_DURATIONS, SWIM_DISTANCES } from './process.js?v=1795220279';
-import { cup } from './trophies.js?v=1795220279';
-import * as U from './units.js?v=1795220279';
+import { sb, state, toast } from './main.js?v=1795222969';
+import { RUN_DISTANCES, BIKE_DISTANCES, POWER_DURATIONS, SWIM_DISTANCES } from './process.js?v=1795222969';
+import { cup } from './trophies.js?v=1795222969';
+import * as U from './units.js?v=1795222969';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -17,7 +17,8 @@ export const CATS = [
   { key: 'power', title: 'Cycling power', note: 'Measured power from a power meter only. Estimated power never sets a best.',
     items: POWER_DURATIONS.map(([e]) => ({ sport: 'bike', effort: e, hi: true, label: e.replace(/^power /, '') })) },
   { key: 'bike', title: 'Cycling', note: 'Time trial distances use the fastest stretch of any ride.',
-    items: [...BIKE_DISTANCES.map(([e, m]) => ({ sport: 'bike', effort: e, m, label: e })),
+    items: [...BIKE_DISTANCES.map(([e, m]) => ({ sport: 'bike', effort: e === '100 km' ? '100 km ride' : e, m,   // stored as '100 km ride' (see process.js)
+      label: { '90 km': '90 km (70.3 bike)', '180 km': '180 km (Ironman bike)' }[e] || e })),
       { sport: 'bike', effort: 'longest ride', hi: true, label: 'Longest ride' }, { sport: 'bike', effort: 'most elevation', hi: true, label: 'Most elevation gain' }] },
   { key: 'swim', title: 'Swimming', note: 'Pool swims count continuous swimming only (no rests or drills); open water uses GPS.',
     items: SWIM_DISTANCES.map(([e, m]) => ({ sport: 'swim', effort: e, m, label: SWIM_LABEL[e] || e })) },
@@ -81,6 +82,8 @@ export function mountBests(host, h) {
   host.append(grid);
 }
 
+// opening an activity from a list remembers the list, so the activity page can offer a way back
+const actLink = (b, a) => el('a', { href: '#a/' + b.activity_id, textContent: a?.name || 'Activity', onclick: () => { try { sessionStorage.setItem('triven.back', JSON.stringify({ id: b.activity_id, h: state.route })); } catch { /* storage blocked */ } } });
 function detail(host, it, y) {
   const acts = ACT(), list = ranked(it, y, acts), top = list.slice(0, 10);
   const ignored = ranked(it, y, acts, true).filter(b => state.ignores.has(ikey(b)));
@@ -99,7 +102,7 @@ function detail(host, it, y) {
       tr.insertCell().append(el('b', { textContent: val(it, b) }));
       tr.insertCell().textContent = second(it, b);
       tr.insertCell().textContent = dateOf(a, b);
-      tr.insertCell().append(el('a', { href: `#a/${b.activity_id}?back=${encodeURIComponent(location.hash)}`, textContent: a?.name || 'Activity' }));
+      tr.insertCell().append(actLink(b, a));
       tr.insertCell().append(el('button', { className: 'linkbtn ign', type: 'button', textContent: 'Ignore', title: 'Leave this out of your bests and trophies (e.g. a power spike)', onclick: () => setIgnored(b, true, () => detail(host.replaceChildren() || host, it, y)) }));
     });
     card.append(el('div', { className: 'acttblwrap' }, t));
@@ -108,7 +111,7 @@ function detail(host, it, y) {
     const t = el('table', { className: 'pb ranklist ignored' });
     ignored.forEach(b => { const tr = t.insertRow(), a = acts.get(b.activity_id);
       tr.insertCell().textContent = val(it, b); tr.insertCell().textContent = dateOf(a, b);
-      tr.insertCell().append(el('a', { href: `#a/${b.activity_id}?back=${encodeURIComponent(location.hash)}`, textContent: a?.name || 'Activity' }));
+      tr.insertCell().append(actLink(b, a));
       tr.insertCell().append(el('button', { className: 'linkbtn', type: 'button', textContent: 'Restore', onclick: () => setIgnored(b, false, () => detail(host.replaceChildren() || host, it, y)) })); });
     card.append(el('h3', { className: 'psub', style: 'margin-top:18px', textContent: `Ignored (${ignored.length})` }), t);
   }

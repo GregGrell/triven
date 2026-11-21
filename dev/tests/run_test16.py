@@ -3,6 +3,11 @@ import os, subprocess, time, json, datetime
 DEV=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT=os.path.join(DEV,'out');os.makedirs(OUT,exist_ok=True)
 from playwright.sync_api import sync_playwright
+def nav(pg, url, **k):   # in-page navigation keeps the fake database; a full load (goto) would reset it
+  if '#' in url and pg.url.startswith('http://localhost') and pg.evaluate('!!window.__db'): pg.evaluate("h=>location.hash=h", '#'+url.split('#',1)[1])
+  else: pg.goto(url, **k)
+ROUTE="import('/site/js/urls.js').then(m=>m.curRoute())"   # the app's route, whether the address shows #… or a clean path
+
 srv=subprocess.Popen(['python3','-m','http.server','8794'],cwd=DEV,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
 Y=datetime.date.today().year
 acts=[];secs=[]
@@ -25,7 +30,7 @@ try:
   with sync_playwright() as p:
     b=p.chromium.launch();pg=b.new_page(viewport={'width':1240,'height':950});errs=[];pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
     pg.add_init_script('window.__seedDb='+json.dumps(seed)+';')
-    pg.goto('http://localhost:8794/site/index.html#log');pg.wait_for_timeout(2500)
+    nav(pg,'http://localhost:8794/site/index.html#log');pg.wait_for_timeout(2500)
     pg.click('.seg-btns .chip[data-p=year]');pg.wait_for_timeout(800)
     labels=pg.evaluate("[...document.querySelectorAll('#view-log svg text')].map(t=>t.textContent)")
     check('Jan' in labels and 'Dec' in labels,'Year view: monthly bars Jan–Dec')
@@ -36,7 +41,7 @@ try:
     check(f'{round(nm*10+5+nm*5+5+0.75)}km' in tot.replace(',','').replace(' ','').replace('\n',''),'all sports include everything: '+tot.replace('\n',' ')[:160])
     pg.locator('#view-log .card').first.screenshot(path=os.path.join(OUT,'t16_year.png'))
     # goals
-    pg.goto('http://localhost:8794/site/index.html#feed');pg.wait_for_timeout(2000)
+    nav(pg,'http://localhost:8794/site/index.html#feed');pg.wait_for_timeout(2000)
     g=pg.inner_text('.goals')
     check('THIS WEEK' in g.upper() and str(Y) in g and 'pace' in g,'week, month and year goals with pace: '+g.replace('\n',' | ')[:220])
     check(pg.locator('.gdue').count()==2,'pace ticks on month and year goals only')

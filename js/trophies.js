@@ -1,13 +1,13 @@
 // PB trophies on an activity page: gold, silver or bronze when an effort in this activity was your 1st, 2nd or 3rd best
 // at that distance (runs, swims) or power duration, as things stood on the day: all-time, and within that year (cup marked '25 etc.).
-import { sb, state } from './main.js?v=1795220279';
-import { RUN_DISTANCES, SWIM_DISTANCES, POWER_DURATIONS } from './process.js?v=1795220279';
+import { sb, state } from './main.js?v=1795222969';
+import { RUN_DISTANCES, SWIM_DISTANCES, POWER_DURATIONS, BIKE_DISTANCES } from './process.js?v=1795222969';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
 const MEDAL = { 1: ['Gold', '#d4a72c', '#f3d97a'], 2: ['Silver', '#9aa3a8', '#dde2e5'], 3: ['Bronze', '#b0703a', '#e2b089'] };
-const ORDER = new Map([...RUN_DISTANCES.map(([n], i) => ['run|' + n, i]), ...SWIM_DISTANCES.map(([n], i) => ['swim|' + n, 100 + i]), ...POWER_DURATIONS.map(([n], i) => ['bike|' + n, 200 + i])]);
-const eligible = b => (b.unit === 's' && (b.sport === 'run' || b.sport === 'swim')) || b.unit === 'W';
+const ORDER = new Map([...RUN_DISTANCES.map(([n], i) => ['run|' + n, i]), ...SWIM_DISTANCES.map(([n], i) => ['swim|' + n, 100 + i]), ...POWER_DURATIONS.map(([n], i) => ['bike|' + n, 200 + i]), ...BIKE_DISTANCES.map(([n], i) => ['bike|' + (n === '100 km' ? '100 km ride' : n), 300 + i])]);
+const eligible = b => b.unit === 's' || b.unit === 'W';   // run, swim and bike distances, and power
 
 // rank of each eligible effort in this activity, all-time and within its year, among your efforts up to that day
 // (owner: worked out from your own data, with ignored efforts already left out of `bests`)
@@ -30,7 +30,7 @@ export function cup(rank, size = 18) {
     + `<text x="12" y="9.6" text-anchor="middle" font-size="6.5" font-weight="700" font-family="Inter,sans-serif" fill="${dark}">${rank}</text>`;
   return svg;
 }
-const label = b => b.unit === 'W' ? b.effort.replace(/^power /, '') + ' power' : (b.sport === 'swim' ? 'Swim ' : '') + b.effort;
+const label = b => b.unit === 'W' ? b.effort.replace(/^power /, '') + ' power' : (b.sport === 'swim' ? 'Swim ' : b.sport === 'bike' ? 'Bike ' : '') + b.effort.replace(/ (TT|ride)$/, '');
 const value = b => b.unit === 'W' ? Math.round(b.value) + ' W' : fmtDur(b.value);
 
 document.addEventListener('triven:activity', async e => {

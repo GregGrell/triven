@@ -1,33 +1,35 @@
+import './busy.js?v=1795222969';   // first: makes slow buttons grey out while they work
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795220279';
+import { decodeFit } from './fit.js?v=1795222969';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795220279';
-import { mountActivity } from './activity.js?v=1795220279';
-import { mountLog } from './log.js?v=1795220279';
-import { mountGear } from './gear.js?v=1795220279';
-import { mountClub } from './club.js?v=1795220279';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795220279';
-import { mountRelay } from './relay.js?v=1795220279';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795220279';
-import { SWIM_DISTANCES } from './process.js?v=1795220279';
-import { setUnits, dist as uDist } from './units.js?v=1795220279';
-import { openLink } from './profile.js?v=1795220279';
-import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795220279';
-import { mountActivities } from './actlist.js?v=1795220279';
-import { installHint } from './install.js?v=1795220279';
-import { openWelcome } from './settings.js?v=1795220279';
-import './swimview.js?v=1795220279';
-import './trophies.js?v=1795220279';
-import { mountFeed } from './feed.js?v=1795220279';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795220279';
-import { perfData } from './perf.js?v=1795220279';
-import { loadData } from './load.js?v=1795220279';
-import { processInbox, paintConnections } from './sync.js?v=1795220279';
-import { mountManual } from './manual.js?v=1795220279';
-import { mountCal } from './cal.js?v=1795220279';
-import { settingsAt } from './athlete.js?v=1795220279';
-import { initSettings, DEFAULTS } from './settings.js?v=1795220279';
-import { offerCombine } from './edit.js?v=1795220279';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795222969';
+import { mountActivity } from './activity.js?v=1795222969';
+import { mountLog } from './log.js?v=1795222969';
+import { mountGear } from './gear.js?v=1795222969';
+import { mountClub } from './club.js?v=1795222969';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795222969';
+import { mountRelay } from './relay.js?v=1795222969';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795222969';
+import { SWIM_DISTANCES, bestOverDistance } from './process.js?v=1795222969';
+import { setUnits, dist as uDist } from './units.js?v=1795222969';
+import { prettyOf, curRoute, rememberLink } from './urls.js?v=1795222969';
+import { openLink } from './profile.js?v=1795222969';
+import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795222969';
+import { mountActivities } from './actlist.js?v=1795222969';
+import { installHint } from './install.js?v=1795222969';
+import { openWelcome } from './settings.js?v=1795222969';
+import './swimview.js?v=1795222969';
+import './trophies.js?v=1795222969';
+import { mountFeed } from './feed.js?v=1795222969';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795222969';
+import { perfData } from './perf.js?v=1795222969';
+import { loadData } from './load.js?v=1795222969';
+import { processInbox, paintConnections } from './sync.js?v=1795222969';
+import { mountManual } from './manual.js?v=1795222969';
+import { mountCal } from './cal.js?v=1795222969';
+import { settingsAt } from './athlete.js?v=1795222969';
+import { initSettings, DEFAULTS } from './settings.js?v=1795222969';
+import { offerCombine } from './edit.js?v=1795222969';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -53,12 +55,12 @@ $('authSwitch').onclick = e => { e.preventDefault(); signUp = !signUp; $('nameRo
 $('authForm').onsubmit = async e => {
   e.preventDefault(); $('authGo').disabled = true; $('authMsg').textContent = '';
   const email = $('authEmail').value.trim(), password = $('authPass').value;
-  const res = signUp ? await sb.auth.signUp({ email, password, options: { data: { display_name: $('authName').value.trim() || undefined }, emailRedirectTo: location.origin + location.pathname } })
+  const res = signUp ? await sb.auth.signUp({ email, password, options: { data: { display_name: $('authName').value.trim() || undefined }, emailRedirectTo: location.origin + '/' } })
                      : await sb.auth.signInWithPassword({ email, password });
   $('authGo').disabled = false;
   if (res.error) {
     // not confirmed yet: offer to send the link again
-    if (/not confirmed/i.test(res.error.message)) { authNote(`Confirm your email first: click the link we sent to ${email}. `, 'Send it again', async () => { const r = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname } }); authNote(r.error ? r.error.message : `Sent again to ${email}. Check your spam folder too.`); }); return; }
+    if (/not confirmed/i.test(res.error.message)) { authNote(`Confirm your email first: click the link we sent to ${email}. `, 'Send it again', async () => { const r = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + '/' } }); authNote(r.error ? r.error.message : `Sent again to ${email}. Check your spam folder too.`); }); return; }
     authNote(/invalid login/i.test(res.error.message) ? 'That email and password don’t match. Check them, or reset your password.' : res.error.message); return;
   }
   $('authPass').value = '';
@@ -76,7 +78,7 @@ $('authForgot').onclick = async e => {
   e.preventDefault();
   const email = $('authEmail').value.trim();
   if (!email) { authNote('Enter your email above, then click “Forgot your password?” again.'); $('authEmail').focus(); return; }
-  const r = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname + '#reset' });
+  const r = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/#reset' });
   authNote(r.error ? r.error.message : `If there’s an account for ${email}, a link to set a new password is on its way. Check your spam folder too.`);
 };
 // arriving from a password-reset link: choose a new password
@@ -89,7 +91,7 @@ function newPasswordSheet() {
   const go = Object.assign(document.createElement('button'), { className: 'btn primary', textContent: 'Save password', type: 'button' });
   go.onclick = async () => { if (inp.value.length < 8) { msg.textContent = 'Use at least 8 characters.'; return; } go.disabled = true;
     const r = await sb.auth.updateUser({ password: inp.value }); go.disabled = false;
-    if (r.error) { msg.textContent = r.error.message; return; } ov.classList.remove('open'); toast('Password changed'); if (location.hash === '#reset') location.hash = '#feed'; };
+    if (r.error) { msg.textContent = r.error.message; return; } ov.classList.remove('open'); toast('Password changed'); if (curRoute() === '#reset') location.hash = '#feed'; };
   const row = document.createElement('div'); row.className = 'actions'; row.append(document.createElement('span'), go);
   body.append(h, lab, msg, row); ov.classList.add('open'); inp.focus();
 }
@@ -111,10 +113,10 @@ async function boot() {
   $('acctName').textContent = state.profile?.display_name || state.user.email; paintAvatar();
   // an invite link opened before signing in (or before confirming the email address)
   let pendingJoin = null; try { pendingJoin = localStorage.getItem('triven.join'); } catch { /* storage blocked */ }
-  if (pendingJoin && !location.hash.startsWith('#join/')) location.hash = '#join/' + pendingJoin;
+  if (pendingJoin && !curRoute().startsWith('#join/')) location.hash = '#join/' + pendingJoin;
   // a profile or activity link opened before signing in
   let pendingLink = null; try { pendingLink = localStorage.getItem('triven.link'); localStorage.removeItem('triven.link'); } catch { /* storage blocked */ }
-  if (pendingLink && !pendingJoin && state.profile?.privacy_set && location.hash !== pendingLink) location.hash = pendingLink;
+  if (pendingLink && !pendingJoin && state.profile?.privacy_set && curRoute() !== pendingLink) location.hash = pendingLink;
   route();
   installHint();
   if (state.profile && !state.profile.privacy_set) setTimeout(() => { paintConnections(); openWelcome(); }, 600);
@@ -128,7 +130,7 @@ async function backfill() {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
       const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), perf: perfData(d.sections, d.streams) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
-  }  await swimBackfill();
+  }  await swimBackfill(); bikeBackfill();
 }
 // pool swims imported before 20 Nov 2026: swim time without rests, pace on it, and bests over continuous swimming,
 // worked out from the lengths already saved with each activity (no need to read the file again)
@@ -166,6 +168,30 @@ async function swimBackfill() {
   if (changed) await loadAll();
 }
 
+// rides imported before 21 Nov 2026: add 90 km and 180 km bests (half and full Ironman bike legs) from the saved streams. Once.
+async function bikeBackfill() {
+  if (state.profile?.settings?.bikeBestsV >= 1) return;
+  const IND = ['indoor', 'virtual'], have = new Set((state.bestsAll || []).filter(b => b.effort === '90 km').map(b => b.activity_id));
+  const todo = state.activities.filter(a => !have.has(a.id) && (a.activity_sections || []).some(s => s.sport === 'bike' && +s.distance_m >= 90000 && !IND.includes(s.summary?.env)));
+  let added = 0;
+  for (const a of todo) {
+    try {
+      const d = await fetchActivity(a.id); if (!d.streams?.dist) continue;
+      const recs = rows(d.streams), keep = new Map();
+      for (const s of d.sections) {
+        if (s.sport !== 'bike' || IND.includes(s.summary?.env)) continue;
+        const sr = recs.filter(x => x.t >= +s.start_offset_s && x.t <= +s.start_offset_s + +s.elapsed_s && x.dist != null);
+        [['90 km', 90000], ['180 km', 180000]].forEach(([effort, m]) => { if (+s.distance_m < m) return; const b = bestOverDistance(sr, m);
+          if (b && (!keep.has(effort) || b.t < keep.get(effort).value)) keep.set(effort, { owner: state.user.id, activity_id: a.id, sport: 'bike', effort, value: Math.round(b.t * 100) / 100, unit: 's', start_offset_s: Math.round(b.start * 10) / 10, measured: true, achieved_at: a.start_time }); });
+      }
+      if (keep.size) { const r = await sb.from('best_efforts').insert([...keep.values()]); if (!r.error) added += keep.size; }
+    } catch (e) { /* skip this one */ }
+  }
+  const settings = { ...(state.profile.settings || {}), bikeBestsV: 1 };
+  if (!(await sb.from('profiles').update({ settings }).eq('id', state.user.id)).error) state.profile.settings = settings;
+  if (added) await loadAll();
+}
+
 // ---------- data ----------
 // fetch every row, 1000 at a time (Supabase caps a single request at 1000)
 async function allRows(q) {
@@ -180,13 +206,13 @@ export async function loadAll() {
   const uid = state.user.id;
   const [p, a, g, b, ig] = await Promise.all([
     sb.from('profiles').select('*').eq('id', uid).single(),
-    allRows(() => sb.from('activities').select('id,name,description,notes,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time').order('id')),
+    allRows(() => sb.from('activities').select('id,num,name,description,notes,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time').order('id')),
     sb.from('gear').select('*').eq('owner', uid).order('created_at'),
     allRows(() => sb.from('best_efforts').select('*').eq('owner', uid).order('id')),
     allRows(() => sb.from('best_ignores').select('activity_id,sport,effort').eq('owner', uid).order('activity_id')),
   ]);
   for (const r of [p, a, g, b]) if (r.error) { toast('Could not load your data: ' + r.error.message, 6000); }
-  state.profile = p.data; setUnits(state.profile?.settings?.units); state.activities = a.data || []; state.gear = g.data || []; state.bestsAll = b.data || []; state.ignores = new Set((ig.data || []).map(x => `${x.activity_id}|${x.sport}|${x.effort}`)); applyIgnores(); state.loaded = true;
+  state.profile = p.data; setUnits(state.profile?.settings?.units); (a.data || []).forEach(x => x.num && rememberLink(x.id, state.profile?.handle + '/' + x.num)); state.activities = a.data || []; state.gear = g.data || []; state.bestsAll = b.data || []; state.ignores = new Set((ig.data || []).map(x => `${x.activity_id}|${x.sport}|${x.effort}`)); applyIgnores(); state.loaded = true;
 }
 initAvatar();
 document.getElementById('openSettings').addEventListener('click', () => paintConnections());
@@ -226,7 +252,12 @@ function logData() {
 async function route() {
   if (!state.user) return show('auth');
   if (!state.loaded) return;
-  const h = location.hash || '#feed';
+  const h = curRoute();
+  state.route = h;
+  // show a clean address (/log/bests, /carlg/412) instead of the #route; 404.html maps it back on reload
+  const pretty = prettyOf(h);
+  if (location.pathname + location.search !== pretty || location.hash) history.replaceState(history.state, '', pretty);
+  if (!h.startsWith('#a/')) { try { sessionStorage.removeItem('triven.back'); } catch { /* storage blocked */ } }
   $('tab-activity').hidden = true;
   if (h.startsWith('#a/')) return openActivity(h.slice(3).split('?')[0]);
   if (h.startsWith('#u/')) return openLink(h.slice(3).split('?')[0], show);
@@ -256,8 +287,10 @@ function emptyHint() {
     $('view-log').prepend(el); }
 }
 window.addEventListener('hashchange', route);
+// back and forward between clean addresses (no #) don't fire hashchange
+window.addEventListener('popstate', () => { if (!location.hash) route(); });
 // press / anywhere (outside a text box) to search your activities
-document.addEventListener('keydown', e => { if (e.key !== '/' || e.metaKey || e.ctrlKey || /input|textarea|select/i.test(document.activeElement?.tagName) || !state.user) return; e.preventDefault(); if (location.hash === '#log/activities') document.querySelector('.actsearch')?.focus(); else location.hash = '#log/activities'; });
+document.addEventListener('keydown', e => { if (e.key !== '/' || e.metaKey || e.ctrlKey || /input|textarea|select/i.test(document.activeElement?.tagName) || !state.user) return; e.preventDefault(); if (curRoute() === '#log/activities') document.querySelector('.actsearch')?.focus(); else location.hash = '#log/activities'; });
 
 // ---------- one activity ----------
 const SPORT_FIT = { run: 'running', bike: 'cycling', swim: 'swimming', transition: 'transition', other: 'other' };
@@ -338,12 +371,14 @@ async function openActivity(id) {
   let data;
   try { data = await fetchActivity(id); } catch (e) { toast('Could not open that activity'); location.hash = '#log'; return; }
   const { act } = data;
-  const tab = $('tab-activity'); tab.hidden = false; tab.href = location.hash;
+  const tab = $('tab-activity'); tab.hidden = false; tab.href = '#a/' + id;
   const d = new Date(Date.parse(act.start_time) + act.utc_offset_min * 60000);
   tab.textContent = `${act.name} · ${d.getUTCDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   show('activity');
   // opened from a list (best efforts): a way back to it
-  const back = new URLSearchParams(location.hash.split('?')[1] || '').get('back'), bl = $('actBack');
+  // a list (best efforts) that opened this activity leaves a way back in sessionStorage
+  let back = null; try { const b = JSON.parse(sessionStorage.getItem('triven.back') || 'null'); if (b?.id === id) back = b.h; } catch { /* storage blocked */ }
+  const bl = $('actBack');
   bl.hidden = !back; if (back) { bl.href = back; bl.textContent = backLabel(back); }
   renderActHeader(act, data.sections);
   if (!data.streams && !act.summary?.manual) toast('This activity has no detailed data file.', 4000);
@@ -499,6 +534,8 @@ export async function importFit(ent, row) {
 }
 
 // start
+// the update reload's ?build= marker has done its job
+if (/[?&]build=/.test(location.search)) history.replaceState(null, '', location.pathname + location.search.replace(/[?&]build=\d+/, '').replace(/^&/, '?') + location.hash);
 if (location.hash.startsWith('#u/')) { try { localStorage.setItem('triven.link', location.hash); } catch { /* storage blocked */ } }
 if (location.hash.startsWith('#join/')) { try { localStorage.setItem('triven.join', location.hash.slice(6).split('?')[0]); } catch { /* storage blocked */ } }
 (async () => {
@@ -513,10 +550,10 @@ const MY_BUILD = new URL(import.meta.url).searchParams.get('v');
 async function checkForUpdate() {
   if (busy) return;   // never reload during an import: it would stop it part-way (checked again every few minutes)
   try {
-    const html = await (await fetch('./index.html?nc=' + Date.now(), { cache: 'no-store' })).text();
+    const html = await (await fetch('/index.html?nc=' + Date.now(), { cache: 'no-store' })).text();
     const live = html.match(/js\/main\.js\?v=(\d+)/)?.[1];
     if (!live || !MY_BUILD || live === MY_BUILD) return;
-    const go = () => location.replace(location.pathname + '?build=' + live + location.hash);
+    const go = () => location.replace('/?build=' + live + curRoute());   // the build number skips the cached page; it's removed again on load
     if (!$('modal').classList.contains('open') && !$('settings')?.classList.contains('open')) go();
     else toast('Triven has been updated. It will reload when you close this.', 6000), document.addEventListener('click', function once() { if (!$('modal').classList.contains('open')) { document.removeEventListener('click', once, true); go(); } }, true);
   } catch { /* offline: try again later */ }

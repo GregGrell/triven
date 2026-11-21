@@ -1,12 +1,12 @@
 // Clubs: list and search, create, club pages (posts from admins, members, the club's activities), invite links, admin settings.
-import { sb, state, toast, avatarEl, avatarUrl } from './main.js?v=1795220279';
-import { openModal } from './edit.js?v=1795220279';
-import { feedList } from './feed.js?v=1795220279';
+import { sb, state, toast, avatarEl, avatarUrl } from './main.js?v=1795222969';
+import { openModal } from './edit.js?v=1795222969';
+import { feedList } from './feed.js?v=1795222969';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const ago = iso => { const d = new Date(iso), s = (Date.now() - d) / 1000; if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return `${d.getDate()} ${MON[d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''}`; };
-export const inviteLink = code => `${location.origin}${location.pathname}#join/${code}`;
+export const inviteLink = code => `${location.origin}/join/${code}`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const policyText = p => p === 'approval' ? 'Admins approve new members' : 'Anyone with the link can join';
 // club photo, or its first letter on a coloured square

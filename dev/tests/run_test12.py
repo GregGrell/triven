@@ -3,6 +3,11 @@ import os, subprocess, time, json
 DEV=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT=os.path.join(DEV,'out');os.makedirs(OUT,exist_ok=True)
 from playwright.sync_api import sync_playwright
+def nav(pg, url, **k):   # in-page navigation keeps the fake database; a full load (goto) would reset it
+  if '#' in url and pg.url.startswith('http://localhost') and pg.evaluate('!!window.__db'): pg.evaluate("h=>location.hash=h", '#'+url.split('#',1)[1])
+  else: pg.goto(url, **k)
+ROUTE="import('/site/js/urls.js').then(m=>m.curRoute())"   # the app's route, whether the address shows #… or a clean path
+
 srv=subprocess.Popen(['python3','-m','http.server','8789'],cwd=DEV,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
 def act(i,name,sp,day,dist,secs,env=None,race=False,notes=None,gear=None,prof=None):
   return {'id':i,'owner':'u1','name':name,'sport':sp,'multisport_profile':prof,'start_time':day+'T05:00:00Z','utc_offset_min':180,'distance_m':dist,'elapsed_s':secs,'moving_s':secs,'ascent_m':50,
@@ -20,9 +25,9 @@ try:
     b=p.chromium.launch();pg=b.new_page(viewport={'width':1240,'height':950})
     errs=[];pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
     pg.add_init_script('window.__seedDb='+json.dumps(seed)+';')
-    pg.goto('http://localhost:8789/site/index.html#feed');pg.wait_for_timeout(2000)
+    nav(pg,'http://localhost:8789/site/index.html#feed');pg.wait_for_timeout(2000)
     pg.keyboard.press('/');pg.wait_for_timeout(800)
-    check(pg.evaluate('location.hash')=='#log/activities' and pg.is_visible('.actsearch'),'/ opens activity search')
+    check(pg.evaluate(ROUTE)=='#log/activities' and pg.is_visible('.actsearch'),'/ opens activity search')
     rows=lambda: pg.locator('.acttbl tr').count()-1
     check(rows()==5 and '5 activities' in pg.inner_text('.actsum'),'all five listed with totals')
     def q(text): pg.fill('.actsearch',text);pg.wait_for_timeout(400)

@@ -1,5 +1,5 @@
-import { snapToTrack, pathLength } from './track.js?v=1795220279';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795220279';
+import { snapToTrack, pathLength } from './track.js?v=1795222969';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795222969';
 // Triven: turn a decoded FIT file into activity rows, streams and best efforts.
 // Pure functions only (no network), so the same code runs in the browser and in tests.
 
@@ -11,7 +11,7 @@ const r = (v, d = 2) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10
 export const RUN_DISTANCES = [['400 m', 400], ['1 km', 1000], ['1 mile', 1609.34], ['5 km', 5000], ['10 km', 10000], ['15 km', 15000],
   ['10 mile', 16093.4], ['Half marathon', 21097.5], ['30 km', 30000], ['Marathon', 42195], ['50 km', 50000], ['50 mile', 80467.2],
   ['100 km', 100000], ['100 mile', 160934.4]];
-export const BIKE_DISTANCES = [['10 mile TT', 16093.4], ['25 mile TT', 40233.6], ['50 mile TT', 80467.2], ['100 km', 100000], ['100 mile TT', 160934.4]];
+export const BIKE_DISTANCES = [['10 mile TT', 16093.4], ['25 mile TT', 40233.6], ['50 mile TT', 80467.2], ['90 km', 90000], ['100 km', 100000], ['100 mile TT', 160934.4], ['180 km', 180000]];   // 90 and 180 km: half and full Ironman bike legs
 export const POWER_DURATIONS = [['power 1 s', 1], ['power 5 s', 5], ['power 10 s', 10], ['power 30 s', 30], ['power 1 min', 60], ['power 5 min', 300],
   ['power 10 min', 600], ['power 20 min', 1200], ['power 30 min', 1800], ['power 1 hour', 3600]];
 export const SWIM_DISTANCES = [['100 m', 100], ['200 m', 200], ['400 m', 400], ['750 m', 750], ['800 m', 800], ['1500 m', 1500], ['1900 m', 1900], ['3800 m', 3800]];
@@ -69,7 +69,7 @@ export function distanceClass(profile, sections) {
 }
 
 // fastest time to cover `dist` metres inside one section's records (interpolated)
-function bestOverDistance(recs, dist) {
+export function bestOverDistance(recs, dist) {
   let best = null, j = 0;
   for (let i = 0; i < recs.length; i++) {
     if (j < i) j = i;
