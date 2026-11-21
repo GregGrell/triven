@@ -28,7 +28,7 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <nav class="toc" aria-label="Contents"><b>Help guide</b>
 <a href="#start">Getting started</a><a href="#install">Install the app</a><a href="#import">Getting activities in</a><a href="#multisport">Multisport</a><a href="#swimming">Swimming</a><a href="#activity">Activity pages</a>
 <a href="#privacy">Privacy and sharing</a><a href="#people">People and following</a><a href="#clubs">Clubs</a><a href="#relays">Relays</a>
-<a href="#bests">Bests and trophies</a><a href="#log">Training log</a><a href="#races">Races</a><a href="#goals">Goals</a><a href="#gear">Gear</a><a href="#settings">Settings</a><a href="#faq">Questions</a></nav>
+<a href="#bests">Bests and trophies</a><a href="#log">Training log</a><a href="#races">Races</a><a href="#goals">Goals</a><a href="#gear">Gear</a><a href="#settings">Settings</a><a href="#feedback">Feedback</a><a href="#faq">Questions</a></nav>
 <article class="doc">
 <h1>Help guide</h1>
 <p class="muted">How to get the most out of Triven: a free training log for swimming, cycling, running and multisport.</p>
@@ -201,6 +201,13 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <h3>Thresholds over time</h3>
 <p>Triven keeps a dated history of your threshold heart rates, max and resting heart rate, FTP, swim threshold and weight. Every activity is worked out with the values in effect on its day: if your FTP was 240 a year ago and is 270 now, last year's rides still use 240. When you change a value, choose <b>From</b> a date (today, or the day of a lab test) or <b>For past activities too</b>. For days before your first change, Triven uses the heart rate thresholds and weight your watch recorded in that activity's file, if any (never the watch's FTP). The activity page says which values it used and where they came from.</p>
 
+<h2 id="feedback">Suggest a feature or report a problem</h2>
+<p>Use <b>Feedback</b> at the top of the app, or on a phone, the links at the top of <b>Settings</b>: <a href="/#feedback">Suggest a feature</a> or <a href="/#feedback/problem">Report a problem</a>. It goes straight to the person who builds Triven.</p>
+<ul>
+<li>Problem reports include the page you were on, the app version, your browser and screen size, so the problem can be found. Describe what happened and what you expected; steps to make it happen again help most.</li>
+<li>You'll get a notification when your feedback's status changes (seen, planned, done), and any reply shows under <b>What you've sent</b> in the feedback form.</li>
+</ul>
+
 <h2 id="faq">Questions</h2>
 <h3>An activity is missing.</h3>
 <p>If you use automatic sync, click <b>Sync now</b> in Settings and check the activity reached intervals.icu. Activities that reached intervals.icu from Strava aren't imported, under Strava's terms; upload the original file instead.</p>
@@ -215,4 +222,5 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 </article>
 </div>
 <footer><a href="./">Triven</a><a href="help.html">Help</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="mailto:hello@triven.fit">hello@triven.fit</a></footer>
-</main></body></html>
+</main><script>try{var p='help',d=new Date().toISOString().slice(0,10),k='triven.seen.'+p;if(localStorage.getItem(k)!==d){localStorage.setItem(k,d);fetch('https://ksubeokekwflqnmzsune.supabase.co/rest/v1/rpc/count_view',{method:'POST',headers:{apikey:'sb_publishable_gBU60hkphcU9T97Cn1Bvmw_QMIFFy3i','Content-Type':'application/json'},body:JSON.stringify({p_page:p}),keepalive:true}).catch(function(){})}}catch(e){}</script>
+</body></html>

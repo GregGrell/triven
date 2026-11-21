@@ -1,6 +1,7 @@
 # The how-to series: titles, one-line summaries and YouTube descriptions. Used for the site's videos page and the upload notes.
 SERIES = [
   ('v01_welcome', 'Welcome to Triven', 'A quick tour: the feed, activities, the training log, gear and settings.', 'Getting started'),
+  ('v02_install', 'Installing Triven on your phone or computer', 'No app store needed: install it on iPhone, Android, Windows or Mac.', 'Getting started'),
   ('v02_sync_video', 'Automatic sync with intervals.icu', 'Connect once and every workout from your watch arrives on its own.', 'Getting started'),
   ('v03_upload', 'Uploading files and your Garmin history', 'Drop in .fit files, or years of training from a Garmin export.', 'Getting started'),
   ('v04_manual', 'Logging an activity without a file', 'Treadmill runs, turbo sessions and anything your watch missed.', 'Getting started'),

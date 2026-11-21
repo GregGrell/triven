@@ -1,6 +1,6 @@
 // Notifications bell: kudos, comments, replies, followers, relay invitations, club requests and posts (my_notifications()).
 // Unread = newer than settings.notifSeen, which opening the list moves to now (so it's the same on every device).
-import { sb, state, avatarEl } from './main.js?v=1795267353';
+import { sb, state, avatarEl } from './main.js?v=1795269537';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const ago = t => { const s = (Date.now() - Date.parse(t)) / 1000; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + ' min'; if (s < 86400) return Math.floor(s / 3600) + ' h';
@@ -19,6 +19,9 @@ function line(n) {
     case 'relay_invite': return { href: '#feed', kids: [who, ' invited you to a relay', n.club_name ? `: ${n.club_name}` : ''] };
     case 'club_request': return { href: '#c/' + n.club_id, kids: [who, ' asked to join ', club] };
     case 'club_post': return { href: '#c/' + n.club_id, kids: [who, ' posted in ', club, q] };
+    case 'feedback_feature': return { href: '#admin', kids: [who, ' suggested a feature', q] };
+    case 'feedback_problem': return { href: '#admin', kids: [who, ' reported a problem', q] };
+    case 'feedback_status': return { href: '#feedback', kids: ['Your feedback is now ', el('b', { textContent: { seen: 'seen', planned: 'planned', done: 'done', wontfix: 'not planned' }[n.club_name] || n.club_name }), q] };
     default: return { href: '#feed', kids: [who] };
   }
 }

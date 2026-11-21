@@ -5,7 +5,7 @@
 // Clean addresses open in the app: /log/bests → /#log/bests, /carlg/412 → /#u/carlg/412. Anything else goes home.
 // Keep APP in step with js/urls.js.
 (function () {
-  var APP = ['feed', 'log', 'upload', 'gear', 'people', 'club', 'a', 'c', 'r', 'join', 'reset', 'me'];
+  var APP = ['feed', 'log', 'upload', 'gear', 'people', 'club', 'a', 'c', 'r', 'join', 'reset', 'me', 'admin', 'feedback'];
   var p = location.pathname.replace(/^\/+|\/+$/g, '').split('/'), q = location.search.replace(/[?&]build=\d+/, '').replace(/^&/, '?');
   var to = '';
   if (APP.indexOf(p[0]) >= 0) to = '#' + p.join('/') + q;

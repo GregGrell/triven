@@ -31,11 +31,12 @@ def logo_png(out, height=200, dark=True):
         pg.locator('#l').screenshot(path=out, omit_background=True); b.close()
 
 class Film:
-    def __init__(self, outdir, seed=None, rpc=None, extra_init='', dark=False, path='#feed'):
+    def __init__(self, outdir, seed=None, rpc=None, extra_init='', dark=False, path='#feed', viewport=(1280, 720), scale=None):
         self.out = outdir; os.makedirs(outdir, exist_ok=True); self.n = 0
         self.srv = subprocess.Popen(['python3', '-m', 'http.server', str(PORT)], cwd=DEV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
         self.p = sync_playwright().start(); self.b = self.p.chromium.launch(args=['--lang=en-GB'])
-        self.ctx = self.b.new_context(viewport={'width': 1280, 'height': 720}, device_scale_factor=SCALE, color_scheme='dark' if dark else 'light', locale='en-GB', timezone_id='Europe/London')
+        self.vp = viewport; self.sc = scale or SCALE
+        self.ctx = self.b.new_context(viewport={'width': viewport[0], 'height': viewport[1]}, device_scale_factor=self.sc, is_mobile=viewport[0] < 600, has_touch=viewport[0] < 600, color_scheme='dark' if dark else 'light', locale='en-GB', timezone_id='Europe/London')
         self.pg = self.ctx.new_page(); self.errs = []; self.pg.on('pageerror', lambda e: self.errs.append(str(e)))
         self.pg.clock.set_fixed_time(NOW)
         from basemap import tile_png
@@ -66,7 +67,7 @@ class Film:
                 "var extra=" + json.dumps(seed or {}) + ";for(var k in extra){if(k==='profile')Object.assign(seed.profile,extra.profile);else seed[k]=(seed[k]||[]).concat(extra[k]);}"
                 "window.__seedDb=seed;window.__seedFiles=s.files;window.__uuidStart=900000;window.__rpcData=" + json.dumps(rpc or {}) + ";})();" + extra_init)
         self.pg.add_init_script(init)
-        self.pg.goto(f'http://localhost:{PORT}/site/index.html{path}'); self.pg.wait_for_timeout(3500)
+        self.pg.goto(f'http://localhost:{PORT}/site/index.html{path}'); self.pg.wait_for_timeout(3500); self.pg.evaluate('document.fonts.ready'); self.pg.wait_for_timeout(300)
 
     def nav(self, h, wait=1500):
         self.pg.evaluate(f"location.hash={json.dumps(h)}"); self.pg.wait_for_timeout(wait)

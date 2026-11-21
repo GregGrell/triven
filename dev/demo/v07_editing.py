@@ -1,7 +1,7 @@
 # 07 Editing an activity
 from compose import *
 from common import *
-FILE = '07-editing-an-activity'
+FILE = '08-editing-an-activity'
 def film(f):
     S = {}; pg = f.pg
     a = last('run', 'Sunday'); f.nav('#a/' + a['id'], 4000)
@@ -28,7 +28,7 @@ def film(f):
 def scenes(S):
     md = S['modal'][1]
     return [
-      Title(7, 'Editing an activity', 'Names, notes, gear, trimming and more.'),
+      Title(8, 'Editing an activity', 'Names, notes, gear, trimming and more.'),
       Screen([S['menu']], 'On any of your activities, open the Edit menu.', zoom=1.35),
       Screen([S['modal']], 'Edit details: the name, a description everyone who can see it reads, and private notes only you see.', zoom=1.1),
       Screen([(p, md, .16) for p, _ in S['desc']] + [(S['desc'][-1][0], md, 1.2)], 'Type away.', zoom=1.1, z0=1.1),

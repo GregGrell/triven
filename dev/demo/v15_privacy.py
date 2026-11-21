@@ -1,7 +1,7 @@
 # 15 Privacy: who sees what
 from compose import *
 from common import *
-FILE = '15-privacy-who-sees-what'
+FILE = '16-privacy-who-sees-what'
 def film(f):
     S = {}; pg = f.pg
     a = last('run', 'Sunday'); f.nav('#a/' + a['id'], 3500)
@@ -20,7 +20,7 @@ def film(f):
     return S
 def scenes(S):
     return [
-      Title(15, 'Privacy: who sees what', 'You decide, for your profile and for every activity.'),
+      Title(16, 'Privacy: who sees what', 'You decide, for your profile and for every activity.'),
       Card('Four levels for each activity', [('Only me', 'Private. Nobody else sees it, anywhere.'), ('Followers', 'People who follow you, and your club mates.'),
                                              ('Club', 'Your club mates only.'), ('Everyone', 'Any Triven member.')], per=1.0),
       Screen([S['vis']], 'Change it with one click at the top of any activity.', zoom=1.4),

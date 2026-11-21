@@ -4,6 +4,7 @@ import os, math, subprocess, shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H, FPS = 1920, 1080, 30
+HOLD = 1.5   # reading time: holds and captions stay up this much longer; animations keep their speed
 HERE = os.path.dirname(os.path.abspath(__file__))
 BG, PANEL, PANEL2 = (18, 20, 22), (27, 30, 32), (36, 40, 43)
 TEXT, MUTED, ACC, ACC2 = (238, 241, 240), (150, 158, 161), (79, 208, 129), (31, 157, 85)
@@ -43,7 +44,7 @@ def bg_canvas():
     return im
 
 class Title(Scene):
-    def __init__(self, num, title, sub='', dur=3.6): self.num, self.title, self.sub, self.dur = num, title, sub, dur
+    def __init__(self, num, title, sub='', dur=3.6): self.num, self.title, self.sub, self.dur = num, title, sub, dur * (1 + (HOLD - 1) * .5)
     def render(self, i):
         t = i / FPS; im = bg_canvas().convert('RGBA'); L = logo(64); im.alpha_composite(L, (120, 100))
         lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay)
@@ -60,7 +61,7 @@ class Card(Scene):
     """Heading plus numbered steps or bullets appearing one by one. items: [(main, detail)] or [str]."""
     def __init__(self, heading, items, kind='steps', dur=None, eyebrow='', per=1.1, start=0):
         self.h, self.items, self.kind, self.eyebrow, self.per, self.start = heading, [x if isinstance(x, tuple) else (x, '') for x in items], kind, eyebrow, per, start
-        self.dur = dur or (1.4 + per * len(items) + 3.2)
+        self.dur = (dur * HOLD) if dur else (1.4 + per * len(items) + 3.2) * HOLD
     def render(self, i):
         t = i / FPS; im = bg_canvas().convert('RGBA'); im.alpha_composite(logo(40), (W - 120 - logo(40).width, 70))
         lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay); a = ease(t / .5)
@@ -86,7 +87,7 @@ class Card(Scene):
 
 class Flow(Scene):
     """Boxes left to right joined by arrows that draw in turn. nodes: [(label, sub)]"""
-    def __init__(self, heading, nodes, note='', dur=7.5, eyebrow=''): self.h, self.nodes, self.note, self.dur, self.eyebrow = heading, nodes, note, dur, eyebrow
+    def __init__(self, heading, nodes, note='', dur=7.5, eyebrow=''): self.h, self.nodes, self.note, self.dur, self.eyebrow = heading, nodes, note, dur * HOLD, eyebrow
     def render(self, i):
         t = i / FPS; im = bg_canvas().convert('RGBA'); im.alpha_composite(logo(40), (W - 120 - logo(40).width, 70))
         lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay); a = ease(t / .5)
@@ -118,7 +119,7 @@ class Mock(Scene):
     """A simple, generic drawing of another site's settings page (not a copy of its design): a URL bar,
     labelled rows, and one highlighted row. rows: [(label, value)], hl: index."""
     def __init__(self, heading, url, title, rows, hl=None, caption='', dur=7, eyebrow=''):
-        self.h, self.url, self.title, self.rows, self.hl, self.caption, self.dur, self.eyebrow = heading, url, title, rows, hl, caption, dur, eyebrow
+        self.h, self.url, self.title, self.rows, self.hl, self.caption, self.dur, self.eyebrow = heading, url, title, rows, hl, caption, dur * HOLD, eyebrow
     def render(self, i):
         t = i / FPS; im = bg_canvas().convert('RGBA'); im.alpha_composite(logo(40), (W - 120 - logo(40).width, 70))
         lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay); a = ease(t / .5)
@@ -147,7 +148,7 @@ class Screen(Scene):
     """App screenshots. shots: [(path, highlight box or None, seconds)] shown in turn (for typing etc.).
     zoom: 1.0 = none; >1 pushes in slowly toward the highlight (or 'focus' box)."""
     def __init__(self, shots, caption='', zoom=1.12, focus=None, cap_pos=None, dim=True, z0=1.0):
-        self.shots = [s if len(s) == 3 else (s[0], s[1], 3.5) for s in shots]
+        self.shots = [(s[0], s[1], s[2] * HOLD if s[2] >= .6 else s[2]) if len(s) == 3 else (s[0], s[1], 3.5 * HOLD) for s in shots]
         self.dur = sum(s[2] for s in self.shots); self.caption, self.zoom, self.focus, self.cap_pos, self.dim, self.z0 = caption, zoom, focus, cap_pos, dim, z0
         self.cache = {}
     def img(self, p):
@@ -168,7 +169,16 @@ class Screen(Scene):
         x0 = min(max(cx - cw / 2, 0), W - cw); y0 = min(max(cy - ch / 2, 0), H - ch)
         x0 = W / 2 - cw / 2 + (x0 - (W / 2 - cw / 2)) * pe if z > 1.001 else 0
         y0 = H / 2 - ch / 2 + (y0 - (H / 2 - ch / 2)) * pe if z > 1.001 else 0
+        shift = 0
+        if hl and self.caption and not self.top_side():
+            need = (hl[1] + hl[3] + 14 - y0) * z - (H - self.cap_h())       # how far the box bottom runs under the caption
+            room = (hl[1] - 14 - y0) * z - 40                                # never push its top off screen
+            if need > 0:
+                pan = min(need / z, max(0, H - ch - y0), max(0, room / z)); y0 += pan
+                shift = max(0, min(need - pan * z, room - pan * z, 260))
         frame = im.crop((round(x0), round(y0), round(x0 + cw), round(y0 + ch))).resize((W, H), Image.BILINEAR) if z > 1.001 else im.copy()
+        if shift > 0:
+            f2 = Image.new('RGB', (W, H), BG); f2.paste(frame.crop((0, round(shift), W, H)), (0, 0)); frame = f2; y0 += shift / z
         frame = frame.convert('RGBA'); lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay)
         if hl:
             a = 1 if self.z0 > 1.001 else ease((t - acc - .25) / .4) if acc == 0 or self.shots[0][1] is None else 1
@@ -181,10 +191,14 @@ class Screen(Scene):
         frame.alpha_composite(lay)
         if self.caption: frame.alpha_composite(self.cap_layer(t, hl, x0, y0, z))
         return frame.convert('RGB')
+    def top_side(self): return self.cap_pos == 'top'
+    def cap_h(self):
+        if not self.caption: return 0
+        dd = ImageDraw.Draw(Image.new('RGB', (10, 10))); return len(wrap(dd, self.caption, F('m', 42), 1500)) * 56 + 56 + 84
     def cap_layer(self, t, hl, x0, y0, z):
         lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay); a = ease((t - .15) / .35)
         f = F('m', 42); lines = wrap(d, self.caption, f, 1500); bw = max(d.textlength(l, font=f) for l in lines) + 100; bh = len(lines) * 56 + 56
-        top = self.cap_pos == 'top' or (self.cap_pos is None and hl and (hl[1] + hl[3] / 2 - y0) * z > H * .6)
+        top = self.top_side()
         by = 60 if top else H - 60 - bh; bx = (W - bw) / 2; dy = (-20 if top else 20) * (1 - a)
         sh = Image.new('RGBA', (W, H)); ImageDraw.Draw(sh).rounded_rectangle([bx, by + dy + 8, bx + bw, by + bh + dy + 8], 26, fill=(0, 0, 0, int(90 * a)))
         lay.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
@@ -192,6 +206,48 @@ class Screen(Scene):
         d.rectangle([bx + 28, by + dy + 24, bx + 34, by + bh + dy - 24], fill=ACC + (int(255 * a),))
         for j, l in enumerate(lines): d.text((bx + 60, by + dy + 28 + j * 56), l, font=f, fill=TEXT + (int(255 * a),))
         return lay
+
+class Device(Scene):
+    """Steps on the left, a plain phone or laptop outline on the right with an app screenshot inside."""
+    def __init__(self, heading, device, img, items, kind='steps', per=1.3, eyebrow='How to install'):
+        self.h, self.device, self.items, self.kind, self.per, self.eyebrow = heading, device, [x if isinstance(x, tuple) else (x, '') for x in items], kind, per, eyebrow
+        self.src = Image.open(img).convert('RGB'); self.dur = (1.6 + per * len(self.items) + 3.4) * HOLD; self._dev = None
+    def dev(self):
+        if self._dev: return self._dev
+        if self.device == 'phone':
+            fw, fh = 400, 820; im = Image.new('RGBA', (fw, fh)); d = ImageDraw.Draw(im)
+            d.rounded_rectangle([0, 0, fw - 1, fh - 1], 62, fill=(8, 9, 10, 255), outline=(70, 76, 80, 255), width=4)
+            sw, sh = fw - 36, fh - 36; scr = self.src.resize((sw, round(sw * self.src.height / self.src.width)), Image.LANCZOS).crop((0, 0, sw, sh))
+            m = Image.new('L', (sw, sh), 0); ImageDraw.Draw(m).rounded_rectangle([0, 0, sw - 1, sh - 1], 46, fill=255); im.paste(scr, (18, 18), m)
+        else:
+            fw, fh = 880, 560; im = Image.new('RGBA', (fw, fh)); d = ImageDraw.Draw(im); sx, sy, sw = 60, 0, 760; sh = round(sw * 9 / 16)
+            d.rounded_rectangle([sx, sy, sx + sw + 28, sy + sh + 40], 22, fill=(8, 9, 10, 255), outline=(70, 76, 80, 255), width=4)
+            im.paste(self.src.resize((sw, sh), Image.LANCZOS), (sx + 14, sy + 20))
+            by = sy + sh + 40; d.polygon([(sx - 50, by + 34), (sx + sw + 78, by + 34), (sx + sw + 28, by), (sx, by)], fill=(58, 63, 67, 255))
+            d.rounded_rectangle([sx - 50, by + 30, sx + sw + 78, by + 46], 8, fill=(45, 49, 52, 255))
+        self._dev = im; return im
+    def render(self, i):
+        t = i / FPS; im = bg_canvas().convert('RGBA'); im.alpha_composite(logo(40), (120, 70))
+        lay = Image.new('RGBA', (W, H)); d = ImageDraw.Draw(lay); a = ease(t / .5); width = 860 if self.device == 'laptop' else 1000
+        y = 200; d.text((140, y), self.eyebrow.upper(), font=F('h6', 34), fill=ACC + (int(255 * a),)); y += 56
+        for ln in wrap(d, self.h, F('h', 76), width): d.text((136, y), ln, font=F('h', 76), fill=TEXT + (int(255 * a),)); y += 84
+        y += 40
+        for k, (main, det) in enumerate(self.items):
+            b = ease((t - 1.0 - k * self.per) / .45)
+            if b <= 0: continue
+            x0 = 140 + 30 * (1 - b); al = int(255 * b)
+            if self.kind == 'steps':
+                d.ellipse([x0, y + 2, x0 + 60, y + 62], fill=ACC2 + (al,)); d.text((x0 + 30, y + 32), str(k + 1), font=F('h', 40), fill=(255, 255, 255, al), anchor='mm'); tx = x0 + 90
+            else: d.ellipse([x0 + 8, y + 22, x0 + 28, y + 42], fill=ACC + (al,)); tx = x0 + 56
+            yy = y + 6
+            for ln in wrap(d, main, F('b', 44), width - (tx - 140)): d.text((tx, yy), ln, font=F('b', 44), fill=TEXT + (al,)); yy += 54
+            for ln in wrap(d, det, F('r', 34), width - (tx - 140)) if det else []: d.text((tx, yy + 2), ln, font=F('r', 34), fill=MUTED + (al,)); yy += 46
+            y = yy + 30
+        im.alpha_composite(lay)
+        dv = self.dev(); c = ease((t - .3) / .7); dx = W - 120 - dv.width + int(60 * (1 - c)); dy = (H - dv.height) // 2 + 30
+        if c > 0:
+            dv2 = dv.copy(); dv2.putalpha(dv.getchannel('A').point(lambda v: int(v * c))); im.alpha_composite(dv2, (dx, dy))
+        return im.convert('RGB')
 
 class End(Scene):
     def __init__(self, next_title='', dur=4.0): self.next, self.dur = next_title, dur
@@ -221,9 +277,19 @@ def encode(scene, path, prev_last):
 
 def preview(scenes, at, out):
     """Save one frame per scene at fraction `at` of the scene, to check layouts before rendering."""
+    settle_captions(scenes)
     for k, s in enumerate(scenes): s.render(min(s.frames() - 1, int(s.frames() * at))).save(f'{out}_{k:02d}.jpg', quality=85)
 
+def settle_captions(scenes):
+    prev = None
+    for sc in scenes:
+        if isinstance(sc, Screen):
+            if sc.z0 > 1.001 and prev is not None and sc.cap_pos is None: sc._top = prev
+            prev = sc.top_side()
+        else: prev = None
+
 def render(scenes, out, work):
+    settle_captions(scenes)
     os.makedirs(work, exist_ok=True); parts = []; prev = None
     for k, s in enumerate(scenes):
         p = os.path.join(work, f'scene{k:02d}.mp4'); prev = encode(s, p, prev); parts.append(p)

@@ -23,9 +23,11 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <li><b>Your settings:</b> heart-rate thresholds, resting and maximum heart rate, weight, FTP, weekly goals and privacy choices.</li>
 <li><b>Your activities:</b> the files you upload or that a service you connect sends us (for example .FIT files) and what they contain: time, GPS location, distance, speed, elevation, heart rate, power, cadence, running dynamics, laps and device names. We also store figures we work out from them, such as training load and best efforts.</li>
 <li><b>What you add:</b> activity names, descriptions, private notes, photos and videos, gear, comments, kudos, follows, clubs (including club photos and messages admins post) and relays you join.</li>
+<li><b>Feedback:</b> suggestions and problem reports you send, with the page you were on, the app version, your browser and screen size for problem reports, and any reply.</li>
+<li><b>Usage counts:</b> the days you open the app (to count active members), and a daily count of visits to each page, with each browser counted once a day. Visit counts contain no personal data, no IP addresses and no cookies.</li>
 <li><b>Connected services:</b> if you connect another service (for example intervals.icu or Garmin), the access key or token needed to fetch your activities.</li>
 </ul>
-<p>We don't use advertising or third-party analytics, we don't set tracking cookies, and we never sell or rent your data. Your browser keeps a sign-in token so you stay signed in.</p>
+<p>The person who runs Triven can see totals and trends (members, activity counts, visits) and the list of members' names, usernames and email addresses, to run and improve the service. We don't use advertising or third-party analytics, we don't set tracking cookies, and we never sell or rent your data. Your browser keeps a sign-in token so you stay signed in.</p>
 <h2>Why we use it</h2>
 <p>Only to run Triven for you: storing and showing your training, working out the figures and charts, and sharing activities with the people you choose. Heart rate and other health-related data are processed only because you upload them for this purpose, and you can delete them at any time.</p>
 <h2>Who can see your data</h2>
@@ -58,4 +60,5 @@ footer{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;color
 <p>If we change this policy we'll update this page and the date at the top, and tell you in the app about any significant change.</p>
 </article>
 <footer><a href="./">Triven</a><a href="help.html">Help</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="mailto:hello@triven.fit">hello@triven.fit</a></footer>
-</main></body></html>
+</main><script>try{var p='privacy',d=new Date().toISOString().slice(0,10),k='triven.seen.'+p;if(localStorage.getItem(k)!==d){localStorage.setItem(k,d);fetch('https://ksubeokekwflqnmzsune.supabase.co/rest/v1/rpc/count_view',{method:'POST',headers:{apikey:'sb_publishable_gBU60hkphcU9T97Cn1Bvmw_QMIFFy3i','Content-Type':'application/json'},body:JSON.stringify({p_page:p}),keepalive:true}).catch(function(){})}}catch(e){}</script>
+</body></html>

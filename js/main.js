@@ -1,41 +1,43 @@
-import './busy.js?v=1795267353';   // first: makes slow buttons grey out while they work
+import './busy.js?v=1795269537';   // first: makes slow buttons grey out while they work
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795267353';
+import { decodeFit } from './fit.js?v=1795269537';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
 export { JSZip };
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795267353';
-import { mountActivity } from './activity.js?v=1795267353';
-import { mountLog } from './log.js?v=1795267353';
-import { mountGear } from './gear.js?v=1795267353';
-import { mountClub } from './club.js?v=1795267353';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795267353';
-import { mountRelay } from './relay.js?v=1795267353';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795267353';
-import { SWIM_DISTANCES, bestOverDistance } from './process.js?v=1795267353';
-import { setUnits, dist as uDist } from './units.js?v=1795267353';
-import { prettyOf, curRoute, rememberLink } from './urls.js?v=1795267353';
-import { openLink } from './profile.js?v=1795267353';
-import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795267353';
-import { mountRaces } from './races.js?v=1795267353';
-import { weatherBackfill } from './weather.js?v=1795267353';
-import { initNotifications } from './notify.js?v=1795267353';
-import { initAccountData } from './account.js?v=1795267353';
-import './racehist.js?v=1795267353';   // race history card on race pages
-import { mountActivities } from './actlist.js?v=1795267353';
-import { installHint } from './install.js?v=1795267353';
-import { openWelcome } from './settings.js?v=1795267353';
-import './swimview.js?v=1795267353';
-import './trophies.js?v=1795267353';
-import { mountFeed } from './feed.js?v=1795267353';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795267353';
-import { perfData } from './perf.js?v=1795267353';
-import { loadData } from './load.js?v=1795267353';
-import { processInbox, paintConnections } from './sync.js?v=1795267353';
-import { mountManual } from './manual.js?v=1795267353';
-import { mountCal } from './cal.js?v=1795267353';
-import { settingsAt } from './athlete.js?v=1795267353';
-import { initSettings, DEFAULTS, ageOn } from './settings.js?v=1795267353';
-import { offerCombine } from './edit.js?v=1795267353';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795269537';
+import { mountActivity } from './activity.js?v=1795269537';
+import { mountLog } from './log.js?v=1795269537';
+import { mountGear } from './gear.js?v=1795269537';
+import { mountClub } from './club.js?v=1795269537';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795269537';
+import { mountRelay } from './relay.js?v=1795269537';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795269537';
+import { SWIM_DISTANCES, bestOverDistance } from './process.js?v=1795269537';
+import { setUnits, dist as uDist } from './units.js?v=1795269537';
+import { prettyOf, curRoute, rememberLink } from './urls.js?v=1795269537';
+import { openLink } from './profile.js?v=1795269537';
+import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795269537';
+import { mountRaces } from './races.js?v=1795269537';
+import { weatherBackfill } from './weather.js?v=1795269537';
+import { initNotifications } from './notify.js?v=1795269537';
+import { initAccountData } from './account.js?v=1795269537';
+import { openFeedback } from './feedback.js?v=1795269537';
+import { mountAdmin, countVisit } from './admin.js?v=1795269537';
+import './racehist.js?v=1795269537';   // race history card on race pages
+import { mountActivities } from './actlist.js?v=1795269537';
+import { installHint } from './install.js?v=1795269537';
+import { openWelcome } from './settings.js?v=1795269537';
+import './swimview.js?v=1795269537';
+import './trophies.js?v=1795269537';
+import { mountFeed } from './feed.js?v=1795269537';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795269537';
+import { perfData } from './perf.js?v=1795269537';
+import { loadData } from './load.js?v=1795269537';
+import { processInbox, paintConnections } from './sync.js?v=1795269537';
+import { mountManual } from './manual.js?v=1795269537';
+import { mountCal } from './cal.js?v=1795269537';
+import { settingsAt } from './athlete.js?v=1795269537';
+import { initSettings, DEFAULTS, ageOn } from './settings.js?v=1795269537';
+import { offerCombine } from './edit.js?v=1795269537';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -43,7 +45,7 @@ const SUPABASE_KEY = 'sb_publishable_gBU60hkphcU9T97Cn1Bvmw_QMIFFy3i';
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
-const VIEWS = ['auth', 'loading', 'feed', 'log', 'activity', 'upload', 'gear', 'club', 'relay', 'profile'];
+const VIEWS = ['auth', 'loading', 'feed', 'log', 'activity', 'upload', 'gear', 'club', 'relay', 'profile', 'admin'];
 export const state = { user: null, profile: null, activities: [], gear: [], bests: [], loaded: false };
 
 export function toast(msg, ms = 3200) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
@@ -108,7 +110,7 @@ sb.auth.onAuthStateChange((evt, session) => {
   const u = session?.user || null;
   if (u?.id === state.user?.id) return;
   state.user = u; state.loaded = false;
-  if (!u) { show('auth'); if (/[?&]deleted=1/.test(location.search)) { $('authMsg').textContent = 'Your account and everything in it has been deleted.'; history.replaceState(null, '', '/'); } return; }
+  if (!u) { show('auth'); countVisit(/^\/join\//.test(location.pathname) || curRoute().startsWith('#join/') ? 'join' : 'landing', false); if (/[?&]deleted=1/.test(location.search)) { $('authMsg').textContent = 'Your account and everything in it has been deleted.'; history.replaceState(null, '', '/'); } return; }
   boot();
 });
 
@@ -123,7 +125,9 @@ async function boot() {
   // a profile or activity link opened before signing in
   let pendingLink = null; try { pendingLink = localStorage.getItem('triven.link'); localStorage.removeItem('triven.link'); } catch { /* storage blocked */ }
   if (pendingLink && !pendingJoin && state.profile?.privacy_set && curRoute() !== pendingLink) location.hash = pendingLink;
-  initNotifications(); initAccountData();
+  initNotifications(); initAccountData(); countVisit('app', true);
+  sb.rpc('is_admin').then(({ data }) => { state.isAdmin = data === true; document.querySelectorAll('.adminonly').forEach(e => e.hidden = !state.isAdmin); if (state.isAdmin && curRoute() === '#admin') route(); }, () => {});
+  document.querySelectorAll('.fbopen').forEach(b => b.onclick = () => { $('settings').classList.remove('open'); openFeedback(b.dataset.kind || 'feature'); });
   route();
   installHint();
   if (state.profile && !state.profile.privacy_set) setTimeout(() => { paintConnections(); openWelcome(); }, 600);
@@ -276,6 +280,8 @@ async function route() {
   if (h.startsWith('#c/')) { show('club'); mountClubPage(h.slice(3).split('?')[0]); return; }
   if (h.startsWith('#join/')) { show('club'); mountJoin(h.slice(6).split('?')[0]); return; }
   if (h.startsWith('#r/')) { show('relay'); mountRelay(h.slice(3).split('?')[0]); return; }
+  if (h === '#admin') { show('admin'); if (state.isAdmin !== false) mountAdmin($('view-admin')); return; }
+  if (h.startsWith('#feedback')) { location.replace('#feed'); setTimeout(() => openFeedback(h.includes('problem') ? 'problem' : 'feature'), 300); return; }
   show('log');
   const bests = h === '#log/bests' || h.startsWith('#log/bests/') || h.startsWith('#log/bests?'), acts = h === '#log/activities', racesV = h === '#log/races';
   $('logMain').hidden = bests || acts || racesV; $('logBests').hidden = !bests; $('logGear').hidden = bests || acts || racesV; $('logActs').hidden = !acts; $('logRaces').hidden = !racesV;

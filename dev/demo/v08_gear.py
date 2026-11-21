@@ -1,7 +1,7 @@
 # 08 Gear and mileage
 from compose import *
 from common import *
-FILE = '08-gear-and-mileage'
+FILE = '09-gear-and-mileage'
 def SETUP(): return {'path': '#gear'}
 def film(f):
     S = {}; pg = f.pg
@@ -18,7 +18,7 @@ def film(f):
     return S
 def scenes(S):
     return [
-      Title(8, 'Gear and mileage', 'Know when your shoes are done, and what each bike has covered.'),
+      Title(9, 'Gear and mileage', 'Know when your shoes are done, and what each bike has covered.'),
       Screen([S['list']], 'The Gear tab lists your shoes and bikes with the distance each has done.', zoom=1.05),
       Screen([S['bar']], 'The bar fills towards the distance you plan to replace them at.', zoom=1.2),
       Screen([S['new']], 'Add shoes or a bike: name, brand and model.', zoom=1.12),

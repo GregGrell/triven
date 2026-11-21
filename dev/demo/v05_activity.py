@@ -1,7 +1,7 @@
 # 05 The activity page
 from compose import *
 from common import *
-FILE = '05-the-activity-page'
+FILE = '06-the-activity-page'
 def film(f):
     S = {}; pg = f.pg
     a = last('run', 'Intervals'); f.nav('#a/' + a['id'], 4000)
@@ -23,7 +23,7 @@ def film(f):
 def scenes(S):
     hv = S['hover']
     return [
-      Title(5, 'The activity page', 'Everything about one workout, on one page.'),
+      Title(6, 'The activity page', 'Everything about one workout, on one page.'),
       Screen([S['top']], 'The headline numbers: time, distance, pace, heart rate and climbing.', zoom=1.25),
       Screen([S['weather']], 'The weather on the day, and for runs, how much the heat cost you.', zoom=1.4),
       Screen([S['map']], 'Your route. Switch map styles with the layers button.', zoom=1.15),

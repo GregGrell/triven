@@ -2,7 +2,7 @@
 from compose import *
 from common import *
 import social
-FILE = '16-following-the-feed-and-notifications'
+FILE = '17-following-the-feed-and-notifications'
 def SETUP(): return social.setup()
 def film(f):
     S = {}; pg = f.pg
@@ -22,7 +22,7 @@ def film(f):
 def scenes(S):
     c = S['people'][1]
     return [
-      Title(16, 'Following, the feed and notifications', 'Keep up with your training partners.'),
+      Title(17, 'Following, the feed and notifications', 'Keep up with your training partners.'),
       Screen([S['people']], 'On the People tab, search for athletes by name.', zoom=1.12),
       Screen([(p, c, .2) for p, _ in S['q']] + [(S['res'][0], c, 2.2)], 'Results show as you type.', zoom=1.12, z0=1.12),
       Screen([S['fol']], 'Follow. If they approve followers, it waits until they accept.', zoom=1.5) if S['fol'][1] else Screen([S['res']], 'Follow. If they approve followers, it waits until they accept.', zoom=1.12),

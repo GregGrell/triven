@@ -1,6 +1,6 @@
 # 02 Automatic sync with intervals.icu
 from compose import *
-FILE = '02-automatic-sync-with-intervals-icu'
+FILE = '03-automatic-sync-with-intervals-icu'
 def film(f):
     pg = f.pg; S = {}
     S['feed'] = f.shot('feed')
@@ -27,7 +27,7 @@ def scenes(S):
     conn = S['conn'][1]
     seq = lambda k, per: [(p, conn, per) for p, _ in S[k]]
     scenes = [
-      Title(2, 'Automatic sync with intervals.icu', 'Every workout from your watch, straight into Triven.'),
+      Title(3, 'Automatic sync with intervals.icu', 'Every workout from your watch, straight into Triven.'),
       Flow('How it works', [('Your watch', 'Garmin, COROS, Suunto, Wahoo, Polar'), ('intervals.icu', 'free; collects your workouts'), ('Triven', 'checks every 10 minutes')],
            note='intervals.icu is a free training site that already connects to most watch brands. Triven picks up your new workouts from there.', dur=8.5),
       Card('In intervals.icu', [('Create a free account', 'Sign up at intervals.icu with email or Google.'),

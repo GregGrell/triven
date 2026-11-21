@@ -1,7 +1,7 @@
 # 03 Uploading files and your Garmin history
 from compose import *
 from common import *
-FILE = '03-uploading-files-and-your-garmin-history'
+FILE = '04-uploading-files-and-your-garmin-history'
 def SETUP(): return {'path': '#upload'}
 def film(f):
     S = {}
@@ -16,7 +16,7 @@ def film(f):
 def scenes(S):
     up = S['done'][1]
     return [
-      Title(3, 'Uploading files and your Garmin history', 'For one-off files, or years of training in one go.'),
+      Title(4, 'Uploading files and your Garmin history', 'For one-off files, or years of training in one go.'),
       Screen([S['upload']], 'Open the Upload tab. Drop .fit files here, or click to choose them.', zoom=1.15),
       Screen([(p, up, .35) for p, _ in S['prog']] + [(S['done'][0], up, 3.2)], 'Files are read in your browser and saved to your account, original file and all.', zoom=1.15),
       Screen([S['feed']], 'They appear in your feed straight away. Files already in Triven are skipped.', zoom=1.05),

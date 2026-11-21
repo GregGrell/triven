@@ -1,7 +1,7 @@
 # 09 The training log: totals, calendar and search
 from compose import *
 from common import *
-FILE = '09-the-training-log'
+FILE = '10-the-training-log'
 def SETUP(): return {'path': '#log'}
 def film(f):
     S = {}; pg = f.pg
@@ -17,7 +17,7 @@ def film(f):
 def scenes(S):
     q = S['acts'][1]
     return [
-      Title(9, 'The training log', 'Totals, trends, your calendar and every activity, searchable.'),
+      Title(10, 'The training log', 'Totals, trends, your calendar and every activity, searchable.'),
       Screen([S['month']], 'Totals by sport for the week, month or year, or any dates you pick.', zoom=1.12),
       Screen([S['year']], 'Year view breaks it down month by month.', zoom=1.12),
       Screen([S['side']], 'Alongside: your year so far, with the longest swim, ride and run.', zoom=1.3),

@@ -1,7 +1,7 @@
 # 11 Fitness, form and training load
 from compose import *
 from common import *
-FILE = '11-fitness-form-and-training-load'
+FILE = '12-fitness-form-and-training-load'
 def SETUP(): return {'path': '#log'}
 def film(f):
     S = {}; pg = f.pg
@@ -19,7 +19,7 @@ def film(f):
 def scenes(S):
     hv = S['hov']
     return [
-      Title(11, 'Fitness, form and training load', 'How hard you’ve trained, and whether you’re fresh or tired.'),
+      Title(12, 'Fitness, form and training load', 'How hard you’ve trained, and whether you’re fresh or tired.'),
       Card('Training load', [('Every activity gets a load score', 'From heart rate, power or swim pace, against your thresholds. An hour flat out at threshold scores 100.'),
                              ('Fitness', 'Your load averaged over the last six weeks.'), ('Fatigue', 'Your load over the last week.'),
                              ('Form', 'Fitness minus fatigue. Negative means tired; positive means fresh.')], per=1.3),

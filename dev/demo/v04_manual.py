@@ -1,7 +1,7 @@
 # 04 Logging an activity without a file
 from compose import *
 from common import *
-FILE = '04-logging-an-activity-without-a-file'
+FILE = '05-logging-an-activity-without-a-file'
 def SETUP(): return {'path': '#upload'}
 def film(f):
     S = {}; pg = f.pg
@@ -24,7 +24,7 @@ def scenes(S):
     card = S['form'][1]
     seq = lambda k: [(p, card, .12) for p, _ in S[k]]
     return [
-      Title(4, 'Logging an activity without a file', 'A treadmill run, a turbo session, or anything your watch missed.'),
+      Title(5, 'Logging an activity without a file', 'A treadmill run, a turbo session, or anything your watch missed.'),
       Screen([S['form']], 'On the Upload tab, scroll to Log without a file.', zoom=1.2),
       Screen([(S['kind'][0], card, 2.6)], 'Choose the sport, and the type: indoor, road, treadmill and so on.', zoom=1.2, z0=1.2),
       Screen(seq('t1') + seq('t2') + seq('t3') + [(S['t3'][-1][0], card, 1.6)], 'Add the time, distance and, if you know it, average heart rate.', zoom=1.2, z0=1.2),

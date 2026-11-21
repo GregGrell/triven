@@ -1,7 +1,7 @@
 # 20 Your data: download and delete
 from compose import *
 from common import *
-FILE = '20-your-data-download-and-delete'
+FILE = '21-your-data-download-and-delete'
 def film(f):
     S = {}; pg = f.pg
     pg.click('#openSettings'); pg.wait_for_timeout(1200); pg.evaluate('document.activeElement.blur()')
@@ -17,7 +17,7 @@ def film(f):
 def scenes(S):
     sec = S['sec'][1]
     return [
-      Title(20, 'Your data: download and delete', 'It’s yours. Take it with you, or take it away.'),
+      Title(21, 'Your data: download and delete', 'It’s yours. Take it with you, or take it away.'),
       Screen([S['sec']], 'Settings → Your data, at the bottom.', zoom=1.2),
       Screen([S['dl']], 'Download my data: a zip with your profile, every activity as a spreadsheet and in full, gear, bests, comments and clubs.', zoom=1.2, z0=1.2),
       Card('Want your original files too?', ['Tick "Include original activity files and photos" before downloading.', 'With years of history it’s a big download, so give it time.'], kind='bullets', per=1.0),

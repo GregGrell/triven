@@ -2,7 +2,7 @@
 from compose import *
 from common import *
 import social
-FILE = '18-relays'
+FILE = '19-relays'
 MINE = None
 def SETUP():
     global MINE
@@ -25,7 +25,7 @@ def film(f):
     return S
 def scenes(S):
     return [
-      Title(18, 'Relays', 'Team up: your leg and your friends’ legs, as one result.'),
+      Title(19, 'Relays', 'Team up: your leg and your friends’ legs, as one result.'),
       Screen([S['menu']], 'On your activity, open Edit → Make a relay.', zoom=1.35),
       Screen([S['pick']], 'Pick a friend’s activity from within 12 hours, or invite them to pick their own. Up to six legs.', zoom=1.12),
       Screen([S['relay']], 'The relay page: every leg in order, the hand-overs, and the total time.', zoom=1.08),

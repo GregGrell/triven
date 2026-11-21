@@ -1,7 +1,7 @@
 # 06 Multisport activities
 from compose import *
 from common import *
-FILE = '06-multisport-activities'
+FILE = '07-multisport-activities'
 def film(f):
     S = {}; pg = f.pg
     f.nav('#a/' + tri()['id'], 4000)
@@ -19,7 +19,7 @@ def film(f):
     return S
 def scenes(S):
     return [
-      Title(6, 'Multisport activities', 'A triathlon is one race, so Triven keeps it as one activity.'),
+      Title(7, 'Multisport activities', 'A triathlon is one race, so Triven keeps it as one activity.'),
       Card('Recognised automatically', [('Triathlon', 'swim, bike, run'), ('Duathlon', 'run, bike, run'), ('Aquathlon', 'swim, run'), ('Also', 'aquabike, swimrun and bike–run bricks')], kind='bullets', per=.8,
            eyebrow='Upload or sync a multisport file'),
       Screen([S['top']], 'The whole race: total time, distance and transition time together.', zoom=1.2),

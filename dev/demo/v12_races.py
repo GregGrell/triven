@@ -1,7 +1,7 @@
 # 12 Race calendar and taper
 from compose import *
 from common import *
-FILE = '12-race-calendar-and-taper'
+FILE = '13-race-calendar-and-taper'
 def SETUP(): return {'path': '#log/races'}
 def film(f):
     S = {}; pg = f.pg
@@ -19,7 +19,7 @@ def film(f):
 def scenes(S):
     md = S['modal'][1]
     return [
-      Title(12, 'Race calendar and taper', 'Plan your season and arrive fresh.'),
+      Title(13, 'Race calendar and taper', 'Plan your season and arrive fresh.'),
       Screen([S['list']], 'Training log → Races. Your upcoming races, with a countdown.', zoom=1.1),
       Screen([S['modal']], 'Add a race: name, date, type and distance.', zoom=1.12),
       Screen([(p, md, .15) for p, _ in S['name']] + [(S['filled'][0], md, 2.6)], 'Set the priority: A for the one that matters, B for important, C for a training race. Add a goal time if you have one.', zoom=1.12, z0=1.12),

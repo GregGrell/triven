@@ -2,7 +2,7 @@
 from compose import *
 from common import *
 import social
-FILE = '19-settings-units-profile-and-username'
+FILE = '20-settings-units-profile-and-username'
 def SETUP(): return social.setup(feed_others=False)
 def film(f):
     S = {}; pg = f.pg
@@ -22,7 +22,7 @@ def film(f):
     return S
 def scenes(S):
     return [
-      Title(19, 'Settings', 'Your profile, units and the numbers that drive your zones.'),
+      Title(20, 'Settings', 'Your profile, units and the numbers that drive your zones.'),
       Screen([S['prof']], 'Settings, top right. First: your name, photo and username.', zoom=1.15),
       Screen([S['prof']], 'Your date of birth (only your age is used) and your weight, typed in and kept by date.', zoom=1.15, z0=1.15),
       Screen([S['units']], 'Units: metric or imperial.', zoom=1.5),

@@ -58,7 +58,7 @@ footer{{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:13px;colo
 <p class="muted">{len(meta)} short videos, about {total} minutes in all, each on one part of Triven. Prefer reading? The <a href="/help.html">help guide</a> covers the same ground.</p>
 {cards}</article>
 <footer><span>© Triven</span><a href="/help.html">Help</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:hello@triven.fit">hello@triven.fit</a></footer>
-</main></body></html>
+</main><script>try{{var p='videos',d=new Date().toISOString().slice(0,10),k='triven.seen.'+p;if(localStorage.getItem(k)!==d){{localStorage.setItem(k,d);fetch('https://ksubeokekwflqnmzsune.supabase.co/rest/v1/rpc/count_view',{{method:'POST',headers:{{apikey:'sb_publishable_gBU60hkphcU9T97Cn1Bvmw_QMIFFy3i','Content-Type':'application/json'}},body:JSON.stringify({{p_page:p}}),keepalive:true}}).catch(function(){{}})}}}}catch(e){{}}</script></body></html>
 '''
 open(f'{ROOT}/videos.html', 'w').write(html)
 print('videos.html', len(html), 'bytes;', sum(1 for v in meta if YT.get(str(v['n']))), 'with YouTube links')

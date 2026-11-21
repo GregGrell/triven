@@ -1,7 +1,7 @@
 # 14 Swimming
 from compose import *
 from common import *
-FILE = '14-swimming'
+FILE = '15-swimming'
 def film(f):
     S = {}; pg = f.pg
     a = last('swim'); f.nav('#a/' + a['id'], 4000)
@@ -21,7 +21,7 @@ def film(f):
 def scenes(S):
     sec = S['css'][1]
     return [
-      Title(14, 'Swimming', 'Pool sets, pace per 100 m, SWOLF and your swim threshold.'),
+      Title(15, 'Swimming', 'Pool sets, pace per 100 m, SWOLF and your swim threshold.'),
       Screen([S['top']], 'Pace is worked out on swimming time only. Rests at the wall don’t slow it down.', zoom=1.25),
       Screen([S['card']], 'Sets are found from your rests, with each set’s pace and strokes.', zoom=1.1),
       Screen([S['card3']], 'Every length: pace, SWOLF and stroke type.', zoom=1.1),

@@ -10,7 +10,7 @@ def check(c,m):
 try:
   with sync_playwright() as p:
     b=p.chromium.launch()
-    for w in (360,390,430,1240):
+    for w in (360,390,430,620,700,768,900,1240):
       pg=b.new_page(viewport={'width':w,'height':800});errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
       pg.add_init_script('window.__seedDb='+json.dumps({'profile':{'privacy_set':True,'display_name':'Sam Carter'}})+';')
       pg.goto('http://localhost:8807/site/index.html#feed');pg.wait_for_timeout(2200)
@@ -18,7 +18,7 @@ try:
       check(not out, f'{w}px: everything in the header fits {out}')
       check(pg.evaluate("document.documentElement.scrollWidth<=innerWidth"), f'{w}px: no sideways scroll')
       pg.click('#openSettings');pg.wait_for_timeout(500)
-      check(pg.is_visible('#signOut2') and pg.is_visible('.setlinks a'), f'{w}px: Help and Sign out in Settings')
+      check(pg.is_visible('#signOut2') and pg.is_visible('.setlinks a:has-text("Help")') and pg.is_visible('.setlinks .fbopen'), f'{w}px: Help and Sign out in Settings')
       if w==1240: check(pg.is_visible('#signOut'),'wide screens keep Sign out in the header')
       if errs: fails.append('errors '+str(errs))
       pg.close()

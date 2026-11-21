@@ -2,7 +2,7 @@
 from compose import *
 from common import *
 import social
-FILE = '17-clubs-and-leaderboards'
+FILE = '18-clubs-and-leaderboards'
 def SETUP(): return social.setup()
 def film(f):
     S = {}; pg = f.pg
@@ -23,7 +23,7 @@ def film(f):
             S[k] = f.shot(k, f'#view-club .card:has-text("{t}") >> nth=-1')
     return S
 def scenes(S):
-    sc = [Title(17, 'Clubs and leaderboards', 'Your tri club, running club or Sunday ride group, in one place.'),
+    sc = [Title(18, 'Clubs and leaderboards', 'Your tri club, running club or Sunday ride group, in one place.'),
           Screen([S['clubs']], 'People tab → Clubs: find a club, paste an invite link, or start your own.', zoom=1.2),
           Screen([S['start']], 'Starting one: a name and description, listed in search or invite only, and open to all or by approval.', zoom=1.15),
           Screen([S['page']], 'The club page: photo, description and the club’s activities.', zoom=1.1)]

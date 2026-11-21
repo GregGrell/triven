@@ -1,7 +1,7 @@
 # 10 Goals
 from compose import *
 from common import *
-FILE = '10-goals'
+FILE = '11-goals'
 def film(f):
     S = {}; pg = f.pg
     S['side'] = f.shot('side', '#view-feed aside, .feedside')
@@ -28,7 +28,7 @@ def film(f):
 def scenes(S):
     md = S['modal'][1]; seq = lambda k: [(p, md, .16) for p, _ in S[k]]
     return [
-      Title(10, 'Goals', 'Weekly, monthly and annual targets for each sport.'),
+      Title(11, 'Goals', 'Weekly, monthly and annual targets for each sport.'),
       Screen([S['modal']], 'In the feed sidebar, click Set goals.', zoom=1.12),
       Screen(seq('w') + [(S['w'][-1][0], md, 1.2)], 'Weekly: a distance, time or climbing target per sport, or for everything together.', zoom=1.12, z0=1.12),
       Screen(seq('m') + [(S['m'][-1][0], md, 1.2)], 'Monthly: here, 45 hours of training across all sports.', zoom=1.12, z0=1.12),

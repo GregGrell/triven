@@ -1,8 +1,8 @@
 // In-memory stand-in for supabase-js, enough for the app's calls.
 const db={profiles:[{id:'u1',display_name:'Carl',settings:{lthrRun:163,lthrBike:158,maxHr:175,restHr:50,zones:[85,90,95,100,103],balLo:48.5,balHi:51.5,balMin:10,ftp:null,mass:75,bikeMass:9,cda:0.27,crr:0.004},default_visibility:'club',default_share:{map:true,hr:true,power:true,pace:true,cadence:true,dynamics:true,description:true}}],
- activities:[],activity_media:[],activity_sections:[],activity_laps:[],best_efforts:[],best_ignores:[],gear:[],comments:[],kudos:[],clubs:[],club_members:[],follows:[],connections:[],sync_inbox:[],club_posts:[],relay_legs:[]};
+ activities:[],activity_media:[],activity_sections:[],activity_laps:[],best_efforts:[],best_ignores:[],gear:[],comments:[],kudos:[],clubs:[],club_members:[],follows:[],connections:[],sync_inbox:[],club_posts:[],relay_legs:[],feedback:[]};
 const files={};
-if(window.__seedDb)Object.entries(window.__seedDb).forEach(([k,v])=>{if(k==='profile')Object.assign(db.profiles[0],v);else db[k].push(...v)});
+if(window.__seedDb)Object.entries(window.__seedDb).forEach(([k,v])=>{if(k==='profile')Object.assign(db.profiles[0],v);else (db[k]=db[k]||[]).push(...v)});
 if(window.__seedFiles)Object.assign(files,window.__seedFiles);
 window.__db=db;window.__files=files;
 let n=window.__uuidStart||0;const uuid=()=>'00000000-0000-4000-8000-'+String(++n).padStart(12,'0');

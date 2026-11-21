@@ -28,5 +28,5 @@ def scenes(S):
       Card('Getting started', [('Bring your workouts in', 'Connect intervals.icu for automatic sync, or upload files.'),
                                ('Set your thresholds', 'Threshold heart rates, FTP and swim CSS make the zones and load right.'),
                                ('Find your club mates', 'Follow friends and join or start a club.')], per=1.2),
-      End('Automatic sync with intervals.icu'),
+      End('Installing Triven on your phone or computer'),
     ]

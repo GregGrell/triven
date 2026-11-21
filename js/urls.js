@@ -1,7 +1,7 @@
 // Clean addresses. The app routes on the #hash internally; the address bar shows a clean path instead:
 //   #log/bests → /log/bests   #feed → /feed   #u/carlg/412 → /carlg/412   #a/<id> → /carlg/412 when known, else /a/<id>
 // Opening or reloading a clean path goes through 404.html, which turns it back into the #hash (keep the two in step).
-export const APP = new Set(['feed', 'log', 'upload', 'gear', 'people', 'club', 'a', 'c', 'r', 'join', 'reset', 'me']);
+export const APP = new Set(['feed', 'log', 'upload', 'gear', 'people', 'club', 'a', 'c', 'r', 'join', 'reset', 'me', 'admin', 'feedback']);
 const links = new Map();   // activity id → 'handle/num', filled from your activities and feed cards
 export const rememberLink = (id, path) => { if (id && path) links.set(id, path); };
 
