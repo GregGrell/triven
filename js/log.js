@@ -1,5 +1,5 @@
 // Training log: period totals, fitness, volume chart, calendar, bests, gear.
-import * as U from './units.js?v=1795209850';
+import * as U from './units.js?v=1795220279';
 const $=id=>document.getElementById(id), css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountLog(D){
@@ -128,33 +128,6 @@ function showPop(a,anchor){
 
 
 
-// ---------- bests ----------
-const SWIM_PB=[['100 m',100,'100 m'],['200 m',200,'200 m'],['400 m',400,'400 m'],['750 m',750,'750 m (sprint tri)'],['800 m',800,'800 m'],['1500 m',1500,'1500 m (Olympic tri)'],['1900 m',1900,'1.9 km (70.3)'],['3800 m',3800,'3.8 km (Ironman)']];
-const RUN_PB=[['400 m',400],['1 km',1000],['1 mile',1609.34],['5 km',5000],['10 km',10000],['15 km',15000],['10 mile',16093.4],['Half marathon',21097.5],['30 km',30000],['Marathon',42195],['50 km',50000],['50 mile',80467.2],['100 km',100000],['100 mile',160934.4]];
-const BIKE_PB=[['10 mile TT',16093.4],['25 mile TT',40233.6],['50 mile TT',80467.2],['100 km ride',100000,'100 km'],['100 mile TT',160934.4]];
-const PWR=[['power 1 s','1 s'],['power 5 s','5 s'],['power 10 s','10 s'],['power 30 s','30 s'],['power 1 min','1 min'],['power 5 min','5 min'],['power 10 min','10 min'],['power 20 min','20 min'],['power 30 min','30 min'],['power 1 hour','1 hour']];
-const bestOf=(sport,effort,hi)=>{const l=(D.bests||[]).filter(b=>b.sport===sport&&b.effort===effort);if(!l.length)return null;return l.sort((x,y)=>hi?y.value-x.value:x.value-y.value)[0]};
-const actLink=(b)=>{const l=document.createElement('a');l.href='#a/'+b.activity_id;l.textContent=fmtDate(Date.parse(b.achieved_at));return l};
-const actName=b=>{const x=A.find(a=>a.id===b.activity_id);return x?x.name:''};
-function pbRow(t,name,b,cell2){
-  const tr=t.insertRow();tr.insertCell().textContent=name;const v=tr.insertCell();v.className='v';
-  if(!b){tr.className='none';v.textContent='—';const c=tr.insertCell();c.colSpan=3;c.textContent=cell2||'Not set yet';return}
-  return [tr,v];
-}
-function renderBests(){
-  const hdr=(t,cols)=>{const r=t.insertRow();cols.forEach(c=>{const th=document.createElement('th');th.textContent=c;r.append(th)})};
-  const r=$('pbRun');r.replaceChildren();hdr(r,['Distance','Time','Pace','Date','Activity']);
-  RUN_PB.forEach(([n,m])=>{const b=bestOf('run',n);const x=pbRow(r,n,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=pace(b.value,m);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
-  $('pbRunNote').textContent='Worked out by Triven from every imported run, using the fastest stretch of any run, including the run legs of multisport races.';
-  const bk=$('pbBike');bk.replaceChildren();hdr(bk,['Distance','Time','Speed','Date','Activity']);
-  BIKE_PB.forEach(([n,m,label])=>{const b=bestOf('bike',n);const x=pbRow(bk,label||n,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=U.speed(b.value,m);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
-  [['longest ride','Longest ride',v=>U.dist(v,1)],['most elevation','Most elevation gain',v=>U.elev(v)]].forEach(([e,label,f])=>{const b=bestOf('bike',e,true);const x=pbRow(bk,label,b);if(!x)return;x[1].textContent=f(b.value);x[0].insertCell();x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
-  const sw=$('pbSwim');sw.replaceChildren();hdr(sw,['Distance','Time','Pace /100 m','Date','Activity']);
-  SWIM_PB.forEach(([n,m,label])=>{const b=bestOf('swim',n);const x=pbRow(sw,label,b);if(!x)return;x[1].textContent=fmtDur(b.value);x[0].insertCell().textContent=fmtDur(b.value/m*100);x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
-  const p=$('pbPower');p.replaceChildren();hdr(p,['Duration','Power','W/kg','Date','Activity']);
-  PWR.forEach(([e,label])=>{const b=bestOf('bike',e,true);const x=pbRow(p,label,b,'Needs a ride with a power meter');if(!x)return;x[1].textContent=Math.round(b.value)+' W';x[0].insertCell().textContent=D.mass?(b.value/D.mass).toFixed(2):'—';x[0].insertCell().append(actLink(b));const c=x[0].insertCell();c.className='muted';c.textContent=actName(b)});
-}
-
 // ---------- gear (summary on the log; full management on the Gear tab) ----------
 function renderGear(){
   const el=$('gear');el.replaceChildren();
@@ -174,7 +147,7 @@ function renderGear(){
 }
 
 window.__log={renderTotals};
-renderTotals();renderBests();renderGear();
+renderTotals();renderGear();
 if(!bound){bound=true;let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!$('view-log').hidden)window.__log.renderTotals()},150)});
  document.addEventListener('click',e=>{const p=$('actpop');if(!p.hidden&&!p.contains(e.target))p.hidden=true});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('actpop').hidden=true});}

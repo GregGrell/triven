@@ -1,32 +1,33 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795209850';
+import { decodeFit } from './fit.js?v=1795220279';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795209850';
-import { mountActivity } from './activity.js?v=1795209850';
-import { mountLog } from './log.js?v=1795209850';
-import { mountGear } from './gear.js?v=1795209850';
-import { mountClub } from './club.js?v=1795209850';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795209850';
-import { mountRelay } from './relay.js?v=1795209850';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795209850';
-import { SWIM_DISTANCES } from './process.js?v=1795209850';
-import { setUnits, dist as uDist } from './units.js?v=1795209850';
-import { openLink } from './profile.js?v=1795209850';
-import { mountActivities } from './actlist.js?v=1795209850';
-import { installHint } from './install.js?v=1795209850';
-import { openWelcome } from './settings.js?v=1795209850';
-import './swimview.js?v=1795209850';
-import './trophies.js?v=1795209850';
-import { mountFeed } from './feed.js?v=1795209850';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795209850';
-import { perfData } from './perf.js?v=1795209850';
-import { loadData } from './load.js?v=1795209850';
-import { processInbox, paintConnections } from './sync.js?v=1795209850';
-import { mountManual } from './manual.js?v=1795209850';
-import { mountCal } from './cal.js?v=1795209850';
-import { settingsAt } from './athlete.js?v=1795209850';
-import { initSettings, DEFAULTS } from './settings.js?v=1795209850';
-import { offerCombine } from './edit.js?v=1795209850';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795220279';
+import { mountActivity } from './activity.js?v=1795220279';
+import { mountLog } from './log.js?v=1795220279';
+import { mountGear } from './gear.js?v=1795220279';
+import { mountClub } from './club.js?v=1795220279';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795220279';
+import { mountRelay } from './relay.js?v=1795220279';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795220279';
+import { SWIM_DISTANCES } from './process.js?v=1795220279';
+import { setUnits, dist as uDist } from './units.js?v=1795220279';
+import { openLink } from './profile.js?v=1795220279';
+import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795220279';
+import { mountActivities } from './actlist.js?v=1795220279';
+import { installHint } from './install.js?v=1795220279';
+import { openWelcome } from './settings.js?v=1795220279';
+import './swimview.js?v=1795220279';
+import './trophies.js?v=1795220279';
+import { mountFeed } from './feed.js?v=1795220279';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795220279';
+import { perfData } from './perf.js?v=1795220279';
+import { loadData } from './load.js?v=1795220279';
+import { processInbox, paintConnections } from './sync.js?v=1795220279';
+import { mountManual } from './manual.js?v=1795220279';
+import { mountCal } from './cal.js?v=1795220279';
+import { settingsAt } from './athlete.js?v=1795220279';
+import { initSettings, DEFAULTS } from './settings.js?v=1795220279';
+import { offerCombine } from './edit.js?v=1795220279';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -177,14 +178,15 @@ async function allRows(q) {
 }
 export async function loadAll() {
   const uid = state.user.id;
-  const [p, a, g, b] = await Promise.all([
+  const [p, a, g, b, ig] = await Promise.all([
     sb.from('profiles').select('*').eq('id', uid).single(),
     allRows(() => sb.from('activities').select('id,name,description,notes,sport,multisport_profile,start_time,utc_offset_min,distance_m,elapsed_s,moving_s,ascent_m,calories,avg_hr,indoor,is_race,gear_id,source,visibility,share,summary,activity_sections(idx,sport,elapsed_s,distance_m,ascent_m,gear_id,summary)').eq('owner', uid).order('start_time').order('id')),
     sb.from('gear').select('*').eq('owner', uid).order('created_at'),
     allRows(() => sb.from('best_efforts').select('*').eq('owner', uid).order('id')),
+    allRows(() => sb.from('best_ignores').select('activity_id,sport,effort').eq('owner', uid).order('activity_id')),
   ]);
   for (const r of [p, a, g, b]) if (r.error) { toast('Could not load your data: ' + r.error.message, 6000); }
-  state.profile = p.data; setUnits(state.profile?.settings?.units); state.activities = a.data || []; state.gear = g.data || []; state.bests = b.data || []; state.loaded = true;
+  state.profile = p.data; setUnits(state.profile?.settings?.units); state.activities = a.data || []; state.gear = g.data || []; state.bestsAll = b.data || []; state.ignores = new Set((ig.data || []).map(x => `${x.activity_id}|${x.sport}|${x.effort}`)); applyIgnores(); state.loaded = true;
 }
 initAvatar();
 document.getElementById('openSettings').addEventListener('click', () => paintConnections());
@@ -237,10 +239,11 @@ async function route() {
   if (h.startsWith('#join/')) { show('club'); mountJoin(h.slice(6).split('?')[0]); return; }
   if (h.startsWith('#r/')) { show('relay'); mountRelay(h.slice(3).split('?')[0]); return; }
   show('log');
-  const bests = h === '#log/bests', acts = h === '#log/activities';
+  const bests = h === '#log/bests' || h.startsWith('#log/bests/') || h.startsWith('#log/bests?'), acts = h === '#log/activities';
   $('logMain').hidden = bests || acts; $('logBests').hidden = !bests; $('logGear').hidden = bests || acts; $('logActs').hidden = !acts;
   $('lognavMain').setAttribute('aria-pressed', !bests && !acts); $('lognavBests').setAttribute('aria-pressed', bests); $('lognavActs').setAttribute('aria-pressed', acts);
   if (acts) { mountActivities($('logActs')); emptyHint(); return; }
+  if (bests) { mountBests($('logBests'), h); emptyHint(); window.scrollTo(0, 0); return; }
   mountLog(logData());
   if (!bests) mountCal();
   emptyHint();
@@ -339,6 +342,9 @@ async function openActivity(id) {
   const d = new Date(Date.parse(act.start_time) + act.utc_offset_min * 60000);
   tab.textContent = `${act.name} · ${d.getUTCDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   show('activity');
+  // opened from a list (best efforts): a way back to it
+  const back = new URLSearchParams(location.hash.split('?')[1] || '').get('back'), bl = $('actBack');
+  bl.hidden = !back; if (back) { bl.href = back; bl.textContent = backLabel(back); }
   renderActHeader(act, data.sections);
   if (!data.streams && !act.summary?.manual) toast('This activity has no detailed data file.', 4000);
   $('view-activity').classList.toggle('nodata', !data.streams);

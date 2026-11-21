@@ -11,7 +11,7 @@ acts=[act('a1',1,'Parkrun','run','2026-03-08',5000,1250,True),act('a2',2,'Long r
 seed={'profile':{'privacy_set':True,'handle':'carl','display_name':'Carl'},'activities':acts,'activity_sections':[{'id':'s'+a['id'],'activity_id':a['id'],'idx':0,'sport':a['sport'],'start_offset_s':0,'elapsed_s':a['elapsed_s'],'timer_s':a['elapsed_s'],'distance_m':a['distance_m'],'summary':{}} for a in acts]}
 page={'id':'u1','name':'Carl','handle':'carl','avatar':None,'me':True,'since':'2026-10-01T00:00:00Z','you_follow':None,'follows_you':False,
       'clubs':[{'id':'c1','name':'Doha Tri'}],'count':2,'year':{'run':{'n':1,'km':5,'s':1250,'up':40},'bike':{'n':1,'km':100,'s':12000,'up':40}},
-      'bests':[{'sport':'run','effort':'5 km','unit':'s','value':1250,'activity':'a1','at':'2026-03-08'},{'sport':'bike','effort':'20 min','unit':'W','value':265,'activity':'a2','at':'2026-06-01'}]}
+      'bests':[{'sport':'run','effort':'5 km','unit':'s','value':1250,'activity':'a1','at':'2026-03-08'},{'sport':'bike','effort':'power 20 min','unit':'W','value':265,'activity':'a2','at':'2026-06-01'}]}
 mock="""window.__rpcData={
  athlete_page: %s,
  resolve_link: a => ({data: a.p_handle==='carl' ? (a.p_num ? {found:true,handle:'carl',activity:'a'+a.p_num} : {found:true,handle:'carl',person:'u1'})

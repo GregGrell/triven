@@ -1,16 +1,16 @@
 // Profile pages (triven.fit/<username>) and short links (triven.fit/<username>/<n>). Members only.
-import { sb, state, toast, avatarEl } from './main.js?v=1795209850';
-import { feedList } from './feed.js?v=1795209850';
-import { followBtn } from './club.js?v=1795209850';
-import * as U from './units.js?v=1795209850';
-import { RUN_DISTANCES, SWIM_DISTANCES } from './process.js?v=1795209850';
+import { sb, state, toast, avatarEl } from './main.js?v=1795220279';
+import { feedList } from './feed.js?v=1795220279';
+import { followBtn } from './club.js?v=1795220279';
+import * as U from './units.js?v=1795220279';
+import { RUN_DISTANCES, SWIM_DISTANCES } from './process.js?v=1795220279';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
 const fmtHM = s => { const h = Math.floor(s / 3600), m = Math.round(s % 3600 / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`; };
 const SPN = { run: 'Run', bike: 'Ride', swim: 'Swim', multi: 'Multisport', other: 'Workout' };
 const SPC = { run: 'var(--run)', bike: 'var(--bike)', swim: 'var(--swim)', multi: 'var(--accent)', other: 'var(--trans)' };
-const POWER = ['5 s', '1 min', '5 min', '20 min', '1 h'];
+const POWER = ['5 s', '1 min', '5 min', '20 min', '1 hour'];
 
 export const linkUrl = path => 'https://triven.fit/' + path;
 
@@ -76,7 +76,7 @@ export async function mountProfile(uid) {
   const B = new Map(p.bests.map(b => [b.sport + '|' + b.effort, b]));
   const rows = [
     ['Run', RUN_DISTANCES.map(([n]) => B.get('run|' + n)).filter(Boolean), b => fmtDur(b.value)],
-    ['Ride power', POWER.map(n => B.get('bike|' + n)).filter(b => b?.unit === 'W'), b => Math.round(b.value) + ' W'],
+    ['Ride power', POWER.map(n => B.get('bike|power ' + n)).map((b, i) => b && { ...b, effort: POWER[i] }).filter(b => b?.unit === 'W'), b => Math.round(b.value) + ' W'],
     ['Swim', SWIM_DISTANCES.map(([n]) => B.get('swim|' + n)).filter(Boolean), b => fmtDur(b.value)],
   ].filter(r => r[1].length);
   if (!rows.length) best.append(el('div', { className: 'note', textContent: p.me ? 'Upload activities to fill this in.' : 'None shared with you yet.' }));

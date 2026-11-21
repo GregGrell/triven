@@ -1,7 +1,7 @@
 // PB trophies on an activity page: gold, silver or bronze when an effort in this activity was your 1st, 2nd or 3rd best
-// at that distance (runs, swims) or power duration, as things stood on the day.
-import { sb, state } from './main.js?v=1795209850';
-import { RUN_DISTANCES, SWIM_DISTANCES, POWER_DURATIONS } from './process.js?v=1795209850';
+// at that distance (runs, swims) or power duration, as things stood on the day: all-time, and within that year (cup marked '25 etc.).
+import { sb, state } from './main.js?v=1795220279';
+import { RUN_DISTANCES, SWIM_DISTANCES, POWER_DURATIONS } from './process.js?v=1795220279';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const fmtDur = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
@@ -9,14 +9,16 @@ const MEDAL = { 1: ['Gold', '#d4a72c', '#f3d97a'], 2: ['Silver', '#9aa3a8', '#dd
 const ORDER = new Map([...RUN_DISTANCES.map(([n], i) => ['run|' + n, i]), ...SWIM_DISTANCES.map(([n], i) => ['swim|' + n, 100 + i]), ...POWER_DURATIONS.map(([n], i) => ['bike|' + n, 200 + i])]);
 const eligible = b => (b.unit === 's' && (b.sport === 'run' || b.sport === 'swim')) || b.unit === 'W';
 
-// rank of each eligible effort in this activity among your efforts up to that day (owner: worked out from your own data)
+// rank of each eligible effort in this activity, all-time and within its year, among your efforts up to that day
+// (owner: worked out from your own data, with ignored efforts already left out of `bests`)
+const yearOfId = id => { const a = state.activities.find(x => x.id === id); return a ? new Date(Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000).getUTCFullYear() : null; };
 export function trophiesFor(activityId, bests) {
-  const mine = bests.filter(b => b.activity_id === activityId && eligible(b));
+  const mine = bests.filter(b => b.activity_id === activityId && eligible(b)), yr = yearOfId(activityId);
   return mine.map(b => {
     const better = bests.filter(o => o.sport === b.sport && o.effort === b.effort && o.activity_id !== b.activity_id && Date.parse(o.achieved_at) <= Date.parse(b.achieved_at)
-      && (b.unit === 'W' ? +o.value > +b.value : +o.value < +b.value)).length;
-    return { ...b, rank: better + 1 };
-  }).filter(b => b.rank <= 3);
+      && (b.unit === 'W' ? +o.value > +b.value : +o.value < +b.value));
+    return { ...b, rank: better.length + 1, year_rank: better.filter(o => yearOfId(o.activity_id) === yr).length + 1, yr };
+  }).filter(b => b.rank <= 3 || b.year_rank <= 3);
 }
 
 export function cup(rank, size = 18) {
@@ -41,6 +43,12 @@ document.addEventListener('triven:activity', async e => {
   list.sort((a, b) => (ORDER.get(a.sport + '|' + a.effort) ?? 999) - (ORDER.get(b.sport + '|' + b.effort) ?? 999));
   const mine = act.owner === state.user.id;
   box.append(el('span', { className: 'trlabel', textContent: mine ? 'Your bests' : 'Their bests' }));
-  list.forEach(b => box.append(el('span', { className: 'trophy r' + b.rank, title: `${MEDAL[b.rank][0]}: ${b.rank === 1 ? 'best ever' : b.rank === 2 ? '2nd best' : '3rd best'} ${label(b)} at the time` }, cup(b.rank), el('b', { textContent: label(b) }), el('span', { textContent: value(b) }))));
+  const nth = r => r === 1 ? 'best' : r === 2 ? '2nd best' : '3rd best';
+  list.forEach(b => { const all = b.rank <= 3, yr = b.year_rank <= 3 && b.yr;
+    const why = [all ? `${nth(b.rank)} ever` : null, yr ? `${nth(b.year_rank)} of ${b.yr}` : null].filter(Boolean).join(', ');
+    box.append(el('span', { className: 'trophy r' + (all ? b.rank : b.year_rank), title: `${label(b)} ${value(b)}: ${why}, at the time` },
+      all ? cup(b.rank) : null, yr && (!all || b.year_rank < b.rank) ?   // a year cup adds something only when it beats the all-time one
+       el('span', { style: 'display:inline-flex;align-items:center;gap:1px' }, cup(b.year_rank, all ? 14 : 18), el('span', { className: 'yr', textContent: "'" + String(b.yr).slice(2) })) : null,
+      el('b', { textContent: label(b) }), el('span', { textContent: value(b) }))); });
   box.hidden = false;
 });
