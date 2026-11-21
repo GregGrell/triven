@@ -1,9 +1,9 @@
 // Relays: separate activities from people who follow each other, shown as one race.
 // Each person's activity stays theirs (totals, bests, load); the relay is a shared view on top.
-import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795223530';
-import { drawRouteMap } from './mapcanvas.js?v=1795223530';
-import * as U from './units.js?v=1795223530';
-import { openModal } from './edit.js?v=1795223530';
+import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795223743';
+import { drawRouteMap } from './mapcanvas.js?v=1795223743';
+import * as U from './units.js?v=1795223743';
+import { openModal } from './edit.js?v=1795223743';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
