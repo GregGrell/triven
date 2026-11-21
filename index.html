@@ -409,6 +409,7 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
 .ranklist.ignored td{color:var(--text-muted);text-decoration:line-through}.ranklist.ignored td:last-child,.ranklist.ignored a{text-decoration:none}.bestyears{flex-wrap:wrap}.bestyears a{text-decoration:none}
 .trophy .yr{font-size:10px;font-weight:700;color:var(--text-muted);margin-left:-2px}
 button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy::after{content:'';display:inline-block;width:.8em;height:.8em;margin-left:.45em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-.12em;animation:bspin .7s linear infinite}@keyframes bspin{to{transform:rotate(360deg)}}
+.wunit{font-style:normal}
 </style>
 </head>
 <body>
@@ -574,6 +575,8 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
       <div class="frow">
         <label class="f">Name other athletes see<input type="text" id="p_name" maxlength="60"></label>
         <label class="f">Username<span class="hinput"><span>triven.fit/</span><input type="text" id="p_handle" maxlength="30" autocapitalize="off" autocomplete="off" spellcheck="false"></span><small class="hmsg" id="p_handleMsg"></small></label>
+        <label class="f">Date of birth<input type="date" id="s_dob" min="1920-01-01"><small class="hmsg" id="s_age"></small></label>
+        <label class="f"><span>Weight (<i class="wunit">kg</i>)</span><input type="number" step="0.1" id="s_mass" placeholder="e.g. 72.5"><small class="hmsg">No smart scale needed. Kept by date, so older activities use the weight you had then.</small></label>
         <label class="f">Units<select id="s_units"><option value="metric">Metric (km, m, kg)</option><option value="imperial">Imperial (miles, feet, lb)</option></select></label>
         <label class="f">New uploads are visible to<select id="p_defvis"><option value="private">Only me</option><option value="followers">Followers</option><option value="club">Club</option><option value="public">Everyone</option></select></label>
       </div>
@@ -609,8 +612,7 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
       <h2>Cycling</h2>
       <div class="frow">
         <label class="f">FTP override (W, blank = estimate)<input type="number" id="s_ftp" placeholder="estimate"></label>
-        <label class="f">Current weight (<span class="wunit">kg</span>)<input type="number" step="0.1" id="s_mass"></label>
-        <label class="f">Bike + kit weight (<span class="wunit">kg</span>)<input type="number" step="0.1" id="s_bikeMass"></label>
+        <label class="f"><span>Bike + kit weight (<i class="wunit">kg</i>)</span><input type="number" step="0.1" id="s_bikeMass"></label>
         <label class="f">Riding position<select id="s_cda"><option value="0.24">TT bike, on aero bars</option><option value="0.27">Road bike, clip-on aero bars</option><option value="0.32">Road bike, on drops</option><option value="0.37">Road bike, on hoods</option></select></label>
         <label class="f">Tyres / surface<select id="s_crr"><option value="0.003">Race tyres, smooth tarmac</option><option value="0.004">Road tyres, good tarmac</option><option value="0.006">Training tyres / rough road</option></select></label>
       </div>
@@ -623,7 +625,7 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
         <label class="ropt"><input type="radio" name="s_when" value="all"> <span style="flex:1"><b>For past activities too</b><div class="muted" style="font-size:12px">Becomes your usual value for activities before your first dated change, where your watch didn’t record one</div></span></label>
       </div>
       <div id="s_hist"></div>
-      <div class="note">Before your first dated change, each activity uses what your watch recorded in that file, if it recorded anything.</div>
+      <div class="note">Before your first dated change, each activity uses what your watch recorded in that file (heart rate thresholds and weight), if it recorded anything. FTP always comes from here or the ride itself, never the watch.</div>
     </section>
     <div class="actions">
       <button class="btn" id="resetSettings">Reset to defaults</button>
@@ -633,6 +635,6 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
   </div>
 </div>
 
-<script type="module" src="/js/main.js?v=1795222969"></script>
+<script type="module" src="/js/main.js?v=1795223059"></script>
 </body>
 </html>
