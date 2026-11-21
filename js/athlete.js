@@ -52,7 +52,7 @@ export function settingsAt(cfg, a) {
 // with the top-level fields set to whatever is in effect today.
 export function applyChange(cfg, patch, from) {
   const next = { ...cfg }, hist = (Array.isArray(cfg.history) ? cfg.history : []).map(e => ({ ...e }));
-  const changed = Object.keys(patch).filter(f => PHYS.includes(f) && patch[f] !== cfg[f]);
+  const changed = Object.keys(patch).filter(f => PHYS.includes(f) && patch[f] !== cfg[f] && !(patch[f] == null && cfg[f] == null));   // empty stays empty: null vs unset isn't a change
   for (const f of changed) {
     const has = hist.some(e => e[f] !== undefined);
     // the first time a field changes, keep its old value as the one used before the change

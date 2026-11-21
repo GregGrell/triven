@@ -1,10 +1,10 @@
 // Athlete settings sheet: heart-rate zones, running-balance flags, cycling model.
 const $=id=>document.getElementById(id), ov=$('settings');
 const ZNAMES=['Recovery','Aerobic','Tempo','Sub-threshold','Threshold','VO₂ max +'];
-import { DEFAULTS } from './defaults.js?v=1795226635';
-import * as U from './units.js?v=1795226635';
-import { sb } from './main.js?v=1795226635';
-import { PHYS, PHYS_LABEL, PHYS_UNIT, applyChange, removeChange, todayKey } from './athlete.js?v=1795226635';
+import { DEFAULTS } from './defaults.js?v=1795229255';
+import * as U from './units.js?v=1795229255';
+import { sb } from './main.js?v=1795229255';
+import { PHYS, PHYS_LABEL, PHYS_UNIT, applyChange, removeChange, todayKey } from './athlete.js?v=1795229255';
 export { DEFAULTS };
 const FIELDS=['lthrRun','lthrBike','maxHr','restHr','balLo','balHi','balMin','ftp','mass','bikeMass','cda','crr'];
 let getCfg=()=>DEFAULTS, onApply=()=>{}, priv=null, draft=null;
@@ -25,11 +25,13 @@ function fillZoneTable(z,lr,lb){const t=$('ztable');t.replaceChildren();const h=
     r.insertCell().textContent=bpm(lr);r.insertCell().textContent=bpm(lb);});}
 let was=null;
 const WF=['mass','bikeMass'], isLb=()=>$('s_units').value==='imperial';
-const setF=(f,v)=>{if(!$('s_'+f))return;$('s_'+f).value=v==null||v===''?'':f==='css'?mmssOut(v):WF.includes(f)&&isLb()?Math.round(v/U.LB*10)/10:v};
+const setF=(f,v)=>{const e=$('s_'+f);if(!e)return;e.value=v==null||v===''?'':f==='css'?mmssOut(v):WF.includes(f)&&isLb()?Math.round(v/U.LB*10)/10:v;
+  // weights shown in lb are rounded: remember the stored kg so an untouched box saves exactly what was there (no phantom weight change)
+  if(WF.includes(f)){e.dataset.kg=v==null?'':v;e.dataset.shown=e.value}};
 // swim threshold typed as m:ss per 100 m, stored as seconds
 export const mmssIn=v=>{v=String(v||'').trim();if(!v)return null;const m=v.match(/^(\d{1,2})[:.](\d{1,2})$/);const s=m?+m[1]*60+ +m[2]:/^\d+$/.test(v)?+v:NaN;return s>0&&s<=3600?s:NaN};
 const mmssOut=s=>s==null||s===''?'':`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
-function readForm(){const o={};FIELDS.forEach(f=>{const v=$('s_'+f).value;o[f]=v===''?null:WF.includes(f)&&isLb()?Math.round(+v*U.LB*100)/100:+v});o.css=mmssIn($('s_css').value);o.zones=[...document.querySelectorAll('#ztable input')].map(i=>+i.value);return o}
+function readForm(){const o={};FIELDS.forEach(f=>{const e=$('s_'+f),v=e.value;o[f]=v===''?null:WF.includes(f)&&e.dataset.shown===v&&e.dataset.kg!==''?+e.dataset.kg:WF.includes(f)&&isLb()?Math.round(+v*U.LB*100)/100:+v});o.css=mmssIn($('s_css').value);o.zones=[...document.querySelectorAll('#ztable input')].map(i=>+i.value);return o}
 function preview(){const o=readForm(),c=getCfg();fillZoneTable(o.zones,o.lthrRun||c.lthrRun,o.lthrBike||c.lthrBike);}
 function fillPriv(){if(!priv)return;const p=priv.get()||{};$('p_name').value=p.display_name||'';$('p_handle').value=p.handle||'';hState='ok';$('p_handleMsg').textContent=p.handle?'Your profile link: triven.fit/'+p.handle:'';$('p_handleMsg').className='hmsg';$('p_defvis').value=p.default_visibility||'club';$('p_search').checked=p.searchable!==false;$('p_approve').checked=!!p.approve_followers;$('p_approveRow').hidden=!$('p_search').checked;$('p_audience').value=(p.searchable===false&&(p.feed_audience||'everyone')==='everyone')?'followers_clubs':(p.feed_audience||'everyone');audOpt()}
 function audOpt(){const hid=!$('p_search').checked,o=$('p_audience').querySelector('option[value=everyone]');o.disabled=hid;if(hid&&$('p_audience').value==='everyone')$('p_audience').value='followers_clubs'}
@@ -53,7 +55,7 @@ export function initSettings(get,apply,privacy){watchHandle();
     const c=(a-b)/2;$('s_css').value=mmssOut(c);m.className='hmsg good';m.textContent=`CSS ${mmssOut(c)} /100 m, filled in above.`};
   $('s_tt400').oninput=$('s_tt200').oninput=tt;$('s_dob').oninput=showAge;
   // switching units converts the weights already in the boxes
-  $('s_units').onchange=()=>{const now=$('s_units').value;WF.forEach(f=>{const i=$('s_'+f);if(i.value!==''&&was&&was!==now)i.value=now==='imperial'?Math.round(+i.value/U.LB*10)/10:Math.round(+i.value*U.LB*10)/10});was=now;unitLabels()};
+  $('s_units').onchange=()=>{const now=$('s_units').value;WF.forEach(f=>{const i=$('s_'+f);if(i.value===''||!was||was===now)return;if(i.dataset.shown===i.value&&i.dataset.kg!==''){i.value=now==='imperial'?Math.round(+i.dataset.kg/U.LB*10)/10:+i.dataset.kg;i.dataset.shown=i.value}else i.value=now==='imperial'?Math.round(+i.value/U.LB*10)/10:Math.round(+i.value*U.LB*10)/10});was=now;unitLabels()};
   getCfg=()=>Object.assign({},DEFAULTS,get()||{}); onApply=apply; priv=privacy||null;
   $('p_search').onchange=()=>{$('p_approveRow').hidden=!$('p_search').checked;audOpt()};
   ['s_lthrRun','s_lthrBike'].forEach(id=>$(id).addEventListener('input',preview));

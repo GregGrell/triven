@@ -2,7 +2,7 @@
 // Rests are recorded as idle lengths and rest laps (as Garmin watches do). Usage: node node/make_pool_swim.mjs out.fit
 import { Encoder, Profile } from '@garmin/fitsdk';
 import fs from 'fs';
-const M = Profile.MesgNum, POOL = 25, t0 = Date.UTC(2026, 10, 10, 3, 0, 0);
+const M = Profile.MesgNum, POOL = 25, t0 = process.env.T0 ? Date.parse(process.env.T0) : Date.UTC(2026, 10, 10, 3, 0, 0);
 const enc = new Encoder();
 const at = s => new Date(t0 + s * 1000);
 enc.onMesg(M.FILE_ID, { type: 'activity', manufacturer: 'garmin', product: 4315, serialNumber: 1234567, timeCreated: at(0) });
@@ -33,6 +33,6 @@ const active = lengths.filter(l => l.lengthType === 'active');
 enc.onMesg(M.SESSION, { timestamp: at(s), startTime: at(0), totalElapsedTime: s, totalTimerTime: s, totalDistance: dist, sport: 'swimming', subSport: 'lapSwimming',
   poolLength: POOL, poolLengthUnit: 'metric', numActiveLengths: active.length, numLaps: laps.length, firstLapIndex: 0, avgHeartRate: 128, maxHeartRate: 152,
   enhancedAvgSpeed: dist / s, avgCadence: 34, avgSwolf: 39, totalCycles: active.reduce((p, l) => p + (l.totalStrokes || 0), 0), messageIndex: 0 });
-enc.onMesg(M.ACTIVITY, { timestamp: at(s), totalTimerTime: s, numSessions: 1, type: 'manual', event: 'activity', eventType: 'stop', localTimestamp: Math.round((t0 + s * 1000) / 1000) - 631065600 + 3 * 3600 });
+enc.onMesg(M.ACTIVITY, { timestamp: at(s), totalTimerTime: s, numSessions: 1, type: 'manual', event: 'activity', eventType: 'stop', localTimestamp: Math.round((t0 + s * 1000) / 1000) - 631065600 + 3600 * +(process.env.TZH ?? 3) });
 fs.writeFileSync(process.argv[2] || 'fixtures/pool_swim.fit', enc.close());
 console.log('wrote', process.argv[2] || 'fixtures/pool_swim.fit', 'distance', dist, 'm, elapsed', s, 's, active lengths', active.length, 'swim time', active.reduce((p, l) => p + l.totalElapsedTime, 0), 's');

@@ -5,11 +5,11 @@ const files={};
 if(window.__seedDb)Object.entries(window.__seedDb).forEach(([k,v])=>{if(k==='profile')Object.assign(db.profiles[0],v);else db[k].push(...v)});
 if(window.__seedFiles)Object.assign(files,window.__seedFiles);
 window.__db=db;window.__files=files;
-let n=0;const uuid=()=>'00000000-0000-4000-8000-'+String(++n).padStart(12,'0');
+let n=window.__uuidStart||0;const uuid=()=>'00000000-0000-4000-8000-'+String(++n).padStart(12,'0');
 function q(table){
-  let rng=null,rows=null,filters=[],ord=null,mode='select',payload=null,single=false,maybe=false,cols='*';
+  let rng=null,rows=null,filters=[],ord=null,mode='select',payload=null,single=false,maybe=false,cols='*',cnt=null;
   const api={
-    select(c='*'){cols=c;if(mode==='select')mode='select';return api},
+    select(c='*',o){cols=c;if(o&&o.count)cnt=o;if(mode==='select')mode='select';return api},
     eq(k,v){filters.push(r=>r[k]===v);return api},
     contains(k,v){const m=(a,b)=>Array.isArray(b)?b.every(x=>(a||[]).includes(x)):(b&&typeof b==='object')?Object.entries(b).every(([kk,vv])=>a&&m(a[kk],vv)):a===b;filters.push(r=>m(r[k],v));return api},
     or(e){const cs=e.split(',').map(c=>{const [k,,v]=c.split('.');return r=>String(r[k])===v});filters.push(r=>cs.some(f=>f(r)));return api},
@@ -36,7 +36,7 @@ function q(table){
     if(rng)rs=rs.slice(rng[0],rng[1]+1);
     return fin(rs);
   }
-  function fin(rs){if(single){if(!rs.length)return maybe?{data:null,error:null}:{data:null,error:{message:'no rows'}};return{data:rs[0],error:null}}return{data:rs,error:null}}
+  function fin(rs){if(cnt)return{data:cnt.head?null:rs,count:rs.length,error:null};if(single){if(!rs.length)return maybe?{data:null,error:null}:{data:null,error:{message:'no rows'}};return{data:rs[0],error:null}}return{data:rs,error:null}}
   return api;
 }
 export function createClient(){
@@ -49,7 +49,8 @@ export function createClient(){
       const W=window.__rpcData||{};
       if(fn in W){const v=W[fn];return typeof v==='function'?v(args):(v&&v.error?{data:null,error:v.error}:{data:v,error:null})}
       if(fn==='my_clubs')return{data:window.__clubs||[],error:null};
-      if(fn==='feed')return{data:(window.__feed||db.activities).slice().sort((a,b)=>a.start_time<b.start_time?1:-1).map(a=>({...a,athlete:'Carl',handle:'carl',sections:db.activity_sections.filter(s=>s.activity_id===a.id).sort((x,y)=>x.idx-y.idx),track:a.summary?.track||null,flags:a.summary?.driving||null,media:db.activity_media.filter(m=>m.activity_id===a.id),kudos:2,comments:1,you_kudoed:false,relay:(window.__feedRelay||{})[a.id]||null})),error:null};
+      if(fn==='feed'){const me=db.profiles[0];const own=(window.__feed||db.activities).map(a=>({...a,athlete:me.display_name||'Carl',handle:me.handle||'carl',avatar_path:me.avatar_path||null,sections:db.activity_sections.filter(s=>s.activity_id===a.id).sort((x,y)=>x.idx-y.idx),track:a.summary?.track||null,flags:a.summary?.driving||null,media:db.activity_media.filter(m=>m.activity_id===a.id),kudos:a.kudos??2,comments:a.comments??1,you_kudoed:false,relay:(window.__feedRelay||{})[a.id]||null}));
+        const sc=args&&args.scope,oth=(window.__feedOthers||[]).filter(o=>sc&&sc!=='me'&&(!o.scopes||o.scopes.includes(sc)));const all=(sc==='me'||!window.__feedOthers?own:own.concat(oth)).filter(a=>!args||!args.before||a.start_time<args.before).sort((a,b)=>a.start_time<b.start_time?1:-1);return{data:all.slice(0,args&&args.lim||50),error:null}}
       if(fn==='connect_intervals'){db.connections.push({owner:'u1',provider:'intervals',athlete_id:args.p_athlete,status:'ok',created_at:new Date().toISOString()});return{data:null,error:null}}
       if(fn==='my_network')return{data:window.__net||[],error:null};
       if(fn==='search_athletes')return{data:(window.__search||[]).map(a=>({...a,you_follow:(db.follows.find(f=>f.followee===a.id)||{}).status||null})),error:null};
