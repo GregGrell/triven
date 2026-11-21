@@ -15,8 +15,8 @@ def scenes(S):
     return [
       Title(2, 'Installing Triven on your phone or computer', 'No app store needed: it installs straight from your browser.'),
       Card('Why install it', ['Its own icon on your home screen, dock or taskbar', 'Opens full screen, like any other app', 'Always the latest version: nothing to update', 'Same account and data on every device'], kind='bullets', per=.9),
-      Device('iPhone and iPad', 'phone', S['m_feed'][0], [('Open triven.fit in Safari', 'Sign in as usual.'), ('Tap the Share button', 'The square with an arrow, in the toolbar.'),
-                                                          ('Tap Add to Home Screen', 'Scroll down the list if you don’t see it, then tap Add.')]),
+      Device('iPhone and iPad', 'phone', S['m_feed'][0], [('Open triven.fit in Chrome or Safari', 'Sign in as usual.'), ('Tap the Share button', 'In Chrome it\u2019s in the address bar; in Safari, in the toolbar.'),
+                                                          ('Tap Add to Home Screen', 'Scroll down the list if you don\u2019t see it, then tap Add.')]),
       Device('Android', 'phone', S['m_tri'][0], [('Open triven.fit in Chrome', 'Sign in as usual.'), ('Tap Install app', 'If it doesn’t pop up, tap the three-dot menu, then Add to home screen.'),
                                                 ('Tap Install', 'Triven appears with your other apps.')]),
       Device('Windows, Mac or Linux: Chrome or Edge', 'laptop', DESK, [('Open triven.fit', 'Sign in as usual.'), ('Click the install icon in the address bar', 'Or, in Chrome, the three-dot menu → Cast, save and share → Install page as app.'),
