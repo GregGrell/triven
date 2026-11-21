@@ -1,10 +1,10 @@
 // Athlete settings sheet: heart-rate zones, running-balance flags, cycling model.
 const $=id=>document.getElementById(id), ov=$('settings');
 const ZNAMES=['Recovery','Aerobic','Tempo','Sub-threshold','Threshold','VO₂ max +'];
-import { DEFAULTS } from './defaults.js?v=1795267001';
-import * as U from './units.js?v=1795267001';
-import { sb } from './main.js?v=1795267001';
-import { PHYS, PHYS_LABEL, PHYS_UNIT, applyChange, removeChange, todayKey } from './athlete.js?v=1795267001';
+import { DEFAULTS } from './defaults.js?v=1795267353';
+import * as U from './units.js?v=1795267353';
+import { sb } from './main.js?v=1795267353';
+import { PHYS, PHYS_LABEL, PHYS_UNIT, applyChange, removeChange, todayKey } from './athlete.js?v=1795267353';
 export { DEFAULTS };
 const FIELDS=['lthrRun','lthrBike','maxHr','restHr','balLo','balHi','balMin','ftp','mass','bikeMass','cda','crr'];
 let getCfg=()=>DEFAULTS, onApply=()=>{}, priv=null, draft=null;
