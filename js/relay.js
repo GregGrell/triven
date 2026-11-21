@@ -1,9 +1,9 @@
 // Relays: separate activities from people who follow each other, shown as one race.
 // Each person's activity stays theirs (totals, bests, load); the relay is a shared view on top.
-import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795224152';
-import { drawRouteMap } from './mapcanvas.js?v=1795224152';
-import * as U from './units.js?v=1795224152';
-import { openModal } from './edit.js?v=1795224152';
+import { sb, state, toast, avatarEl, raceFlag } from './main.js?v=1795224343';
+import { drawRouteMap } from './mapcanvas.js?v=1795224343';
+import * as U from './units.js?v=1795224343';
+import { openModal } from './edit.js?v=1795224343';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -223,7 +223,8 @@ document.addEventListener('triven:activity', async e => {
     box.hidden = false;
     box.append(el('span', { className: 'rbadge', textContent: 'Relay' }), el('span', { style: 'flex:1', textContent: tl.legs.length >= 2 ? `Part of ${relay.name} with ${names(tl.legs.filter(l => l.owner !== act.owner))} · ${fmtDur(tl.total)} total` : `Relay invitation sent: waiting for ${tl.pending.map(p => p.athlete).join(', ')}` }),
       el('a', { className: 'btn sm', href: '#r/' + relay.id, textContent: 'Open relay', style: 'text-decoration:none' }));
-  } else if (act.owner === state.user.id && tools) {
-    tools.append(el('button', { className: 'btn sm', textContent: 'Make a relay', title: 'Join this with a team mate’s activity into one relay', onclick: () => openRelayMaker(act, () => { location.hash = '#a/' + act.id + '?' + Date.now(); }) }));
+  } else if (act.owner === state.user.id && document.getElementById('actEditMenu')) {   // in the Edit menu
+    const menu = document.getElementById('actEditMenu');
+    menu.append(el('button', { className: 'dditem', type: 'button', role: 'menuitem', textContent: 'Make a relay', title: 'Join this with a team mate’s activity into one relay', onclick: () => openRelayMaker(act, () => { location.hash = '#a/' + act.id + '?' + Date.now(); }) }));
   }
 });

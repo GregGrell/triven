@@ -1,12 +1,12 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795224152';
-import { linkActivities, importDecoded } from './pipeline.js?v=1795224152';
-import { decodeFit } from './fit.js?v=1795224152';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795224152';
-import { openTrim } from './trim.js?v=1795224152';
-import { openIg } from './ig.js?v=1795224152';
-import * as U from './units.js?v=1795224152';
-import { shareButton, linkUrl } from './profile.js?v=1795224152';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795224343';
+import { linkActivities, importDecoded } from './pipeline.js?v=1795224343';
+import { decodeFit } from './fit.js?v=1795224343';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795224343';
+import { openTrim } from './trim.js?v=1795224343';
+import { openIg } from './ig.js?v=1795224343';
+import * as U from './units.js?v=1795224343';
+import { shareButton, linkUrl } from './profile.js?v=1795224343';
 const dayOf = a => new Date(Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000).toISOString().slice(0, 10);   // activity's local date
 
 const $ = id => document.getElementById(id);
@@ -45,26 +45,34 @@ const ov = $('modal');
 ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.classList.remove('open'); });
 
+document.addEventListener('click', e => { const m = document.getElementById('actEditMenu'); if (m && !m.hidden && (!m.parentElement.contains(e.target) || e.target.closest('.dditem'))) m.hidden = true; });   // outside, or after picking an item
 document.addEventListener('triven:activity', e => {
   cur = e.detail;
   const mine = cur.act.owner === state.user.id;
   const reopen = () => { location.hash = '#a/' + cur.act.id + '?' + Date.now(); };
   const tools = $('actTools'); tools.replaceChildren();
-  if (mine) tools.append(el('button', { className: 'btn sm', textContent: 'Edit', onclick: () => openEditor(cur, reopen) }));
-  if (mine) { // one click: race or not (and race shoes/bike if you have defaults for races)
-    const rb = el('button', { className: 'btn sm', type: 'button' }); const paint = () => { rb.replaceChildren(raceFlag(14), cur.act.is_race ? ' Race' : ' Mark as race'); rb.setAttribute('aria-pressed', !!cur.act.is_race); };
-    rb.onclick = async () => { rb.disabled = true; const v = !cur.act.is_race; const r = await setRace(cur, v); rb.disabled = false; if (!r) return; paint(); renderActHeader(cur.act, cur.sections); };
-    paint(); tools.append(rb);
+  // toolbar: Edit (a menu with the less common actions), Share, Instagram post
+  const menu = el('div', { className: 'ddmenu', id: 'actEditMenu', hidden: true, role: 'menu' });
+  const item = (content, onclick, title) => { const b = el('button', { className: 'dditem', type: 'button', role: 'menuitem', title: title || '' }); b.append(...[].concat(content)); b.onclick = e => { menu.hidden = true; return onclick(e); }; menu.append(b); return b; };
+  if (mine) {
+    const eb = el('button', { className: 'btn sm', type: 'button', textContent: 'Edit ▾', ariaHasPopup: 'menu' });
+    eb.onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
+    tools.append(el('div', { className: 'ddwrap' }, eb, menu));
+    item('Edit details', () => openEditor(cur, reopen), 'Name, description, notes, gear, sharing, photos');
+    // one click: race or not (and race shoes/bike if you have defaults for races)
+    const rb = item([], async () => { const v = !cur.act.is_race; const r = await setRace(cur, v); if (!r) return; paint(); renderActHeader(cur.act, cur.sections); });
+    const paint = () => rb.replaceChildren(raceFlag(14), cur.act.is_race ? ' Not a race' : ' Mark as race');
+    paint();
+    if (cur.streams) item('Trim', () => openTrim(cur, reopen), 'Cut the start or end, e.g. a drive home');
+    if (cur.act.summary?.linked) { const u = unlinkButton(cur); u.className = 'dditem'; const go = u.onclick; u.onclick = e => { menu.hidden = true; return go && go(e); }; menu.append(u); }
+    else if (cur.act.file_path) item('Link activities', () => openLinker(cur), 'Join separate swim, bike and run files into one multisport activity');
   }
-  if (mine && cur.streams) tools.append(el('button', { className: 'btn sm', textContent: 'Trim', onclick: () => openTrim(cur, reopen) }));
-  if (mine && cur.act.summary?.linked) tools.append(unlinkButton(cur));
-  else if (mine && cur.act.file_path) tools.append(el('button', { className: 'btn sm', textContent: 'Link activities', title: 'Join separate swim, bike and run files into one multisport activity', onclick: () => openLinker(cur) }));
-  if (mine) tools.append(el('button', { className: 'btn sm primary', textContent: 'Instagram post', onclick: () => igFor(cur) }));
   const a0 = cur.act;
   tools.append(shareButton(async () => {   // triven.fit/<username>/<n>; opens for members who can see it
     if (mine && state.profile?.handle && a0.num) return linkUrl(state.profile.handle + '/' + a0.num);
     const r = await sb.rpc('activity_link', { aid: a0.id }); return r.data ? linkUrl(r.data) : null;
   }, a0.name));
+  if (mine) tools.append(el('button', { className: 'btn sm primary', textContent: 'Instagram post', onclick: () => igFor(cur) }));
   // who can see it: one click to change
   const vbox = $('actVis'); vbox.replaceChildren(); vbox.hidden = !mine;
   if (mine) {

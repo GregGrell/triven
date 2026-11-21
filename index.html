@@ -421,6 +421,8 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
 .lbctl{display:flex;flex-wrap:wrap;gap:8px 16px;margin:8px 0 12px}.lblist{display:grid;gap:6px}.lbrow{display:grid;grid-template-columns:22px 28px minmax(0,1fr) minmax(60px,2fr) auto auto;gap:10px;align-items:center;text-decoration:none;color:inherit;padding:4px 6px;border-radius:8px}
 .lbrow:hover{background:var(--surface-2)}.lbrow.me{background:var(--surface-2)}.lbrank{color:var(--text-muted);font-weight:700;text-align:center}.lbname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lbbar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}.lbbar i{display:block;height:100%;background:var(--accent);border-radius:4px}.lbrow small{font-size:11px}
 @media (max-width:600px){.lbrow{grid-template-columns:22px 28px minmax(0,1fr) auto}.lbrow .lbbar,.lbrow small{display:none}}
+.ddwrap{position:relative;display:inline-block}.ddmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:190px;background:var(--surface-1);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;display:grid}
+.ddmenu[hidden]{display:none}.dditem{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--text-primary)}.dditem:hover,.dditem:focus-visible{background:var(--surface-2)}.dditem.busy{opacity:.6}
 </style>
 </head>
 <body>
@@ -658,6 +660,6 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
   </div>
 </div>
 
-<script type="module" src="/js/main.js?v=1795224152"></script>
+<script type="module" src="/js/main.js?v=1795224343"></script>
 </body>
 </html>

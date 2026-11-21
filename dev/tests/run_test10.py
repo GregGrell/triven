@@ -72,7 +72,7 @@ try:
     tt=pg.inner_text('#actTrophies') if pg.is_visible('#actTrophies') else '';check('5 km' in tt and '20:50' in tt and '1 km' in tt,'trophies: '+tt.replace('\n',' '))
     check(pg.locator('#actTrophies .trophy.r1').count()==1 and pg.locator('#actTrophies .trophy.r2').count()==1,'gold for the 5 km PB, silver for the 2nd-best 1 km')
     check(not pg.locator('#vo2card').count(),'no VO2 max card on the activity page')
-    pg.locator('#actTools button:has-text("Make a relay")').click();pg.wait_for_timeout(800)
+    pg.locator('#actTools button:has-text("Edit ▾")').click();pg.locator('#actEditMenu button:has-text("Make a relay")').click();pg.wait_for_timeout(800)
     mt=pg.inner_text('#modal');check('Bea bike leg' in mt and 'Eve' in mt,'relay maker lists Bea’s activity and Eve to pick')
     pg.screenshot(path=os.path.join(OUT,'t10_maker.png'))
     pg.locator('#modal .ropt:has-text("Bea bike leg")').click();pg.click('#modal button:has-text("Send invitation")');pg.wait_for_timeout(400)

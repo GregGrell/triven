@@ -1,6 +1,6 @@
 // Activity view: charts, map, zones, FTP, running balance, laps. Mounted with one activity at a time.
-import { srcText } from './athlete.js?v=1795224152';
-import * as U from './units.js?v=1795224152';
+import { srcText } from './athlete.js?v=1795224343';
+import * as U from './units.js?v=1795224343';
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let bound=false;
 export function mountActivity(raw,cfgIn,saveCfg){
@@ -28,6 +28,19 @@ R.forEach((r,i)=>{const w=R.slice(Math.max(0,i-2),i+3).filter(x=>x.seg===r.seg&&
    r.strideU=sm==null||sm>3?null:U.imperial()?sm/U.FT:sm;}
   r.pace=r.sport==='running'&&r.kmhS>5?60/U.kmhTo(r.kmhS):null; r.spdU=U.kmhTo(r.kmhS); r.altU=r.alt!=null?U.toE(r.alt):null;
   r.brk=i>0&&(r.t-R[i-1].t>10||r.seg!==R[i-1].seg);});
+// grade-adjusted pace (runs, outdoors): Minetti's energy cost of running at grade g, J/kg/m (3.6 on the flat), with the
+// grade over ±15 s; GAP is the pace on the flat that costs the same. Treadmill and track legs are flat by definition.
+const COST=g=>{g=Math.max(-0.45,Math.min(0.45,g));return 155.4*g**5-30.4*g**4-43.3*g**3+46.3*g**2+19.5*g+3.6};
+R.forEach((r,i)=>{r.gapF=null;r.gap=null;const env=S[r.seg]?.env;
+  if(r.sport!=='running'||r.alt==null||r.dist==null||!(r.kmhS>5)||env==='treadmill'||env==='track')return;
+  let j=i,k=i;while(j>0&&R[j-1].seg===r.seg&&r.t-R[j-1].t<=15)j--;while(k<R.length-1&&R[k+1].seg===r.seg&&R[k+1].t-r.t<=15)k++;
+  const a=R[j],b=R[k];if(a.alt==null||b.alt==null||a.dist==null||b.dist==null)return;const dd=b.dist-a.dist;if(dd<15)return;
+  r.gapF=COST((b.alt-a.alt)/dd)/3.6;r.gap=r.pace/r.gapF;});
+const HAS_GAP=R.some(r=>r.gap!=null);
+// average GAP over records: flat-equivalent distance over time (speed in m/s)
+function gapOf(rs){let d=0,t=0;for(let i=1;i<rs.length;i++){const r=rs[i];if(r.gapF==null||rs[i-1].seg!==r.seg)continue;const dt=Math.min(10,r.t-rs[i-1].t);if(dt<=0)continue;d+=r.kmhS/3.6*r.gapF*dt;t+=dt}
+  return d>0&&t>60?fmtPace(paceOf(d/t))+' '+U.pU():null}
+const recsIn=o=>R.filter(r=>r.t>=o.start&&r.t<o.start+o.elapsed);
 // balance smoothed over ~10 s (time-based)
 R.forEach((r,i)=>{ if(r.bal==null){r.balS=null;return} let s=0,n=0; for(let j=i;j>=0&&R[j].t>=r.t-5;j--){if(R[j].seg===r.seg&&R[j].bal!=null){s+=R[j].bal;n++}} for(let j=i+1;j<R.length&&R[j].t<=r.t+5;j++){if(R[j].seg===r.seg&&R[j].bal!=null){s+=R[j].bal;n++}} r.balS=s/n;});
 
@@ -112,7 +125,7 @@ function swimItems(o,isAll){const t=o.swimTime||o.timer||o.elapsed;const it=[[fm
   return it.slice(0,6)}
 function statItems(){
   if(sel.kind==='all'&&!MULTI&&S[0].sport==='swimming') return swimItems({...S[0],avgHr:total.avgHr,maxHr:total.maxHr},true);
-  if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[U.dist(total.dist),'Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:(S.every(s=>s.sport==='running')?[fmtPace(paceOf(total.dist/total.elapsed))+' '+U.pU(),'Avg pace']:[U.speed(total.elapsed,total.dist),'Avg speed'])),
+  if(sel.kind==='all') return [[fmtDur(total.elapsed),'Total time'],[U.dist(total.dist),'Distance'],(S.some(s=>s.sport==='transition')?[fmtDur(d3.sum(S.filter(s=>s.sport==='transition'),s=>s.elapsed)),'Transitions']:(S.every(s=>s.sport==='running')?[fmtPace(paceOf(total.dist/total.elapsed))+' '+U.pU(),'Avg pace']:[U.speed(total.elapsed,total.dist),'Avg speed'])),...(S.every(s=>s.sport==='running')&&HAS_GAP&&gapOf(R)?[[gapOf(R),'Grade-adjusted pace']]:[]),
     ...(total.avgHr?[[total.avgHr+' bpm','Avg HR'+(total.maxHr?' · max '+total.maxHr:'')]]:[]),...(total.ascent||R.length?[[U.elev(total.ascent||0),'Elevation gain'+(R.length?' (watch)':'')]]:[]),...(total.cal?[[total.cal+' kcal','Energy']]:[])];
   if(sel.kind==='span'){const [a,b]=range();const rs=R.filter(r=>r.t>=a&&r.t<=b);
     return [[fmtDur(b-a),'Duration'],[(v=>`${v.toFixed(1)} / ${(100-v).toFixed(1)}`)(d3.mean(rs.filter(r=>r.bal!=null),r=>r.bal)),'GCT balance L / R %'],[fmtPace(60/U.kmhTo((((d=>d.length>1?(d[d.length-1].dist-d[0].dist)/((d[d.length-1].t-d[0].t)||1):d3.mean(rs,r=>r.kmh)/3.6)(rs.filter(r=>r.dist!=null)))*3.6)))+' '+U.pU(),'Pace'],[Math.round(d3.mean(rs,r=>r.hr))+' bpm','Avg HR'],[Math.round(d3.mean(rs.filter(r=>r.gct),r=>r.gct))+' ms','Ground contact'],[Math.round(d3.mean(rs.filter(r=>r.spm),r=>r.spm))+' spm','Cadence']];}
@@ -121,6 +134,7 @@ function statItems(){
   if(sp==='swimming') return [[fmtDur(o.elapsed),'Time'],[Math.round(o.dist)+' m','Distance'],[p100(o.elapsed,o.dist)+' /100 m','Pace'],...(o.avgHr?[[o.avgHr+' bpm','Avg HR']]:[])];
   const it=[[fmtDur(o.elapsed),'Time'],[sp==='transition'?Math.round(o.dist)+' m':km(o.dist)+' '+U.dU(),'Distance']];
   it.push(sp==='running'?[fmtPace(paceOf(o.avgSpeed))+' '+U.pU(),'Avg pace']:[U.speedMs(o.avgSpeed),'Avg speed']);
+  if(sp==='running'&&HAS_GAP){const g=gapOf(recsIn(o));if(g)it.push([g,'Grade-adjusted pace'])}
   it.push([o.avgHr+' bpm','Avg HR'+(o.maxHr?' · max '+o.maxHr:'')]);
   if(sp==='running'&&o.avgPower) it.push([o.avgPower+' W','Avg run power']);
   if(sp==='running'&&o.avgCad) it.push([o.avgCad*2+' spm','Cadence']);
@@ -279,6 +293,7 @@ const charts=[]; let xScale;
 function chartDefs(){
   const sp=selSport(), d=[{key:'altU',title:'Elevation',unit:U.eU(),fmt:v=>v.toFixed(0),area:true}];
   d.push(sp==='running'?{key:'pace',title:'Pace',unit:U.pU(),fmt:fmtPace,invert:true,tick:fmtPace}:{key:'spdU',title:'Speed',unit:U.sU(),fmt:v=>v.toFixed(1)});
+  if(sp==='running'&&HAS_GAP) d.push({key:'gap',title:'Grade-adjusted pace',note:'pace on the flat for the same effort',unit:U.pU(),fmt:fmtPace,invert:true,tick:fmtPace});
   d.push({key:'hr',title:'Heart rate',unit:'bpm',fmt:v=>v.toFixed(0),hr:true});
   if(sp==='multi'||sp==='cycling') d.push({key:'bpw',title:'Bike power',note:BIKE&&BIKE.estimated?'estimated from speed · 30 s avg':'30 s avg',unit:'W',fmt:v=>v.toFixed(0),dashed:BIKE&&BIKE.estimated});
   if(sp==='multi'||sp==='running'){
@@ -384,10 +399,10 @@ function setCursor(r){
 
 function renderLaps(){
   const t=document.getElementById('laps');t.replaceChildren();const hr=t.insertRow();
-  ['#','Section','Time','Distance','Pace / speed','Avg HR','Power','Gain'].forEach(h=>{const th=document.createElement('th');th.textContent=h;hr.append(th)});
+  ['#','Section','Time','Distance','Pace / speed',...(HAS_GAP?['GAP']:[]),'Avg HR','Power','Gain'].forEach(h=>{const th=document.createElement('th');th.textContent=h;hr.append(th)});
   L.forEach((l,i)=>{const tr=t.insertRow();tr.className='lap'+(sel.kind==='lap'&&sel.i===i?' sel':'');
     [String(i+1),NAMES[segOf(l.start+.5)],fmtDur(l.elapsed),l.dist<100?Math.round(l.dist)+' m':km(l.dist)+' '+U.dU(),
-     l.sport==='running'?fmtPace(paceOf(l.avgSpeed))+' '+U.pU():l.sport==='cycling'?U.speedMs(l.avgSpeed):'–',l.avgHr??'–',l.avgPower?l.avgPower+' W':'–',l.ascent!=null?U.elev(l.ascent):'–']
+     l.sport==='running'?fmtPace(paceOf(l.avgSpeed))+' '+U.pU():l.sport==='cycling'?U.speedMs(l.avgSpeed):'–',...(HAS_GAP?[l.sport==='running'?(gapOf(recsIn(l))||'–'):'–']:[]),l.avgHr??'–',l.avgPower?l.avgPower+' W':'–',l.ascent!=null?U.elev(l.ascent):'–']
     .forEach((c,j)=>{const td=tr.insertCell();if(j===1){const d=document.createElement('span');d.className='dot';d.style.background=colorOf(l.sport);td.append(d)}td.append(document.createTextNode(c))});
     tr.onclick=()=>{const off=sel.kind==='lap'&&sel.i===i;select(off?{kind:'all'}:{kind:'lap',i});if(!off)document.getElementById('chartscard')?.scrollIntoView({behavior:'smooth',block:'start'})};});
 }
