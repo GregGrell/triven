@@ -1,7 +1,8 @@
 // Gear tab: shoes and bikes, distance, replacement guide, defaults, retire, bulk-assign.
-import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795223358';
-import { openModal } from './edit.js?v=1795223358';
-import * as U from './units.js?v=1795223358';
+import { sb, state, toast, loadAll, gearUsage, GEAR_ROLES, gearRoles } from './main.js?v=1795223530';
+import { openModal } from './edit.js?v=1795223530';
+import { gearFrom } from './pipeline.js?v=1795223530';
+import * as U from './units.js?v=1795223530';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
 const km = m => U.toD(m).toFixed(U.toD(m) >= 100 ? 0 : 1);   // km or miles
@@ -64,6 +65,7 @@ function editGear(g) {
       name: el('input', { value: g.name || '', placeholder: kind === 'shoe' ? 'e.g. Race shoes' : 'e.g. TT bike', required: true }),
       brand: el('input', { value: g.brand || '' }), model: el('input', { value: g.model || '' }),
       start_km: el('input', { type: 'number', min: 0, step: 1, value: kmShow(g.start_km ?? 0) }),
+      from: el('input', { type: 'date', value: gearFrom(g) || new Date().toISOString().slice(0, 10), max: new Date().toISOString().slice(0, 10) }),
       replace_km: el('input', { type: 'number', min: 0, step: 50, value: g.replace_km != null ? kmShow(g.replace_km) : kind === 'shoe' ? (U.imperial() ? 450 : 700) : '', placeholder: kind === 'bike' ? `optional, e.g. chain at ${U.imperial() ? 2000 : 3000}` : '' }),
     };
     // default for: everyday / trail / track / treadmill / races (bikes: everyday / indoor / gravel / MTB / races)
@@ -75,7 +77,8 @@ function editGear(g) {
       b.onclick = () => { mine.has(v) ? mine.delete(v) : mine.add(v); b.setAttribute('aria-pressed', mine.has(v)); }; roleRow.append(b); });
     const grid = el('div', { className: 'frow' },
       el('label', { className: 'f' }, 'Name', f.name), el('label', { className: 'f' }, 'Brand', f.brand), el('label', { className: 'f' }, 'Model', f.model),
-      el('label', { className: 'f' }, `Distance already done (${U.dU()})`, f.start_km), el('label', { className: 'f' }, kind === 'shoe' ? `Replace at (${U.dU()})` : `Service reminder at (${U.dU()})`, f.replace_km));
+      el('label', { className: 'f' }, `Distance already done (${U.dU()})`, f.start_km), el('label', { className: 'f' }, kind === 'shoe' ? `Replace at (${U.dU()})` : `Service reminder at (${U.dU()})`, f.replace_km),
+      el('label', { className: 'f' }, el('span', { textContent: 'In use from' }), f.from, el('small', { className: 'hmsg', textContent: `Only ${kind === 'shoe' ? 'runs' : 'rides'} from this date get it automatically.` })));
     body.append(el('section', {}, grid, el('div', { className: 'f', style: 'margin-top:14px' }, `Use automatically for`, roleRow),
       el('div', { className: 'note', textContent: `New ${kind === 'shoe' ? 'runs' : 'rides'} get the gear set for their type, and races get your race ${kind === 'shoe' ? 'shoes' : 'bike'} when you flag them. Anything without its own default uses the everyday one. Each role belongs to one ${kind === 'shoe' ? 'pair' : 'bike'}, so picking it here moves it from the other.` })));
     const msg = el('div', { className: 'note' });
@@ -94,7 +97,7 @@ function editGear(g) {
       const name = f.name.value.trim(); if (!name) { msg.textContent = 'Give it a name.'; return; }
       save.disabled = true;
       const row = { kind, name, brand: f.brand.value.trim() || null, model: f.model.value.trim() || null, start_km: kmRead(f.start_km, g.start_km ?? 0) || 0, replace_km: kmRead(f.replace_km, g.replace_km),
-        is_default_for: mine.size ? [...mine].join(',') : null };
+        is_default_for: mine.size ? [...mine].join(',') : null, in_use_from: f.from.value || null };
       // each role belongs to one item: take the chosen roles off the others
       for (const x of state.gear.filter(x => x.id !== g.id && x.kind === kind)) {
         const keep = gearRoles(x).filter(r => !mine.has(r)); if (keep.length === gearRoles(x).length) continue;
@@ -102,7 +105,22 @@ function editGear(g) {
       }
       const r = isNew ? await sb.from('gear').insert(row) : await sb.from('gear').update(row).eq('id', g.id);
       if (r.error) { msg.textContent = r.error.message; save.disabled = false; return; }
-      await loadAll(); close(); mountGear(); toast(isNew ? 'Added' : 'Saved');
+      // activities before the in-use date that have it (e.g. a Garmin export imported after the shoe was set as default)
+      const from = f.from.value, dayOf = a => new Date(Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000).toISOString().slice(0, 10);
+      const early = isNew || !from ? [] : state.activities.filter(a => dayOf(a) < from && (a.gear_id === g.id || (a.activity_sections || []).some(s => s.gear_id === g.id)));
+      if (!early.length) { await loadAll(); close(); mountGear(); toast(isNew ? 'Added' : 'Saved'); return; }
+      const d = new Date(from + 'T00:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      msg.replaceChildren(el('b', { textContent: `${name} is on ${early.length.toLocaleString()} ${early.length === 1 ? 'activity' : 'activities'} from before ${d}.` }),
+        ' Remove it from those? They’ll have no gear unless you set some.',
+        el('div', { className: 'actions', style: 'justify-content:flex-start;margin-top:8px' },
+          el('button', { className: 'btn primary', type: 'button', textContent: `Remove from ${early.length.toLocaleString()}`, onclick: async () => {
+            const ids = early.map(a => a.id);
+            for (let i = 0; i < ids.length; i += 200) { const part = ids.slice(i, i + 200);
+              await sb.from('activities').update({ gear_id: null }).eq('gear_id', g.id).in('id', part);
+              await sb.from('activity_sections').update({ gear_id: null }).eq('gear_id', g.id).in('activity_id', part); }
+            await loadAll(); close(); mountGear(); toast(`Removed from ${ids.length.toLocaleString()} earlier ${ids.length === 1 ? 'activity' : 'activities'}`); } }),
+          el('button', { className: 'btn', type: 'button', textContent: 'Keep them', onclick: async () => { await loadAll(); close(); mountGear(); toast('Saved'); } })));
+      save.hidden = true;
     };
     f.name.focus();
   });

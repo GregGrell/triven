@@ -1,7 +1,8 @@
 // Log an activity without a file: treadmill, indoor bike, a gym session, or a multisport brick done on machines.
-import { sb, state, toast, loadAll, pickGear, raceFlag } from './main.js?v=1795223358';
-import { ENVS, INDOOR, envLabel, multisportProfile } from './process.js?v=1795223358';
-import * as U from './units.js?v=1795223358';
+import { sb, state, toast, loadAll, pickGear, raceFlag } from './main.js?v=1795223530';
+import { ENVS, INDOOR, envLabel, multisportProfile } from './process.js?v=1795223530';
+import * as U from './units.js?v=1795223530';
+const dayOfAct = (start, off) => new Date(start.getTime() + (off || 0) * 60000).toISOString().slice(0, 10);   // local date, for gear in use that day
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const SPN = { run: 'Run', bike: 'Bike', swim: 'Swim', transition: 'Transition' };
@@ -95,14 +96,14 @@ export function mountManual(host) {
       indoor: real.length > 0 && real.every(l => INDOOR.has(l.env)), source: 'manual', source_id: crypto.randomUUID(),
       visibility: state.profile?.default_visibility || 'club', share: state.profile?.default_share || undefined,
       summary: { manual: true, loadData, track: null }, is_race: race.checked,
-      gear_id: multi ? null : pickGear(sport, real[0]?.env, race.checked),
+      gear_id: multi ? null : pickGear(sport, real[0]?.env, race.checked, dayOfAct(start, off)),
     };
     if (!act.share) delete act.share;
     const ins = await sb.from('activities').insert(act).select('id').single();
     if (ins.error) { msg.textContent = 'Could not save: ' + ins.error.message; save.disabled = false; return; }
     let t = 0;
     const secs = L.map((l, i) => { const s = { activity_id: ins.data.id, idx: i, sport: l.sport, start_offset_s: t, elapsed_s: l.elapsed, timer_s: l.elapsed,
-      distance_m: l.dist || null, ascent_m: l.asc, avg_hr: l.hr, avg_speed: l.dist && l.elapsed ? +(l.dist / l.elapsed).toFixed(3) : null, summary: { env: l.env, manual: true }, gear_id: multi ? pickGear(l.sport, l.env, race.checked) : null }; t += l.elapsed; return s; });
+      distance_m: l.dist || null, ascent_m: l.asc, avg_hr: l.hr, avg_speed: l.dist && l.elapsed ? +(l.dist / l.elapsed).toFixed(3) : null, summary: { env: l.env, manual: true }, gear_id: multi ? pickGear(l.sport, l.env, race.checked, dayOfAct(start, off)) : null }; t += l.elapsed; return s; });
     const r2 = await sb.from('activity_sections').insert(secs);
     if (r2.error) { msg.textContent = 'Saved the activity but not its legs: ' + r2.error.message; save.disabled = false; return; }
     await loadAll(); toast('Activity logged'); location.hash = '#a/' + ins.data.id;

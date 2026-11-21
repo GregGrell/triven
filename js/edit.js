@@ -1,12 +1,13 @@
 // Edit an activity: name, description, visibility, shared fields, gear (per section for multisport), delete. Plus comments.
-import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795223358';
-import { linkActivities, importDecoded } from './pipeline.js?v=1795223358';
-import { decodeFit } from './fit.js?v=1795223358';
-import { shareStreams, ENVS, INDOOR } from './process.js?v=1795223358';
-import { openTrim } from './trim.js?v=1795223358';
-import { openIg } from './ig.js?v=1795223358';
-import * as U from './units.js?v=1795223358';
-import { shareButton, linkUrl } from './profile.js?v=1795223358';
+import { sb, state, toast, loadAll, renderActHeader, fetchActivity, VIS, reprocess, raceFlag, pickGear } from './main.js?v=1795223530';
+import { linkActivities, importDecoded } from './pipeline.js?v=1795223530';
+import { decodeFit } from './fit.js?v=1795223530';
+import { shareStreams, ENVS, INDOOR } from './process.js?v=1795223530';
+import { openTrim } from './trim.js?v=1795223530';
+import { openIg } from './ig.js?v=1795223530';
+import * as U from './units.js?v=1795223530';
+import { shareButton, linkUrl } from './profile.js?v=1795223530';
+const dayOf = a => new Date(Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000).toISOString().slice(0, 10);   // activity's local date
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => e.append(k)); return e; };
@@ -21,12 +22,12 @@ async function setRace(data, v) {
   act.is_race = v;
   const envOf = sp => sections.find(s => s.sport === sp)?.summary?.env;
   if (act.sport === 'run' || act.sport === 'bike') {
-    const was = pickGear(act.sport, envOf(act.sport), !v), now = pickGear(act.sport, envOf(act.sport), v);
+    const was = pickGear(act.sport, envOf(act.sport), !v, dayOf(act)), now = pickGear(act.sport, envOf(act.sport), v, dayOf(act));
     if (now && now !== act.gear_id && (!act.gear_id || act.gear_id === was)) { await sb.from('activities').update({ gear_id: now }).eq('id', act.id); act.gear_id = now; toast(v ? 'Marked as a race · race gear set' : 'No longer a race · gear set back'); }
     else toast(v ? 'Marked as a race' : 'No longer a race');
   } else {
     for (const s of sections.filter(s => s.sport === 'run' || s.sport === 'bike')) {
-      const was = pickGear(s.sport, s.summary?.env, !v), now = pickGear(s.sport, s.summary?.env, v);
+      const was = pickGear(s.sport, s.summary?.env, !v, dayOf(act)), now = pickGear(s.sport, s.summary?.env, v, dayOf(act));
       if (now && now !== s.gear_id && (!s.gear_id || s.gear_id === was)) { await sb.from('activity_sections').update({ gear_id: now }).eq('activity_id', act.id).eq('idx', s.idx); s.gear_id = now; }
     }
     toast(v ? 'Marked as a race' : 'No longer a race');
@@ -243,7 +244,7 @@ export function openEditor(data, onSaved) {
       // a new type can mean different default gear (track spikes, treadmill shoes, the turbo bike)
       for (const t of typeInputs) {
         const sp = t.sec.sport, oldEnv = t.sec.summary?.env, newEnv = t.sel.value; if (oldEnv === newEnv) continue;
-        const was = pickGear(sp, oldEnv, !!act.is_race), now = pickGear(sp, newEnv, !!act.is_race); if (!now || now === was) continue;
+        const was = pickGear(sp, oldEnv, !!act.is_race, dayOf(act)), now = pickGear(sp, newEnv, !!act.is_race, dayOf(act)); if (!now || now === was) continue;
         if (act.sport === sp) { const gi = single?.sel.value || null; if (!gi || gi === was) { await sb.from('activities').update({ gear_id: now }).eq('id', act.id); } }
         else if (!t.sec.gear_id || t.sec.gear_id === was) await sb.from('activity_sections').update({ gear_id: now }).eq('activity_id', act.id).eq('idx', t.sec.idx);
       }

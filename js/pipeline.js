@@ -1,18 +1,22 @@
 // Turning a decoded FIT file into Triven rows and files. No browser or app state in here, so the same code runs in
 // the app (uploads, trims) and on the server (automatic sync from intervals.icu).
-import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795223358';
-import { loadData } from './load.js?v=1795223358';
-import { perfData } from './perf.js?v=1795223358';
-import { DEFAULTS } from './defaults.js?v=1795223358';
+import { processFit, shareStreams, makeTrack, detectDriving, rows } from './process.js?v=1795223530';
+import { loadData } from './load.js?v=1795223530';
+import { perfData } from './perf.js?v=1795223530';
+import { DEFAULTS } from './defaults.js?v=1795223530';
 
 // default gear: is_default_for holds roles like "run:road,run:race" (old single values 'run'/'bike' mean everyday)
 export const gearRoles = g => !g.is_default_for ? [] : g.is_default_for === 'run' ? ['run:road'] : g.is_default_for === 'bike' ? ['bike:road'] : g.is_default_for.split(',').filter(Boolean);
-export function pickGearFrom(gear, sport, env, race) {
+// only gear in use on that day (day: 'YYYY-MM-DD', the activity's local date): its in-use-from date, or the day it was added
+export const gearFrom = g => g.in_use_from || (g.created_at || '').slice(0, 10) || null;
+export function pickGearFrom(gear, sport, env, race, day) {
   if (sport !== 'run' && sport !== 'bike') return null;
-  const live = (gear || []).filter(g => !g.retired), has = role => live.find(g => gearRoles(g).includes(role))?.id;
+  const live = (gear || []).filter(g => !g.retired && (!day || !gearFrom(g) || gearFrom(g) <= day)), has = role => live.find(g => gearRoles(g).includes(role))?.id;
   const e = env === 'virtual' ? 'indoor' : env;
   return (race && has(`${sport}:race`)) || (e && e !== 'road' && has(`${sport}:${e}`)) || has(`${sport}:road`) || null;
 }
+
+const localDay = a => new Date(Date.parse(a.start_time) + (a.utc_offset_min || 0) * 60000).toISOString().slice(0, 10);
 
 // extras worked out for every processed activity: route thumbnail, possible driving, load and threshold data
 export function enrichOut(out, settings) {
@@ -68,14 +72,15 @@ export async function importDecoded(sb, { uid, messages, errors, raw, source, pr
   enrichOut(out, st);
   const a = out.activity;
   if (extra) Object.assign(a.summary, extra);
-  if (a.sport === 'run' || a.sport === 'bike') a.gear_id = pickGearFrom(gear, a.sport, out.sections.find(s => s.sport === a.sport)?.summary?.env, false);
+  const day = localDay(a);
+  if (a.sport === 'run' || a.sport === 'bike') a.gear_id = pickGearFrom(gear, a.sport, out.sections.find(s => s.sport === a.sport)?.summary?.env, false, day);
   a.owner = uid; a.visibility = profile.default_visibility || 'club'; a.share = profile.default_share || DEFAULT_SHARE;
   const ins = await sb.from('activities').insert(a).select('id').single();
   if (ins.error) throw ins.error;
   const id = ins.data.id, base = `${uid}/${id}`;
   const up = await sb.storage.from('activity-files').upload(`${base}.fit`, new Blob([raw], { type: 'application/octet-stream' }), { upsert: true });
   if (up.error) throw up.error;
-  await saveProcessed(sb, uid, id, out, a.share, (sp, idx) => pickGearFrom(gear, sp, out.sections[idx]?.summary?.env, false), false);
+  await saveProcessed(sb, uid, id, out, a.share, (sp, idx) => pickGearFrom(gear, sp, out.sections[idx]?.summary?.env, false, day), false);
   const r2 = await sb.from('activities').update({ file_path: `${base}.fit`, streams_path: `${base}.json` }).eq('id', id); if (r2.error) throw r2.error;
   return { status: 'ok', id, activity: a, settings: settingsChanged ? st : null };
 }
@@ -127,7 +132,7 @@ export async function linkActivities(sb, { uid, parts, profile, gear }) {
   a.summary.linked = { parts: flat.map(({ messages, ...f }) => f), sourceIds };
   // keep the gear each part had: nth run leg gets the nth run's gear
   const gearQueue = {}; parts.forEach(p => (p.sections.length ? p.sections : [{ sport: p.act.sport, gear_id: p.act.gear_id }]).forEach(s => (gearQueue[s.sport] ||= []).push(s.gear_id || p.act.gear_id || null)));
-  const seen = {}, gearFor = sp => { seen[sp] = (seen[sp] || 0) + 1; return (gearQueue[sp] || [])[seen[sp] - 1] || pickGearFrom(gear, sp, null, a.is_race); };
+  const seen = {}, gearFor = sp => { seen[sp] = (seen[sp] || 0) + 1; return (gearQueue[sp] || [])[seen[sp] - 1] || pickGearFrom(gear, sp, null, a.is_race, localDay(a)); };
   const ins = await sb.from('activities').insert(a).select('id').single();
   if (ins.error) throw ins.error;
   const id = ins.data.id;
