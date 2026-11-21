@@ -1,36 +1,37 @@
-import './busy.js?v=1795223743';   // first: makes slow buttons grey out while they work
+import './busy.js?v=1795223877';   // first: makes slow buttons grey out while they work
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/+esm';
-import { decodeFit } from './fit.js?v=1795223743';
+import { decodeFit } from './fit.js?v=1795223877';
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
-import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795223743';
-import { mountActivity } from './activity.js?v=1795223743';
-import { mountLog } from './log.js?v=1795223743';
-import { mountGear } from './gear.js?v=1795223743';
-import { mountClub } from './club.js?v=1795223743';
-import { mountClubPage, mountJoin } from './clubs.js?v=1795223743';
-import { mountRelay } from './relay.js?v=1795223743';
-import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795223743';
-import { SWIM_DISTANCES, bestOverDistance } from './process.js?v=1795223743';
-import { setUnits, dist as uDist } from './units.js?v=1795223743';
-import { prettyOf, curRoute, rememberLink } from './urls.js?v=1795223743';
-import { openLink } from './profile.js?v=1795223743';
-import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795223743';
-import { mountRaces } from './races.js?v=1795223743';
-import { mountActivities } from './actlist.js?v=1795223743';
-import { installHint } from './install.js?v=1795223743';
-import { openWelcome } from './settings.js?v=1795223743';
-import './swimview.js?v=1795223743';
-import './trophies.js?v=1795223743';
-import { mountFeed } from './feed.js?v=1795223743';
-import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795223743';
-import { perfData } from './perf.js?v=1795223743';
-import { loadData } from './load.js?v=1795223743';
-import { processInbox, paintConnections } from './sync.js?v=1795223743';
-import { mountManual } from './manual.js?v=1795223743';
-import { mountCal } from './cal.js?v=1795223743';
-import { settingsAt } from './athlete.js?v=1795223743';
-import { initSettings, DEFAULTS, ageOn } from './settings.js?v=1795223743';
-import { offerCombine } from './edit.js?v=1795223743';
+import { processFit, shareStreams, rows, makeTrack, detectDriving, trimMessages, envLabel } from './process.js?v=1795223877';
+import { mountActivity } from './activity.js?v=1795223877';
+import { mountLog } from './log.js?v=1795223877';
+import { mountGear } from './gear.js?v=1795223877';
+import { mountClub } from './club.js?v=1795223877';
+import { mountClubPage, mountJoin } from './clubs.js?v=1795223877';
+import { mountRelay } from './relay.js?v=1795223877';
+import { lengthsIn, poolStats, poolBests } from './swim.js?v=1795223877';
+import { SWIM_DISTANCES, bestOverDistance } from './process.js?v=1795223877';
+import { setUnits, dist as uDist } from './units.js?v=1795223877';
+import { prettyOf, curRoute, rememberLink } from './urls.js?v=1795223877';
+import { openLink } from './profile.js?v=1795223877';
+import { mountBests, applyIgnores, backLabel } from './bests.js?v=1795223877';
+import { mountRaces } from './races.js?v=1795223877';
+import { weatherBackfill } from './weather.js?v=1795223877';
+import { mountActivities } from './actlist.js?v=1795223877';
+import { installHint } from './install.js?v=1795223877';
+import { openWelcome } from './settings.js?v=1795223877';
+import './swimview.js?v=1795223877';
+import './trophies.js?v=1795223877';
+import { mountFeed } from './feed.js?v=1795223877';
+import { enrichOut, saveProcessed, importDecoded, mergeMessages, pickGearFrom, gearRoles } from './pipeline.js?v=1795223877';
+import { perfData } from './perf.js?v=1795223877';
+import { loadData } from './load.js?v=1795223877';
+import { processInbox, paintConnections } from './sync.js?v=1795223877';
+import { mountManual } from './manual.js?v=1795223877';
+import { mountCal } from './cal.js?v=1795223877';
+import { settingsAt } from './athlete.js?v=1795223877';
+import { initSettings, DEFAULTS, ageOn } from './settings.js?v=1795223877';
+import { offerCombine } from './edit.js?v=1795223877';
 
 // Public project settings. The publishable key is safe in the browser: row level security decides what each user can read or write.
 const SUPABASE_URL = 'https://ksubeokekwflqnmzsune.supabase.co';
@@ -131,7 +132,7 @@ async function backfill() {
     try { const d = await fetchActivity(a.id); if (!d.streams) continue;
       const sm = { ...d.act.summary, track: makeTrack(d.streams, d.sections), driving: detectDriving(d.sections, d.streams), loadData: loadData(d.sections, d.streams), perf: perfData(d.sections, d.streams) };
       await sb.from('activities').update({ summary: sm }).eq('id', a.id); a.summary = sm; } catch (e) { /* try again next visit */ }
-  }  await swimBackfill(); bikeBackfill();
+  }  await swimBackfill(); bikeBackfill().then(() => weatherBackfill());
 }
 // pool swims imported before 20 Nov 2026: swim time without rests, pace on it, and bests over continuous swimming,
 // worked out from the lengths already saved with each activity (no need to read the file again)

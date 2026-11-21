@@ -1,13 +1,14 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795223743';
-import { mountWeek } from './week.js?v=1795223743';
-import { envLabel } from './process.js?v=1795223743';
-import { rememberLink } from './urls.js?v=1795223743';
-import * as U from './units.js?v=1795223743';
-import { drawRouteMap } from './mapcanvas.js?v=1795223743';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795223743';
-import { openTrim } from './trim.js?v=1795223743';
-import { relayCard, relayInvites } from './relay.js?v=1795223743';
+import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795223877';
+import { mountWeek } from './week.js?v=1795223877';
+import { envLabel } from './process.js?v=1795223877';
+import { rememberLink } from './urls.js?v=1795223877';
+import { tempTxt } from './weather.js?v=1795223877';
+import * as U from './units.js?v=1795223877';
+import { drawRouteMap } from './mapcanvas.js?v=1795223877';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795223877';
+import { openTrim } from './trim.js?v=1795223877';
+import { relayCard, relayInvites } from './relay.js?v=1795223877';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -86,6 +87,8 @@ function card(a, urls, refresh) {
   if (a.sport === 'bike' && (mine || a.share?.pace !== false)) stat(U.speed(t, a.distance_m), 'Speed');
   if (a.sport === 'swim') stat(U.swimPace(t, a.distance_m), 'Pace');
   if (a.ascent_m) stat(U.elev(a.ascent_m), 'Elevation');
+  const wx = mine && state.activities.find(x => x.id === a.id)?.summary?.weather;   // your own activities: the weather at the time
+  if (wx) stat(tempTxt(wx.t), 'Temp');
   if (a.avg_hr) stat(Math.round(a.avg_hr) + ' bpm', 'Avg HR');
   c.append(stats);
   if (a.sport === 'multi' && a.sections?.length) {
