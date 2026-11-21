@@ -1,6 +1,8 @@
 // Pool swim card on an activity page: swim time vs rest, pace on swimming time, SWOLF, strokes, stroke mix,
 // a per-length pace chart, and intervals (sets between rests) that open into their lengths.
-import { lengthsIn, poolStats, poolIntervals, STROKE_NAME, fmtPace } from './swim.js?v=1795223059';
+import { lengthsIn, poolStats, poolIntervals, STROKE_NAME, fmtPace } from './swim.js?v=1795223358';
+import { state } from './main.js?v=1795223358';
+import { settingsAt } from './athlete.js?v=1795223358';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -12,10 +14,13 @@ const col = k => `var(${STROKE_COL[k] || '--swim'})`;
 document.addEventListener('triven:activity', e => {
   const box = document.getElementById('swimcard'); if (!box) return;
   box.hidden = true; box.replaceChildren();
-  const { sections, streams } = e.detail;
-  const pools = (sections || []).filter(s => s.sport === 'swim' && s.summary?.env === 'pool');
-  if (!pools.length || !streams?.lengths?.length) return;
-  for (const sec of pools) render(box, sec, lengthsIn(sec, streams.lengths), pools.length > 1);
+  const { act, sections, streams } = e.detail;
+  const swims = (sections || []).filter(s => s.sport === 'swim'), pools = swims.filter(s => s.summary?.env === 'pool');
+  const css = settingsAt(state.profile?.settings || {}, act).css;   // swim threshold in effect that day
+  if (pools.length && streams?.lengths?.length) for (const sec of pools) { render(box, sec, lengthsIn(sec, streams.lengths), pools.length > 1); box.append(zones(poolPaces(sec, streams), css, act.owner === state.user?.id)); }
+  // open water: zones from speed
+  for (const sec of swims.filter(s => s.summary?.env !== 'pool')) { const p = owPaces(sec, streams); if (!p.length) continue;
+    box.append(el('h2', { textContent: swims.length > 1 ? `Open water swim · leg ${sec.idx + 1}` : 'Open water swim' }), zones(p, css, act.owner === state.user?.id)); }
   box.hidden = !box.children.length;
 });
 
@@ -76,4 +81,36 @@ function lengthChart(lens, L) {
     svg.append('text').attr('x', m.l).attr('y', H - 2).attr('font-size', 10).attr('fill', css('--text-muted')).text('Each bar is a length; grey ticks are rests. Taller is faster.');
   });
   return host;
+}
+
+// ---------- swim zones: pace against your swim threshold (CSS) ----------
+// Bands in seconds per 100 m slower (+) or faster (−) than CSS, after Swim Smooth's CSS-based zones.
+const SZ = [['Z1', 'Recovery', 15, Infinity], ['Z2', 'Endurance', 6, 15], ['Z3', 'Tempo', 2, 6], ['Z4', 'Threshold', -2, 2], ['Z5', 'Above threshold', -Infinity, -2]];
+const SZ_COL = ['--z1', '--z2', '--z3', '--z4', '--z5'];
+// [seconds, pace per 100 m] pairs
+function poolPaces(sec, streams) {
+  const L = +sec.summary?.poolLength || 25;
+  return lengthsIn(sec, streams?.lengths || []).filter(l => l.type !== 'idle' && l.dur > 0).map(l => [l.dur, l.dur / L * 100]);
+}
+function owPaces(sec, streams) {
+  if (!streams?.t || !streams.speed) return [];
+  const a = +sec.start_offset_s, b = a + +sec.elapsed_s, out = [];
+  for (let i = 1; i < streams.t.length; i++) { const t = streams.t[i]; if (t < a || t > b) continue; const v = streams.speed[i], dt = Math.min(10, t - streams.t[i - 1]);
+    if (v > 0.3 && v < 3 && dt > 0) out.push([dt, 100 / v]); }
+  return out;
+}
+function zones(paces, css, mine) {
+  const wrap = el('div', { className: 'swimzones' }, el('h3', { className: 'psub', textContent: 'Swim zones' }));
+  if (!(css > 0)) { wrap.append(el('div', { className: 'note', textContent: mine ? 'Set your swim threshold (CSS) in Settings → Swimming to see time in each swim zone.' : 'No swim threshold set.' })); return wrap; }
+  const tot = paces.reduce((p, x) => p + x[0], 0); if (!tot) return el('div');
+  const secs = SZ.map(([, , lo, hi]) => paces.filter(([, p]) => p - css >= lo && p - css < hi).reduce((s, x) => s + x[0], 0));
+  const bar = el('div', { className: 'szbar' });
+  secs.forEach((s, i) => { if (s > 0) bar.append(el('i', { style: `width:${s / tot * 100}%;background:var(${SZ_COL[i]})`, title: `${SZ[i][0]} ${SZ[i][1]}: ${fmtDur(s)}` })); });
+  const t = el('table', { className: 'laps sztbl' });
+  SZ.forEach(([z, name, lo, hi], i) => { const r = t.insertRow();
+    r.insertCell().append(el('span', { className: 'dot', style: `background:var(${SZ_COL[i]})` }), ` ${z} ${name}`);
+    r.insertCell().textContent = lo === -Infinity ? `faster than ${fmtPace(css + hi)}` : hi === Infinity ? `slower than ${fmtPace(css + lo)}` : `${fmtPace(css + lo)}–${fmtPace(css + hi)}`;
+    r.insertCell().textContent = fmtDur(secs[i]); r.insertCell().textContent = Math.round(secs[i] / tot * 100) + '%'; });
+  wrap.append(bar, t, el('div', { className: 'note', textContent: `Paces per 100 m against your swim threshold (CSS) of ${fmtPace(css)} on the day. Rests aren't counted.` }));
+  return wrap;
 }

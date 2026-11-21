@@ -7,9 +7,9 @@
 //   3. the value from before the first change (the entry with from = null), or else the current setting.
 // Preferences that aren't physiology (zone percentages, balance flags, bike weight, riding position) always use current values.
 
-export const PHYS = ['lthrRun', 'lthrBike', 'maxHr', 'restHr', 'ftp', 'mass'];
-export const PHYS_LABEL = { lthrRun: 'Run threshold HR', lthrBike: 'Bike threshold HR', maxHr: 'Max HR', restHr: 'Resting HR', ftp: 'FTP', mass: 'Weight' };
-export const PHYS_UNIT = { lthrRun: 'bpm', lthrBike: 'bpm', maxHr: 'bpm', restHr: 'bpm', ftp: 'W', mass: 'kg' };
+export const PHYS = ['lthrRun', 'lthrBike', 'maxHr', 'restHr', 'ftp', 'mass', 'css'];   // css: swim threshold pace, seconds per 100 m
+export const PHYS_LABEL = { lthrRun: 'Run threshold HR', lthrBike: 'Bike threshold HR', maxHr: 'Max HR', restHr: 'Resting HR', ftp: 'FTP', mass: 'Weight', css: 'Swim threshold (CSS)' };
+export const PHYS_UNIT = { lthrRun: 'bpm', lthrBike: 'bpm', maxHr: 'bpm', restHr: 'bpm', ftp: 'W', mass: 'kg', css: '/100 m' };
 const OK = { lthr: v => v >= 100 && v <= 220, maxHr: v => v >= 120 && v <= 230, ftp: v => v >= 50 && v <= 700, mass: v => v >= 30 && v <= 200 };
 
 // the local calendar day of an activity, or of a timestamp

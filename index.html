@@ -410,6 +410,7 @@ a.clublink{color:inherit;text-decoration:none}a.clublink:hover b{text-decoration
 .trophy .yr{font-size:10px;font-weight:700;color:var(--text-muted);margin-left:-2px}
 button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy::after{content:'';display:inline-block;width:.8em;height:.8em;margin-left:.45em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-.12em;animation:bspin .7s linear infinite}@keyframes bspin{to{transform:rotate(360deg)}}
 .wunit{font-style:normal}
+.swimzones{margin-top:16px}.szbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2);margin:6px 0 10px}.szbar i{display:block;height:100%}.sztbl td:nth-child(n+2){color:var(--text-secondary)}
 </style>
 </head>
 <body>
@@ -618,6 +619,15 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
       </div>
     </section>
     <section>
+      <h2>Swimming</h2>
+      <div class="frow">
+        <label class="f"><span>Swim threshold, CSS (per 100 m)</span><input type="text" id="s_css" placeholder="e.g. 1:45" inputmode="numeric" autocomplete="off"></label>
+        <label class="f"><span>400 m time trial</span><input type="text" id="s_tt400" placeholder="e.g. 7:20" inputmode="numeric" autocomplete="off"></label>
+        <label class="f"><span>200 m time trial</span><input type="text" id="s_tt200" placeholder="e.g. 3:25" inputmode="numeric" autocomplete="off"><small class="hmsg" id="s_cssCalc"></small></label>
+      </div>
+      <div class="note">CSS (critical swim speed) is the pace you could hold for about 30 minutes, your swimming threshold. Swim a hard 400 m, rest, then a hard 200 m, and enter both times: CSS = (400 m time − 200 m time) ÷ 2. It sets your swim zones and swim training load.</div>
+    </section>
+    <section>
       <h2>When changes apply</h2>
       <div class="note" style="margin-top:4px">Threshold heart rates, max and resting HR, FTP and weight are kept as a dated history. Every activity is worked out with the values in effect on its day, so changing them now doesn’t alter past activities.</div>
       <div class="rpick" style="margin-top:8px">
@@ -635,6 +645,6 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
   </div>
 </div>
 
-<script type="module" src="/js/main.js?v=1795223059"></script>
+<script type="module" src="/js/main.js?v=1795223358"></script>
 </body>
 </html>

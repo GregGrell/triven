@@ -4,13 +4,14 @@
 //  - Bike with a power meter and an FTP set: TSS = hours x IF^2 x 100, IF = normalised power / FTP.
 //  - Anything with heart rate: hours x IF^2 x 100 per second, IF = heart-rate reserve as a fraction of
 //    threshold (HR - rest) / (LTHR - rest), using run LTHR for running and transitions, bike LTHR for bike and swim.
+//  - Swim with a swim threshold (CSS) set: hours x IF^3 x 100, IF = swim speed / CSS speed (TrainingPeaks sTSS).
 //  - No heart rate or power: 50 per hour (an easy aerobic hour), marked as an estimate.
 // Fitness = 42-day exponentially weighted average of daily load, fatigue = 7-day, form = yesterday's fitness - fatigue.
 //
 // Uploads store a compact summary (seconds at each heart rate, normalised power and duration) and the load is worked
 // out from it with the thresholds in effect on the activity's day (see athlete.js), so changing them today leaves history alone.
 
-import { settingsAt } from './athlete.js?v=1795223059';
+import { settingsAt } from './athlete.js?v=1795223358';
 
 const SP = { run: 'run', running: 'run', bike: 'bike', cycling: 'bike', swim: 'swim', swimming: 'swim' };
 
@@ -58,7 +59,12 @@ export function loadOf(a, cfgNow) {
   }
   for (const sp of Object.keys(d.t)) {
     const total = d.t[sp] || 0; let load = 0, covered = 0;
-    if (sp === 'bike' && cfg.ftp && d.pw?.length) {
+    const sw = sp === 'swim' && cfg.css > 0 ? swimSecs(a) : null;
+    if (sw) {   // swim: pace against CSS, IF cubed (TrainingPeaks sTSS); heart rate in the water is unreliable
+      for (const x of sw) { const IF = Math.min(1.5, (x.d / x.s) / (100 / cfg.css)); load += x.s / 3600 * IF ** 3 * 100; }
+      covered = total;   // rests between sets add nothing
+      methods.add('pace');
+    } else if (sp === 'bike' && cfg.ftp && d.pw?.length) {
       for (const p of d.pw) { const IF = p.np / cfg.ftp; load += p.s / 3600 * IF * IF * 100; covered += p.s; }
       methods.add('power');
     } else if (d.hr?.[sp]) {
@@ -73,6 +79,13 @@ export function loadOf(a, cfgNow) {
   const value = Object.values(bySport).reduce((p, v) => p + v, 0);
   for (const k in bySport) bySport[k] = Math.round(bySport[k]);
   return { value: Math.round(value), bySport, method: methods.size === 1 ? [...methods][0] : methods.size ? 'mixed' : 'time' };
+}
+
+// swim legs with distance and time spent swimming (pool: rest excluded; open water: moving time)
+function swimSecs(a) {
+  const out = (a.activity_sections || []).filter(s => s.sport === 'swim' && +s.distance_m > 0).map(s => ({ d: +s.distance_m, s: +(s.summary?.swimTime || s.timer_s || s.elapsed_s) }))
+    .filter(x => x.s > 60 && x.d / x.s < 3);
+  return out.length ? out : null;
 }
 
 // daily series from the first activity to `until` (UTC ms of a day start). Days keyed by local date of the activity.
