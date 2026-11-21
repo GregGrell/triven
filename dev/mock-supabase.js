@@ -12,6 +12,7 @@ function q(table){
     select(c='*'){cols=c;if(mode==='select')mode='select';return api},
     eq(k,v){filters.push(r=>r[k]===v);return api},
     contains(k,v){const m=(a,b)=>Array.isArray(b)?b.every(x=>(a||[]).includes(x)):(b&&typeof b==='object')?Object.entries(b).every(([kk,vv])=>a&&m(a[kk],vv)):a===b;filters.push(r=>m(r[k],v));return api},
+    or(e){const cs=e.split(',').map(c=>{const [k,,v]=c.split('.');return r=>String(r[k])===v});filters.push(r=>cs.some(f=>f(r)));return api},
     in(k,v){filters.push(r=>v.includes(r[k]));return api},
     order(k,o={}){if(!ord)ord=[k,o.ascending!==false];return api},
     range(a,b){rng=[a,b];return api},
@@ -58,6 +59,6 @@ export function createClient(){
       return{data:null,error:null}},
     auth:{getSession:async()=>({data:{session}}),onAuthStateChange(f){cb=f;setTimeout(()=>f('INITIAL_SESSION',session),0);return{data:{subscription:{unsubscribe(){}}}}},signOut:async()=>{cb&&cb('SIGNED_OUT',null)},signInWithPassword:async()=>({data:{}}),signUp:async(o)=>{window.__signup=o;return{data:{user:{identities:[{}]},session:null},error:null}},resend:async o=>{window.__resent=o;return{error:null}},resetPasswordForEmail:async(e,o)=>{window.__reset=[e,o];return{error:null}},updateUser:async o=>{window.__pw=o;return{data:{},error:null}}},
     functions:{invoke:async(name,o)=>{window.__invoked=(window.__invoked||[]).concat([[name,o&&o.body]]);return{data:{ok:true},error:null}}},
-    storage:{from:b=>({upload:async(p,blob)=>{files[b+'/'+p+'#blob']=blob;files[b+'/'+p]=await blob.text?.()??blob;return{error:null}},download:async p=>{const v=files[b+'/'+p+'#blob']||(files[b+'/'+p]!=null?new Blob([files[b+'/'+p]]):null);return v==null?{error:{message:'nf'}}:{data:v,error:null}},remove:async(ps)=>{ps.forEach(p=>delete files[b+'/'+p]);return{error:null}},getPublicUrl:p=>({data:{publicUrl:files[b+'/'+p+'#blob']?URL.createObjectURL(files[b+'/'+p+'#blob']):'about:blank'}}),createSignedUrls:async(ps)=>({data:ps.map(p=>({signedUrl:files[b+'/'+p]?URL.createObjectURL(files[b+'/'+p+'#blob']||new Blob([files[b+'/'+p]])):null}))})})},
+    storage:{from:b=>({upload:async(p,blob)=>{files[b+'/'+p+'#blob']=blob;files[b+'/'+p]=await blob.text?.()??blob;return{error:null}},download:async p=>{const v=files[b+'/'+p+'#blob']||(files[b+'/'+p]!=null?new Blob([files[b+'/'+p]]):null);return v==null?{error:{message:'nf'}}:{data:v,error:null}},list:async(pre,o={})=>{const seen=new Map();for(const k of Object.keys(files)){if(k.endsWith('#blob')||!k.startsWith(b+'/'+pre+'/'))continue;const rest=k.slice(b.length+pre.length+2),i=rest.indexOf('/');seen.set(i<0?rest:rest.slice(0,i),i<0?'f':null)}const all=[...seen].sort().map(([name,id])=>({name,id}));const off=o.offset||0;return{data:all.slice(off,off+(o.limit||100)),error:null}},remove:async(ps)=>{ps.forEach(p=>delete files[b+'/'+p]);return{error:null}},getPublicUrl:p=>({data:{publicUrl:files[b+'/'+p+'#blob']?URL.createObjectURL(files[b+'/'+p+'#blob']):'about:blank'}}),createSignedUrls:async(ps)=>({data:ps.map(p=>({signedUrl:files[b+'/'+p]?URL.createObjectURL(files[b+'/'+p+'#blob']||new Blob([files[b+'/'+p]])):null}))})})},
   };
 }
