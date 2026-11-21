@@ -1,14 +1,14 @@
 // Feeds: Me (your activities), Club (you and club mates), Everyone (public activities from all Triven athletes).
-import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795229649';
-import { mountWeek } from './week.js?v=1795229649';
-import { envLabel } from './process.js?v=1795229649';
-import { rememberLink } from './urls.js?v=1795229649';
-import { tempTxt } from './weather.js?v=1795229649';
-import * as U from './units.js?v=1795229649';
-import { drawRouteMap } from './mapcanvas.js?v=1795229649';
-import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795229649';
-import { openTrim } from './trim.js?v=1795229649';
-import { relayCard, relayInvites } from './relay.js?v=1795229649';
+import { sb, state, toast, fetchActivity, VIS, raceFlag, avatarEl } from './main.js?v=1795267001';
+import { mountWeek } from './week.js?v=1795267001';
+import { envLabel } from './process.js?v=1795267001';
+import { rememberLink } from './urls.js?v=1795267001';
+import { tempTxt } from './weather.js?v=1795267001';
+import * as U from './units.js?v=1795267001';
+import { drawRouteMap } from './mapcanvas.js?v=1795267001';
+import { openEditor, mediaUrls, lightbox } from './edit.js?v=1795267001';
+import { openTrim } from './trim.js?v=1795267001';
+import { relayCard, relayInvites } from './relay.js?v=1795267001';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
