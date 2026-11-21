@@ -427,8 +427,8 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
 .bellbadge[hidden]{display:none}.bellpanel{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:min(380px,92vw);max-height:70vh;overflow:auto;background:var(--surface-1);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:4px}
 .bellpanel[hidden]{display:none}.bellhead{padding:8px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}.bellitem{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;text-decoration:none;color:var(--text-primary);font-size:13px}
 .bellitem:hover{background:var(--surface-2)}.bellitem.new{background:color-mix(in srgb,var(--accent) 10%,transparent)}.belltext{min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.bellitem small{font-size:11px;white-space:nowrap}
-.btn.danger{background:var(--warn,#e0533d);color:#fff;border-color:transparent}.btn.danger:disabled{opacity:.45;cursor:not-allowed}
-.delsure{margin-top:10px;padding:12px 14px;border:1.5px solid var(--warn,#e0533d);border-radius:10px;background:color-mix(in srgb,var(--warn,#e0533d) 8%,transparent)}.delsure[hidden]{display:none}.delsure p{margin:6px 0 10px;font-size:13px}
+.btn.danger{background:#d64545;color:#fff;border-color:transparent}.btn.danger:disabled{opacity:.45;cursor:not-allowed}
+.delsure{margin-top:10px;padding:12px 14px;border:1.5px solid #d64545;border-radius:10px;background:color-mix(in srgb,#d64545 8%,transparent)}.delsure[hidden]{display:none}.delsure p{margin:6px 0 10px;font-size:13px}
 </style>
 </head>
 <body>
@@ -668,7 +668,7 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
       <div class="note" style="margin-top:4px">Download everything Triven holds about you: your profile and settings, every activity (as a spreadsheet and in full), gear, bests, comments, follows and clubs.</div>
       <label class="ropt" style="margin-top:8px"><input type="checkbox" id="dataFiles"> <span>Include original activity files and photos <span class="muted">(much bigger and slower)</span></span></label>
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn" id="dataExport" type="button">Download my data</button><small class="muted" id="dataMsg"></small></div>
-      <h3 style="margin:18px 0 4px;color:var(--warn,#e0533d)">Delete account</h3>
+      <h3 style="margin:18px 0 4px;color:#d64545">Delete account</h3>
       <div class="note">Deletes your account and everything in it straight away: activities, files, photos, gear, comments, kudos, follows. Clubs you run pass to the next admin or member. This can't be undone, so download your data first if you want a copy.</div>
       <label class="f" style="margin-top:8px"><span>Type <b>delete</b> to confirm</span><input type="text" id="delConfirm" autocomplete="off" placeholder="delete"></label>
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn danger" id="delAccount" type="button" disabled>Delete my account</button><small class="muted" id="delMsg"></small></div>
@@ -681,6 +681,6 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
   </div>
 </div>
 
-<script type="module" src="/js/main.js?v=1795229255"></script>
+<script type="module" src="/js/main.js?v=1795229649"></script>
 </body>
 </html>
