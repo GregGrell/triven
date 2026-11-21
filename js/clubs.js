@@ -1,7 +1,8 @@
 // Clubs: list and search, create, club pages (posts from admins, members, the club's activities), invite links, admin settings.
-import { sb, state, toast, avatarEl, avatarUrl } from './main.js?v=1795224014';
-import { openModal } from './edit.js?v=1795224014';
-import { feedList } from './feed.js?v=1795224014';
+import { sb, state, toast, avatarEl, avatarUrl } from './main.js?v=1795224152';
+import { openModal } from './edit.js?v=1795224152';
+import { feedList } from './feed.js?v=1795224152';
+import * as U from './units.js?v=1795224152';
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); kids.forEach(k => k != null && e.append(k)); return e; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -93,6 +94,7 @@ export async function mountClubPage(id) {
   const main = el('div', { className: 'clubmain' }), side = el('aside', { className: 'clubside' });
   v.append(el('div', { className: 'clubgrid2' }, main, side));
   main.append(postsCard(k, admin));
+  if (member) main.append(leaderCard(k));
   const list = el('div', { className: 'feed' });
   main.append(el('h2', { style: 'margin:18px 0 8px', textContent: 'Club activities' }), list);
   feedList(list, { scope: 'club', club: k.id, refresh: () => mountClubPage(id) }, ['No activities yet', 'Activities members share with their club or with everyone appear here.', null, null]);
@@ -233,4 +235,30 @@ async function squareJpeg(file, px = 400) {
   const cv = document.createElement('canvas'); cv.width = cv.height = px;
   cv.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, px, px);
   return await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.88));
+}
+
+// ---------- leaderboard: members' totals this week, month or year (only what you can see; multisport legs by sport) ----------
+let LB = { period: 'month', sport: 'all', metric: 'dist' };
+function leaderCard(k) {
+  const card = el('div', { className: 'card', style: 'margin-top:16px' }), body = el('div');
+  const chips = (opts, key) => { const row = el('div', { className: 'segrow' }); opts.forEach(([v, t]) => { const b = el('button', { className: 'chip', type: 'button', textContent: t }); b.setAttribute('aria-pressed', LB[key] === v); b.onclick = () => { LB[key] = v; card.replaceWith(leaderCard(k)); }; row.append(b); }); return row; };
+  card.append(el('h2', { textContent: 'Leaderboard' }),
+    el('div', { className: 'lbctl' }, chips([['week', 'This week'], ['month', 'This month'], ['year', 'This year']], 'period'), chips([['all', 'All'], ['run', 'Run'], ['bike', 'Ride'], ['swim', 'Swim']], 'sport'),
+      chips([['dist', 'Distance'], ['secs', 'Time'], ['elev', 'Elevation']], 'metric')), body);
+  const n = new Date(), d0 = LB.period === 'week' ? new Date(n.getFullYear(), n.getMonth(), n.getDate() - ((n.getDay() + 6) % 7)) : LB.period === 'month' ? new Date(n.getFullYear(), n.getMonth(), 1) : new Date(n.getFullYear(), 0, 1);
+  const d1 = LB.period === 'week' ? new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 7) : LB.period === 'month' ? new Date(d0.getFullYear(), d0.getMonth() + 1, 1) : new Date(d0.getFullYear() + 1, 0, 1);
+  body.append(el('div', { className: 'note', textContent: 'Loading…' }));
+  sb.rpc('club_leaderboard', { p_club: k.id, p_from: d0.toISOString(), p_to: d1.toISOString(), p_sport: LB.sport }).then(({ data, error }) => {
+    body.replaceChildren();
+    if (error) { body.append(el('div', { className: 'note', textContent: error.message })); return; }
+    const key = LB.metric, rows = (data || []).filter(r => r.n > 0 && +r[key] > 0).sort((a, b) => b[key] - a[key]);
+    if (!rows.length) { body.append(el('div', { className: 'note', textContent: 'Nothing shared yet for this period.' })); return; }
+    const top = +rows[0][key], fmt = v => key === 'dist' ? U.dist(v, 1) : key === 'elev' ? U.elev(v) : (h => `${Math.floor(h)}h ${String(Math.round(h % 1 * 60)).padStart(2, '0')}m`)(v / 3600);
+    const list = el('div', { className: 'lblist' });
+    rows.forEach((r, i) => list.append(el(r.handle ? 'a' : 'div', { className: 'lbrow' + (r.user_id === state.user.id ? ' me' : ''), href: r.handle ? '#u/' + r.handle : undefined },
+      el('span', { className: 'lbrank', textContent: i + 1 }), avatarEl(r.name, r.avatar, 28), el('span', { className: 'lbname', textContent: r.user_id === state.user.id ? 'You' : r.name }),
+      el('span', { className: 'lbbar' }, el('i', { style: `width:${Math.max(2, r[key] / top * 100)}%` })), el('b', { textContent: fmt(+r[key]) }), el('small', { className: 'muted', textContent: `${r.n} ${r.n === 1 ? 'activity' : 'activities'}` }))));
+    body.append(list, el('div', { className: 'note', textContent: 'Counts activities shared with the club (never private ones). Multisport races count each leg towards its sport.' }));
+  });
+  return card;
 }

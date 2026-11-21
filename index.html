@@ -418,6 +418,9 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
 .raceforecast{margin:8px 0 0 40px;font-size:13px;display:grid;gap:3px}.raceforecast .good{color:var(--accent);font-weight:600}.nextrace{display:block;text-decoration:none;color:inherit}.nextrace:hover{border-color:var(--accent)}
 .actweather{margin-top:10px;font-size:13px;color:var(--text-secondary)}.actweather b{color:var(--text-primary)}.actweather .heatcost{color:var(--warn-ink)}.wxicon{margin-right:4px}.wxsrc{font-size:11px}
 .rhtbl tr.cur td{background:var(--surface-2)}.rhtbl .faster{color:var(--accent);font-weight:600}.rhtbl .slower{color:var(--warn-ink)}.rhtbl small{font-size:11px}.rhbest{font-size:11px;color:var(--accent);font-weight:600}
+.lbctl{display:flex;flex-wrap:wrap;gap:8px 16px;margin:8px 0 12px}.lblist{display:grid;gap:6px}.lbrow{display:grid;grid-template-columns:22px 28px minmax(0,1fr) minmax(60px,2fr) auto auto;gap:10px;align-items:center;text-decoration:none;color:inherit;padding:4px 6px;border-radius:8px}
+.lbrow:hover{background:var(--surface-2)}.lbrow.me{background:var(--surface-2)}.lbrank{color:var(--text-muted);font-weight:700;text-align:center}.lbname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lbbar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}.lbbar i{display:block;height:100%;background:var(--accent);border-radius:4px}.lbrow small{font-size:11px}
+@media (max-width:600px){.lbrow{grid-template-columns:22px 28px minmax(0,1fr) auto}.lbrow .lbbar,.lbrow small{display:none}}
 </style>
 </head>
 <body>
@@ -655,6 +658,6 @@ button.busy{opacity:.6;cursor:progress!important;pointer-events:none}button.busy
   </div>
 </div>
 
-<script type="module" src="/js/main.js?v=1795224014"></script>
+<script type="module" src="/js/main.js?v=1795224152"></script>
 </body>
 </html>
