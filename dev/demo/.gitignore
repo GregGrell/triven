@@ -1,0 +1,6 @@
+snapshot*.json
+tiles_gen/
+fonts/
+logo_dark.png
+missing_tiles.txt
+__pycache__/
